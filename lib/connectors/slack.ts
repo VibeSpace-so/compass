@@ -1,21 +1,14 @@
 import {
-  IntegrationConnector,
   IntegrationContext,
   IntegrationTestResult,
   getIntegrationToken,
   hasIntegrationToken,
 } from "@/lib/integration-service";
+import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
 
-const SLACK_API = "https://slack.com/api";
+const PROXY_URL = "/api/integrations/slack";
 
-/**
- * Slack connector.
- *
- * NOTE: Slack's Web API supports CORS for most methods when called with
- * a valid token, but some endpoints may require a server-side proxy in
- * production depending on the workspace security settings.
- */
-export class SlackConnector implements IntegrationConnector {
+export class SlackConnector implements ToolCapableConnector {
   readonly id = "slack";
   readonly name = "Slack";
 
@@ -30,34 +23,11 @@ export class SlackConnector implements IntegrationConnector {
     }
 
     try {
-      const res = await fetch(`${SLACK_API}/auth.test`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
-
-      if (!res.ok) {
-        return {
-          success: false,
-          message: `Slack API error: ${res.statusText}`,
-        };
+      const res = await this.proxyCall(token, "list_channels", {});
+      if (!res.success) {
+        return { success: false, message: res.error ?? "Failed to connect to Slack." };
       }
-
-      const data = (await res.json()) as SlackResponse & {
-        user?: string;
-        team?: string;
-      };
-
-      if (!data.ok) {
-        return { success: false, message: `Slack error: ${data.error ?? "unknown"}` };
-      }
-
-      return {
-        success: true,
-        message: `Connected as ${data.user ?? "unknown"} in ${data.team ?? "unknown"}.`,
-      };
+      return { success: true, message: "Connected to Slack successfully." };
     } catch (err) {
       return {
         success: false,
@@ -71,40 +41,116 @@ export class SlackConnector implements IntegrationConnector {
     if (!token || !query) return [];
 
     try {
-      const params = new URLSearchParams({
-        query,
-        count: "20",
-        sort: "timestamp",
-        sort_dir: "desc",
-      });
+      const res = await this.proxyCall(token, "search_messages", { query });
+      if (!res.success) return [];
 
-      const res = await fetch(`${SLACK_API}/search.messages?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) return [];
-
-      const data = (await res.json()) as SlackResponse & {
-        messages?: { matches?: SlackMessage[] };
-      };
-
-      if (!data.ok) return [];
-
-      return (data.messages?.matches ?? []).map((msg) =>
-        this.messageToContext(msg)
-      );
+      const data = res.data as { matches?: SlackMessage[] };
+      return (data?.matches ?? []).map((msg) => this.messageToContext(msg));
     } catch {
       return [];
     }
+  }
+
+  getTools(): ChatTool[] {
+    return [
+      {
+        name: "slack_list_channels",
+        description: "List available Slack channels",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "slack_read_messages",
+        description: "Read recent messages from a Slack channel",
+        parameters: {
+          type: "object",
+          properties: {
+            channel_id: { type: "string", description: "The Slack channel ID" },
+            limit: { type: "number", description: "Number of messages to fetch (default 20)" },
+          },
+          required: ["channel_id"],
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "slack_send_message",
+        description: "Send a message to a Slack channel",
+        parameters: {
+          type: "object",
+          properties: {
+            channel_id: { type: "string", description: "The Slack channel ID" },
+            text: { type: "string", description: "Message text to send" },
+          },
+          required: ["channel_id", "text"],
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "slack_search",
+        description: "Search Slack messages",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query" },
+          },
+          required: ["query"],
+        },
+        integrationId: this.id,
+      },
+    ];
+  }
+
+  async executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolCallResult> {
+    const token = getIntegrationToken(this.id);
+    if (!token) {
+      return { success: false, error: "No Slack token configured." };
+    }
+
+    const actionMap: Record<string, string> = {
+      slack_list_channels: "list_channels",
+      slack_read_messages: "read_messages",
+      slack_send_message: "send_message",
+      slack_search: "search_messages",
+    };
+
+    const action = actionMap[toolName];
+    if (!action) {
+      return { success: false, error: `Unknown tool: ${toolName}` };
+    }
+
+    return this.proxyCall(token, action, params);
+  }
+
+  private async proxyCall(
+    token: string,
+    action: string,
+    params: Record<string, unknown>
+  ): Promise<ToolCallResult> {
+    const res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, params }),
+    });
+
+    const json = (await res.json()) as { success: boolean; data?: unknown; error?: string };
+    return {
+      success: json.success,
+      data: json.data,
+      error: json.error,
+    };
   }
 
   private messageToContext(msg: SlackMessage): IntegrationContext {
     return {
       id: msg.iid ?? msg.ts,
       integrationId: this.id,
-      title: msg.channel?.name
-        ? `#${msg.channel.name}`
-        : "Slack message",
+      title: msg.channel?.name ? `#${msg.channel.name}` : "Slack message",
       content: msg.text,
       url: msg.permalink,
       updatedAt: msg.ts
@@ -112,11 +158,6 @@ export class SlackConnector implements IntegrationConnector {
         : undefined,
     };
   }
-}
-
-interface SlackResponse {
-  ok: boolean;
-  error?: string;
 }
 
 interface SlackMessage {
