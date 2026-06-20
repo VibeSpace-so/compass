@@ -1,14 +1,15 @@
 "use client";
 
-import { Compass } from "lucide-react";
+import { Compass, ArrowDown } from "lucide-react";
 
 interface HeroProps {
   onStart: () => void;
+  hasProjects: boolean;
 }
 
-export default function Hero({ onStart }: HeroProps) {
+export default function Hero({ onStart, hasProjects }: HeroProps) {
   return (
-    <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
+    <section className="relative pt-16 pb-12 md:pt-24 md:pb-16 overflow-hidden">
       <div
         className="absolute inset-0 pointer-events-none select-none"
         style={{
@@ -17,37 +18,31 @@ export default function Hero({ onStart }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 max-w-3xl mx-auto px-4 flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-2 border border-[var(--accent-44)] rounded-full px-3 py-1 mb-8">
-          <Compass className="w-4 h-4 text-[var(--accent)]" />
-          <span className="text-xs text-[var(--accent-88)] uppercase tracking-wider">
-            by Vibe Space
+      <div className="relative z-10 max-w-2xl mx-auto px-4 flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 border border-[var(--accent-26)] rounded-full px-3 py-1 mb-6">
+          <Compass className="w-3.5 h-3.5 text-[var(--accent)]" />
+          <span className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider">
+            Compass by Vibe Space
           </span>
         </div>
 
-        <h1 className="text-3xl md:text-5xl lg:text-6xl font-light tracking-tight mb-6 leading-[1.1]">
-          Navigate your{" "}
-          <span className="text-[var(--accent)]">vibe coding</span>
-          <br />
-          journey with clarity.
+        <h1 className="text-2xl md:text-4xl lg:text-5xl font-light tracking-tight mb-4 leading-[1.15]">
+          From idea to launch,{" "}
+          <span className="text-[var(--accent)]">one step at a time.</span>
         </h1>
 
-        <p className="text-sm md:text-base text-[var(--accent-cc)] max-w-lg leading-relaxed mb-10">
-          Compass guides you from idea to launch with opinionated paths,
-          curated tools, and debt visibility — so you always know where you
-          are and what to do next.
+        <p className="text-sm text-[var(--accent-88)] max-w-md leading-relaxed mb-8">
+          Compass helps you navigate the vibe coding journey — see where you are,
+          what to do next, and what tradeoffs you&apos;re making along the way.
         </p>
 
         <button
           onClick={onStart}
-          className="inline-block px-8 py-4 rounded text-sm md:text-base bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity cursor-pointer"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity cursor-pointer"
         >
-          Start your path
+          {hasProjects ? "Go to projects" : "Create your first project"}
+          <ArrowDown className="w-3.5 h-3.5" />
         </button>
-
-        <p className="text-xs text-[var(--accent-66)] mt-4">
-          No account needed. Everything stays in your browser.
-        </p>
       </div>
     </section>
   );

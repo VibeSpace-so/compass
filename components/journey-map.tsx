@@ -31,6 +31,58 @@ export default function JourneyMap({
   onStageClick,
   compact,
 }: JourneyMapProps) {
+  if (!compact && !activeStage) {
+    return (
+      <section className="py-10 md:py-14">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <h2 className="text-base md:text-lg font-medium text-[var(--accent)] mb-1.5">
+              The Journey
+            </h2>
+            <p className="text-xs text-[var(--accent-66)]">
+              8 stages from idea to product.
+            </p>
+          </div>
+
+          {/* Horizontal compact overview */}
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+            {STAGES.map((stage, idx) => (
+              <button
+                key={stage.id}
+                onClick={() => onStageClick?.(stage.id)}
+                disabled={!onStageClick}
+                className="group flex flex-col items-center gap-2 p-3 rounded border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all text-center"
+              >
+                <div className="w-8 h-8 rounded flex items-center justify-center bg-[var(--accent-10)] text-[var(--accent-66)] group-hover:text-[var(--accent)] transition-colors">
+                  <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[10px] text-[var(--accent-88)] leading-tight">
+                  {stage.label}
+                </span>
+                <div className="flex gap-0.5">
+                  {(["low", "medium", "high"] as const).map((l, i) => (
+                    <div
+                      key={l}
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        i < (stage.complexity === "low" ? 1 : stage.complexity === "medium" ? 2 : 3)
+                          ? stage.complexity === "high"
+                            ? "bg-red-400"
+                            : stage.complexity === "medium"
+                              ? "bg-yellow-500"
+                              : "bg-[var(--accent)]"
+                          : "bg-[var(--accent-26)]"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={compact ? "py-6" : "py-12 md:py-16"}>
       <div className="max-w-4xl mx-auto px-4">

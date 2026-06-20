@@ -3,10 +3,11 @@ export type DebtLevel = "low" | "medium" | "high";
 export type StageId =
   | "ideation"
   | "context"
-  | "build"
+  | "landing-page"
   | "github"
   | "hosting"
   | "domain"
+  | "build-prototype"
   | "next-features";
 
 export interface StageMetadata {
