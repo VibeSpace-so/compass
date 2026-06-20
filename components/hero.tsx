@@ -9,7 +9,6 @@ interface HeroProps {
 export default function Hero({ onStart }: HeroProps) {
   return (
     <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
-      {/* Radial glow background */}
       <div
         className="absolute inset-0 pointer-events-none select-none"
         style={{
@@ -43,11 +42,11 @@ export default function Hero({ onStart }: HeroProps) {
           onClick={onStart}
           className="inline-block px-8 py-4 rounded text-sm md:text-base bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <span className="terminal-prompt">start_your_path →</span>
+          Start your path
         </button>
 
         <p className="text-xs text-[var(--accent-66)] mt-4">
-          // no account needed — everything stays in your browser
+          No account needed. Everything stays in your browser.
         </p>
       </div>
     </section>

@@ -3,6 +3,7 @@
 import { Project } from "@/lib/types";
 import { getStage } from "@/lib/stages";
 import { FolderOpen, Plus, Trash2 } from "lucide-react";
+import StageIcon from "./stage-icon";
 
 interface ProjectListProps {
   projects: Project[];
@@ -73,8 +74,12 @@ export default function ProjectList({
               `}
               onClick={() => onSelect(project.id)}
             >
-              <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--accent-10)] flex items-center justify-center text-sm">
-                {stage?.icon || "📁"}
+              <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--accent-10)] flex items-center justify-center">
+                {stage ? (
+                  <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5 text-[var(--accent-66)]" />
+                ) : (
+                  <FolderOpen className="w-3.5 h-3.5 text-[var(--accent-44)]" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">

@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Terminal } from "lucide-react";
-import { AppState, Project } from "@/lib/types";
+import { AppState, Project, ChatMessage } from "@/lib/types";
 import {
   loadState,
-  saveState,
   createProject,
   updateProject,
   deleteProject,
   selectProject,
   toggleProvider,
+  hasAnyKeyConfigured,
+  toggleIntegration,
+  addChatMessage,
 } from "@/lib/storage";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
@@ -19,6 +21,8 @@ import ProjectList from "@/components/project-list";
 import ProjectDetail from "@/components/project-detail";
 import CreateProjectModal from "@/components/create-project-modal";
 import BYOKSettings from "@/components/byok-settings";
+import ChatPanel from "@/components/chat-panel";
+import IntegrationsPanel from "@/components/integrations-panel";
 
 type View = "home" | "project";
 
@@ -116,7 +120,22 @@ export default function CompassPage() {
     }
   }, [state]);
 
-  // Loading state
+  const handleToggleIntegration = useCallback(
+    (id: string) => {
+      if (!state) return;
+      setState(toggleIntegration(state, id));
+    },
+    [state]
+  );
+
+  const handleSendMessage = useCallback(
+    (message: ChatMessage) => {
+      if (!state || !state.selectedProjectId) return;
+      setState(addChatMessage(state, state.selectedProjectId, message));
+    },
+    [state]
+  );
+
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -130,6 +149,8 @@ export default function CompassPage() {
   const selectedProject = state.projects.find(
     (p) => p.id === state.selectedProjectId
   );
+
+  const chatEnabled = hasAnyKeyConfigured(state);
 
   return (
     <>
@@ -145,17 +166,32 @@ export default function CompassPage() {
             project={selectedProject}
             onUpdate={handleUpdateProject}
             onBack={handleGoHome}
+            chatPanel={
+              <ChatPanel
+                project={selectedProject}
+                messages={
+                  state.chatHistory[selectedProject.id] || []
+                }
+                onSendMessage={handleSendMessage}
+                isEnabled={chatEnabled}
+                onSetupKeys={() => setShowBYOK(true)}
+              />
+            }
+            integrationsPanel={
+              <IntegrationsPanel
+                integrations={state.integrations}
+                onToggle={handleToggleIntegration}
+              />
+            }
           />
         ) : (
           <>
             <Hero onStart={handleStart} />
 
-            {/* Journey map glance */}
             <div className="border-t border-[var(--accent-26)]">
               <JourneyMap />
             </div>
 
-            {/* Projects section */}
             <div
               id="projects-section"
               className="border-t border-[var(--accent-26)]"
@@ -172,7 +208,6 @@ export default function CompassPage() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-[var(--accent-26)] bg-[#0a0a0a] py-8">
         <div className="max-w-3xl mx-auto w-full px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -211,14 +246,13 @@ export default function CompassPage() {
           </div>
           <div className="border-t border-[var(--accent-26)] mt-6 pt-4 text-center">
             <span className="text-[10px] text-[var(--accent-66)]">
-              © {new Date().getFullYear()} Vibe Space. All data stays in your
+              &copy; {new Date().getFullYear()} Vibe Space. All data stays in your
               browser.
             </span>
           </div>
         </div>
       </footer>
 
-      {/* Modals */}
       <CreateProjectModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -233,7 +267,6 @@ export default function CompassPage() {
         onProvidersChange={handleReloadProviders}
       />
 
-      {/* Delete confirmation toast */}
       {confirmDelete && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg">
           Click delete again to confirm

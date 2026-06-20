@@ -13,7 +13,7 @@ export interface StageMetadata {
   id: StageId;
   label: string;
   description: string;
-  icon: string;
+  lucideIcon: string;
   risk: DebtLevel;
   complexity: DebtLevel;
   nextAction: string;
@@ -46,8 +46,28 @@ export interface BYOKSettings {
   providers: BYOKProvider[];
 }
 
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+}
+
+export type IntegrationCategory = "context" | "communication" | "design" | "build";
+
+export interface Integration {
+  id: string;
+  name: string;
+  category: IntegrationCategory;
+  description: string;
+  connected: boolean;
+  url?: string;
+}
+
 export interface AppState {
   projects: Project[];
   selectedProjectId: string | null;
   byokSettings: BYOKSettings;
+  integrations: Integration[];
+  chatHistory: Record<string, ChatMessage[]>;
 }
