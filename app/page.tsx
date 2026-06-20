@@ -130,10 +130,12 @@ export default function CompassPage() {
 
   const handleSendMessage = useCallback(
     (message: ChatMessage) => {
-      if (!state || !state.selectedProjectId) return;
-      setState(addChatMessage(state, state.selectedProjectId, message));
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return addChatMessage(prev, prev.selectedProjectId, message);
+      });
     },
-    [state]
+    []
   );
 
   if (!state) {
@@ -176,6 +178,11 @@ export default function CompassPage() {
                 isEnabled={chatEnabled}
                 onSetupKeys={() => setShowBYOK(true)}
                 integrations={state.integrations}
+                enabledProviderIds={
+                  state.byokSettings.providers
+                    .filter((p) => p.enabled && p.keySet)
+                    .map((p) => p.id)
+                }
               />
             }
             integrations={state.integrations}

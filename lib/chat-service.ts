@@ -1,4 +1,4 @@
-import { ChatMessage, Integration, Project, StageId } from "./types";
+import { ChatMessage, Integration, Project } from "./types";
 import { getStage } from "./stages";
 import { getSuggestionsForStage } from "./integrations";
 import { getBYOKKey } from "./storage";
@@ -32,8 +32,11 @@ const PROVIDERS: LLMProvider[] = [
   },
 ];
 
-function getActiveProvider(): { provider: LLMProvider; apiKey: string } | null {
+function getActiveProvider(enabledProviderIds?: string[]): { provider: LLMProvider; apiKey: string } | null {
   for (const provider of PROVIDERS) {
+    if (enabledProviderIds && !enabledProviderIds.includes(provider.id)) {
+      continue;
+    }
     const key = getBYOKKey(provider.id);
     if (key) {
       return { provider, apiKey: key };
@@ -182,12 +185,17 @@ async function callGoogle(
   systemPrompt: string,
   messages: { role: string; content: string }[]
 ): Promise<string> {
-  const contents = messages
+  let contents = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
+
+  // Gemini requires the first content to have role "user"
+  while (contents.length > 0 && contents[0].role === "model") {
+    contents = contents.slice(1);
+  }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
@@ -214,9 +222,10 @@ export async function generateChatResponse(
   userMessage: string,
   project: Project,
   integrations: Integration[],
-  history: ChatMessage[]
+  history: ChatMessage[],
+  enabledProviderIds?: string[]
 ): Promise<string> {
-  const active = getActiveProvider();
+  const active = getActiveProvider(enabledProviderIds);
   if (!active) {
     return "No API key configured. Please add an API key in Settings to enable AI-powered chat.";
   }

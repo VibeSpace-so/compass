@@ -15,6 +15,7 @@ interface ChatPanelProps {
   isEnabled: boolean;
   onSetupKeys: () => void;
   integrations: Integration[];
+  enabledProviderIds?: string[];
 }
 
 function getSystemGreeting(project: Project, integrations: Integration[]): string {
@@ -52,6 +53,7 @@ export default function ChatPanel({
   isEnabled,
   onSetupKeys,
   integrations,
+  enabledProviderIds,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -81,7 +83,8 @@ export default function ChatPanel({
         userMessage.content,
         project,
         integrations,
-        messages
+        messages,
+        enabledProviderIds
       );
       const assistantMessage: ChatMessage = {
         id: generateId(),
