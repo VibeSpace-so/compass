@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Terminal } from "lucide-react";
 import { AppState, Project } from "@/lib/types";
 import {
@@ -28,6 +28,7 @@ export default function CompassPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBYOK, setShowBYOK] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setState(loadState());
@@ -55,6 +56,10 @@ export default function CompassPage() {
   const handleDeleteProject = useCallback(
     (id: string) => {
       if (!state) return;
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = null;
+      }
       if (confirmDelete === id) {
         const newState = deleteProject(state, id);
         setState(newState);
@@ -64,7 +69,10 @@ export default function CompassPage() {
         }
       } else {
         setConfirmDelete(id);
-        setTimeout(() => setConfirmDelete(null), 3000);
+        deleteTimeoutRef.current = setTimeout(
+          () => setConfirmDelete(null),
+          3000
+        );
       }
     },
     [state, confirmDelete]

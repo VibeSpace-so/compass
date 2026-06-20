@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 interface CreateProjectModalProps {
@@ -16,6 +16,13 @@ export default function CreateProjectModal({
 }: CreateProjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setDescription("");
+    }
+  }, [open]);
 
   if (!open) return null;
 
