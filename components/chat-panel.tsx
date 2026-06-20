@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { SendHorizontal, KeyRound, Lock } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  SendHorizontal,
+  KeyRound,
+  Lock,
+  Wrench,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { ChatMessage, Integration, Project } from "@/lib/types";
 import { getStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 import { getSuggestionsForStage } from "@/lib/integrations";
-import { generateChatResponse } from "@/lib/chat-service";
+import { generateChatResponse, ToolCallInfo } from "@/lib/chat-service";
 
 interface ChatPanelProps {
   project: Project;
@@ -18,7 +28,95 @@ interface ChatPanelProps {
   enabledProviderIds?: string[];
 }
 
-function getSystemGreeting(project: Project, integrations: Integration[]): string {
+interface ToolCallDisplay {
+  toolName: string;
+  integrationId: string;
+  status: "executing" | "success" | "error";
+  result?: string;
+}
+
+const INTEGRATION_LABELS: Record<string, string> = {
+  notion: "Notion",
+  gdocs: "Google Docs",
+  figma: "Figma",
+  slack: "Slack",
+  discord: "Discord",
+  vercel: "Vercel",
+  lovable: "Lovable",
+  cursor: "Cursor",
+  "claude-code": "Claude Code",
+  codex: "Codex",
+  devin: "Devin",
+  base44: "Base44",
+};
+
+function getToolActionLabel(toolName: string, integrationId: string): string {
+  const label = INTEGRATION_LABELS[integrationId] ?? integrationId;
+  if (toolName.includes("search")) return `Searching ${label}...`;
+  if (toolName.includes("create")) return `Creating in ${label}...`;
+  if (toolName.includes("send")) return `Sending via ${label}...`;
+  if (toolName.includes("deploy")) return `Deploying to ${label}...`;
+  if (toolName.includes("fetch") || toolName.includes("list"))
+    return `Fetching from ${label}...`;
+  return `Using ${label}...`;
+}
+
+function ToolCallCard({ call }: { call: ToolCallDisplay }) {
+  const [expanded, setExpanded] = useState(false);
+  const label = INTEGRATION_LABELS[call.integrationId] ?? call.integrationId;
+
+  return (
+    <div className="my-1.5 border border-[var(--accent-26)] rounded bg-[var(--accent-05,rgba(0,255,0,0.03))]">
+      <button
+        onClick={() => call.result && setExpanded(!expanded)}
+        className="flex items-center gap-2 w-full px-3 py-2 text-left"
+      >
+        {call.status === "executing" && (
+          <Loader2 className="w-3.5 h-3.5 text-[var(--accent)] animate-spin flex-shrink-0" />
+        )}
+        {call.status === "success" && (
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+        )}
+        {call.status === "error" && (
+          <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+        )}
+
+        <Wrench className="w-3 h-3 text-[var(--accent-44)] flex-shrink-0" />
+
+        <span className="text-xs text-[var(--accent-88)] flex-1 min-w-0 truncate">
+          {call.status === "executing"
+            ? getToolActionLabel(call.toolName, call.integrationId)
+            : `${label}: ${call.toolName}`}
+        </span>
+
+        {call.result && (
+          <span className="flex-shrink-0">
+            {expanded ? (
+              <ChevronDown className="w-3 h-3 text-[var(--accent-44)]" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-[var(--accent-44)]" />
+            )}
+          </span>
+        )}
+      </button>
+
+      {expanded && call.result && (
+        <div className="px-3 pb-2 border-t border-[var(--accent-26)]">
+          <pre className="text-[10px] text-[var(--accent-66,var(--accent-44))] mt-1.5 max-h-32 overflow-auto whitespace-pre-wrap break-all">
+            {call.result.length > 500
+              ? call.result.slice(0, 500) + "..."
+              : call.result}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getSystemGreeting(
+  project: Project,
+  integrations: Integration[]
+): string {
   const stage = getStage(project.currentStage);
   if (!stage) return "How can I help with your project?";
 
@@ -26,7 +124,7 @@ function getSystemGreeting(project: Project, integrations: Integration[]): strin
   let integrationNote = "";
 
   if (connected.length > 0) {
-    integrationNote = `\n\nYou have ${connected.length} integration${connected.length === 1 ? "" : "s"} connected (${connected.map((i) => i.name).join(", ")}).`;
+    integrationNote = `\n\nYou have ${connected.length} integration${connected.length === 1 ? "" : "s"} connected (${connected.map((i) => i.name).join(", ")}). I can use them to search, create, and manage things for you.`;
   } else {
     const suggestions = getSuggestionsForStage(project.currentStage);
     if (suggestions.length > 0) {
@@ -44,8 +142,6 @@ function getSystemGreeting(project: Project, integrations: Integration[]): strin
   return `You're in the ${stage.label} stage. ${stage.nextAction} What would you like to work on?${integrationNote}`;
 }
 
-
-
 export default function ChatPanel({
   project,
   messages,
@@ -57,12 +153,42 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [activeToolCalls, setActiveToolCalls] = useState<ToolCallDisplay[]>([]);
+  const [typingLabel, setTypingLabel] = useState("Thinking...");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, activeToolCalls]);
+
+  const handleToolCall = useCallback((info: ToolCallInfo) => {
+    setActiveToolCalls((prev) => {
+      const idx = prev.findIndex(
+        (tc) => tc.toolName === info.toolName && tc.status === "executing"
+      );
+      const display: ToolCallDisplay = {
+        toolName: info.toolName,
+        integrationId: info.integrationId,
+        status: info.status,
+        result: info.result,
+      };
+
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = display;
+        return next;
+      }
+
+      return [...prev, display];
+    });
+
+    if (info.status === "executing") {
+      setTypingLabel(getToolActionLabel(info.toolName, info.integrationId));
+    } else {
+      setTypingLabel("Thinking...");
+    }
+  }, []);
 
   async function handleSend() {
     if (!input.trim() || !isEnabled || isTyping) return;
@@ -77,6 +203,8 @@ export default function ChatPanel({
     onSendMessage(userMessage);
     setInput("");
     setIsTyping(true);
+    setActiveToolCalls([]);
+    setTypingLabel("Thinking...");
 
     try {
       const response = await generateChatResponse(
@@ -84,7 +212,8 @@ export default function ChatPanel({
         project,
         integrations,
         messages,
-        enabledProviderIds
+        enabledProviderIds,
+        handleToolCall
       );
       const assistantMessage: ChatMessage = {
         id: generateId(),
@@ -103,6 +232,7 @@ export default function ChatPanel({
       onSendMessage(errorMessage);
     } finally {
       setIsTyping(false);
+      setActiveToolCalls([]);
     }
   }
 
@@ -142,7 +272,9 @@ export default function ChatPanel({
             <span className="text-xs text-[var(--accent)]">C</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] text-[var(--accent-44)] mb-1">Compass</div>
+            <div className="text-[10px] text-[var(--accent-44)] mb-1">
+              Compass
+            </div>
             <div className="text-sm text-[var(--accent-cc)] leading-relaxed">
               {greeting}
             </div>
@@ -190,9 +322,18 @@ export default function ChatPanel({
               <span className="text-xs text-[var(--accent)]">C</span>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] text-[var(--accent-44)] mb-1">Compass</div>
-              <div className="text-sm text-[var(--accent-44)] animate-pulse">
-                Thinking...
+              <div className="text-[10px] text-[var(--accent-44)] mb-1">
+                Compass
+              </div>
+
+              {/* Tool call indicators */}
+              {activeToolCalls.map((tc, i) => (
+                <ToolCallCard key={`${tc.toolName}-${i}`} call={tc} />
+              ))}
+
+              <div className="text-sm text-[var(--accent-44)] animate-pulse flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {typingLabel}
               </div>
             </div>
           </div>
@@ -227,7 +368,8 @@ export default function ChatPanel({
           </button>
         </div>
         <p className="text-[10px] text-[var(--accent-44)] mt-1.5">
-          Powered by your AI provider. Context includes your project stage, integrations, and Compass data.
+          Powered by your AI provider. Context includes your project stage,
+          integrations, and Compass data.
         </p>
       </div>
     </div>
