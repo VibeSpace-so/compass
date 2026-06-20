@@ -5,6 +5,7 @@ import { Terminal } from "lucide-react";
 import { AppState, Project, ChatMessage } from "@/lib/types";
 import {
   loadState,
+  loadStateForProject,
   createProject,
   updateProject,
   deleteProject,
@@ -14,6 +15,19 @@ import {
   toggleIntegration,
   addChatMessage,
 } from "@/lib/storage";
+import {
+  setProjectPassword,
+  isProjectUnlocked,
+  loadAllProjectKeys,
+  loadEncryptedChat,
+} from "@/lib/secure-storage";
+import {
+  setupProjectEncryption,
+  isProjectEncrypted,
+  cleanupOldGlobalEncryption,
+  wipeProjectData,
+} from "@/lib/crypto";
+import { setActiveProjectForConnectors } from "@/lib/integration-service";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -22,9 +36,10 @@ import ProjectDetail from "@/components/project-detail";
 import CreateProjectModal from "@/components/create-project-modal";
 import BYOKSettings from "@/components/byok-settings";
 import ChatPanel from "@/components/chat-panel";
+import ProjectUnlock from "@/components/password-gate";
 
 
-type View = "home" | "project";
+type View = "home" | "project" | "unlock";
 
 export default function CompassPage() {
   const [state, setState] = useState<AppState | null>(null);
@@ -35,19 +50,74 @@ export default function CompassPage() {
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    cleanupOldGlobalEncryption();
     setState(loadState());
   }, []);
 
   const handleCreateProject = useCallback(
-    (name: string, description: string) => {
+    async (name: string, description: string, password: string) => {
       if (!state) return;
       const newState = createProject(state, name, description);
+      const newProject = newState.projects[newState.projects.length - 1];
+
+      // Set up encryption for the new project
+      await setupProjectEncryption(newProject.id, password);
+      setProjectPassword(newProject.id, password);
+      setActiveProjectForConnectors(newProject.id);
+
       setState(newState);
       setShowCreateModal(false);
       setView("project");
     },
     [state]
   );
+
+  const handleSelectProject = useCallback(
+    (id: string) => {
+      if (!state) return;
+      const newState = selectProject(state, id);
+      setState(newState);
+
+      // Check if project is already unlocked in this session
+      if (isProjectUnlocked(id)) {
+        // Reload state with project's decrypted keys
+        setActiveProjectForConnectors(id);
+        setState(loadStateForProject(id));
+        setView("project");
+      } else if (isProjectEncrypted(id)) {
+        // Needs unlock
+        setView("unlock");
+      } else {
+        // Legacy project without encryption — open directly
+        setView("project");
+      }
+    },
+    [state]
+  );
+
+  const handleUnlockProject = useCallback(
+    async (password: string) => {
+      if (!state || !state.selectedProjectId) return;
+      const projectId = state.selectedProjectId;
+
+      setProjectPassword(projectId, password);
+      await loadAllProjectKeys(projectId);
+      await loadEncryptedChat(projectId);
+      setActiveProjectForConnectors(projectId);
+
+      // Reload state with decrypted keys and chat
+      setState(loadStateForProject(projectId));
+      setView("project");
+    },
+    [state]
+  );
+
+  const handleWipeProject = useCallback(() => {
+    if (!state || !state.selectedProjectId) return;
+    // Project data wiped — go back to project list
+    setState(loadState());
+    setView("home");
+  }, [state]);
 
   const handleUpdateProject = useCallback(
     (updates: Partial<Project>) => {
@@ -65,6 +135,8 @@ export default function CompassPage() {
         deleteTimeoutRef.current = null;
       }
       if (confirmDelete === id) {
+        // Also wipe encrypted data for deleted project
+        wipeProjectData(id);
         const newState = deleteProject(state, id);
         setState(newState);
         setConfirmDelete(null);
@@ -82,15 +154,6 @@ export default function CompassPage() {
     [state, confirmDelete]
   );
 
-  const handleSelectProject = useCallback(
-    (id: string) => {
-      if (!state) return;
-      setState(selectProject(state, id));
-      setView("project");
-    },
-    [state]
-  );
-
   const handleToggleProvider = useCallback(
     (id: string) => {
       if (!state) return;
@@ -100,11 +163,13 @@ export default function CompassPage() {
   );
 
   const handleReloadProviders = useCallback(() => {
-    setState(loadState());
-  }, []);
+    if (!state?.selectedProjectId) return;
+    setState(loadStateForProject(state.selectedProjectId));
+  }, [state]);
 
   const handleGoHome = useCallback(() => {
     if (!state) return;
+    setActiveProjectForConnectors(null);
     setState(selectProject(state, null));
     setView("home");
   }, [state]);
@@ -130,10 +195,12 @@ export default function CompassPage() {
 
   const handleSendMessage = useCallback(
     (message: ChatMessage) => {
-      if (!state || !state.selectedProjectId) return;
-      setState(addChatMessage(state, state.selectedProjectId, message));
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return addChatMessage(prev, prev.selectedProjectId, message);
+      });
     },
-    [state]
+    []
   );
 
   if (!state) {
@@ -161,7 +228,15 @@ export default function CompassPage() {
       />
 
       <main className="relative z-10 flex-1">
-        {view === "project" && selectedProject ? (
+        {view === "unlock" && selectedProject ? (
+          <ProjectUnlock
+            projectId={selectedProject.id}
+            projectName={selectedProject.name}
+            onUnlock={handleUnlockProject}
+            onBack={handleGoHome}
+            onWipe={handleWipeProject}
+          />
+        ) : view === "project" && selectedProject ? (
           <ProjectDetail
             project={selectedProject}
             onUpdate={handleUpdateProject}
@@ -175,6 +250,12 @@ export default function CompassPage() {
                 onSendMessage={handleSendMessage}
                 isEnabled={chatEnabled}
                 onSetupKeys={() => setShowBYOK(true)}
+                integrations={state.integrations}
+                enabledProviderIds={
+                  state.byokSettings.providers
+                    .filter((p) => p.enabled && p.keySet)
+                    .map((p) => p.id)
+                }
               />
             }
             integrations={state.integrations}
@@ -261,6 +342,7 @@ export default function CompassPage() {
         providers={state.byokSettings.providers}
         onToggleProvider={handleToggleProvider}
         onProvidersChange={handleReloadProviders}
+        projectId={state.selectedProjectId}
       />
 
       {confirmDelete && (

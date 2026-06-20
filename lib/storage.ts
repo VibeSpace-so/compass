@@ -1,8 +1,15 @@
 import { AppState, Project, BYOKProvider, ChatMessage, Integration } from "./types";
 import { DEFAULT_INTEGRATIONS } from "./integrations";
+import {
+  saveEncryptedKey,
+  removeEncryptedKey,
+  getCachedKey,
+  hasCachedKey,
+  saveEncryptedChat,
+  getCachedChat,
+} from "./secure-storage";
 
 const STORAGE_KEY = "vibe-compass-state";
-const BYOK_KEYS_PREFIX = "vibe-compass-key-";
 
 const DEFAULT_PROVIDERS: BYOKProvider[] = [
   { id: "openai", name: "OpenAI", enabled: false, keySet: false },
@@ -30,10 +37,6 @@ export function loadState(): AppState {
     if (!parsed.byokSettings) {
       parsed.byokSettings = { providers: DEFAULT_PROVIDERS };
     }
-    parsed.byokSettings.providers = parsed.byokSettings.providers.map((p) => ({
-      ...p,
-      keySet: !!localStorage.getItem(BYOK_KEYS_PREFIX + p.id),
-    }));
     if (!parsed.integrations) {
       parsed.integrations = DEFAULT_INTEGRATIONS;
     }
@@ -52,8 +55,27 @@ export function loadState(): AppState {
   }
 }
 
+/**
+ * Load state with per-project provider key status.
+ * Call this after unlocking a project to reflect its keys.
+ */
+export function loadStateForProject(projectId: string): AppState {
+  const state = loadState();
+  state.byokSettings.providers = state.byokSettings.providers.map((p) => ({
+    ...p,
+    keySet: hasCachedKey(projectId, "byok-" + p.id),
+  }));
+  // Load chat from encrypted cache
+  const cachedChat = getCachedChat(projectId);
+  if (cachedChat.length > 0) {
+    state.chatHistory = { ...state.chatHistory, [projectId]: cachedChat };
+  }
+  return state;
+}
+
 export function saveState(state: AppState): void {
   if (typeof window === "undefined") return;
+  // Don't persist chatHistory or keySet in plaintext state — those come from encrypted storage
   const toSave: AppState = {
     ...state,
     byokSettings: {
@@ -61,9 +83,10 @@ export function saveState(state: AppState): void {
         id,
         name,
         enabled,
-        keySet: !!localStorage.getItem(BYOK_KEYS_PREFIX + id),
+        keySet: false, // Always false in persisted state; loaded from cache
       })),
     },
+    chatHistory: {}, // Chat is encrypted per-project, not in global state
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 }
@@ -134,19 +157,23 @@ export function selectProject(state: AppState, id: string | null): AppState {
   return newState;
 }
 
-export function saveBYOKKey(providerId: string, key: string): void {
+// --- Per-project BYOK key management ---
+
+export function saveBYOKKey(projectId: string, providerId: string, key: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(BYOK_KEYS_PREFIX + providerId, key);
+  saveEncryptedKey(projectId, "byok-" + providerId, key).catch(() => {
+    // Fail closed: key remains in memory cache only
+  });
 }
 
-export function removeBYOKKey(providerId: string): void {
+export function removeBYOKKey(projectId: string, providerId: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(BYOK_KEYS_PREFIX + providerId);
+  removeEncryptedKey(projectId, "byok-" + providerId);
 }
 
-export function getBYOKKey(providerId: string): string {
+export function getBYOKKey(projectId: string, providerId: string): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem(BYOK_KEYS_PREFIX + providerId) || "";
+  return getCachedKey(projectId, "byok-" + providerId);
 }
 
 export function toggleProvider(
@@ -191,13 +218,18 @@ export function addChatMessage(
   message: ChatMessage
 ): AppState {
   const existing = state.chatHistory[projectId] || [];
+  const newMessages = [...existing, message];
   const newState: AppState = {
     ...state,
     chatHistory: {
       ...state.chatHistory,
-      [projectId]: [...existing, message],
+      [projectId]: newMessages,
     },
   };
+  // Persist encrypted chat (fire-and-forget, cache is already updated)
+  saveEncryptedChat(projectId, newMessages).catch(() => {
+    // Chat remains in memory only if encryption fails
+  });
   saveState(newState);
   return newState;
 }

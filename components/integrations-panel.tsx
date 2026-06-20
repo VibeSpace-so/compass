@@ -1,19 +1,31 @@
 "use client";
 
-import { ExternalLink, Plug, Check, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import {
+  ExternalLink,
+  Plug,
+  Check,
+  ArrowRight,
+  Loader2,
+  X,
+  KeyRound,
+} from "lucide-react";
 import { Integration, StageId } from "@/lib/types";
 import { getSuggestionsForStage, StageSuggestion } from "@/lib/integrations";
+import { useIntegrationService } from "@/lib/hooks/use-integration-service";
 
 interface IntegrationsPanelProps {
   integrations: Integration[];
   onToggle: (id: string) => void;
   stageId: StageId;
+  projectId: string;
 }
 
 export default function IntegrationsPanel({
   integrations,
   onToggle,
   stageId,
+  projectId,
 }: IntegrationsPanelProps) {
   const suggestions = getSuggestionsForStage(stageId);
 
@@ -41,6 +53,7 @@ export default function IntegrationsPanel({
               integration={integration}
               suggestion={suggestion}
               onToggle={onToggle}
+              projectId={projectId}
             />
           );
         })}
@@ -53,11 +66,73 @@ function SuggestionCard({
   integration,
   suggestion,
   onToggle,
+  projectId,
 }: {
   integration: Integration;
   suggestion: StageSuggestion;
   onToggle: (id: string) => void;
+  projectId: string;
 }) {
+  const { saveToken, hasToken, removeToken, registry } =
+    useIntegrationService(projectId);
+
+  const [showTokenForm, setShowTokenForm] = useState(false);
+  const [tokenValue, setTokenValue] = useState("");
+  const [tokenSaved, setTokenSaved] = useState(() =>
+    hasToken(integration.id)
+  );
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  function handleConnect() {
+    if (integration.connected) {
+      removeToken(integration.id);
+      setTokenSaved(false);
+      setShowTokenForm(false);
+      setTestResult(null);
+      onToggle(integration.id);
+      return;
+    }
+    setShowTokenForm(true);
+  }
+
+  function handleSaveToken() {
+    if (!tokenValue.trim()) return;
+    saveToken(integration.id, tokenValue.trim());
+    setTokenValue("");
+    setTokenSaved(true);
+    onToggle(integration.id);
+  }
+
+  function handleCancelToken() {
+    setShowTokenForm(false);
+    setTokenValue("");
+  }
+
+  async function handleTestConnection() {
+    const connector = registry.getConnector(integration.id);
+    if (!connector) {
+      setTestResult({
+        success: false,
+        message: "No connector registered for this integration.",
+      });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await connector.testConnection();
+      setTestResult(result);
+    } catch {
+      setTestResult({ success: false, message: "Connection test failed." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <div
       className={`
@@ -90,7 +165,7 @@ function SuggestionCard({
 
         <div className="flex flex-col items-end gap-1.5">
           <button
-            onClick={() => onToggle(integration.id)}
+            onClick={handleConnect}
             className={`
               flex-shrink-0 px-2.5 py-1 rounded text-[10px] font-medium border transition-colors
               ${
@@ -114,6 +189,66 @@ function SuggestionCard({
           )}
         </div>
       </div>
+
+      {showTokenForm && !integration.connected && (
+        <div className="mt-2.5 pt-2.5 border-t border-[var(--accent-26)]">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <KeyRound className="w-3 h-3 text-[var(--accent-66)]" />
+            <span className="text-[10px] text-[var(--accent-88)]">
+              API token for {integration.name}
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              type="password"
+              value={tokenValue}
+              onChange={(e) => setTokenValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveToken()}
+              placeholder="Paste your API token…"
+              className="flex-1 bg-black/40 border border-[var(--accent-26)] rounded px-2 py-1 text-[10px] text-[var(--accent-cc)] placeholder:text-[var(--accent-44)] focus:outline-none focus:border-[var(--accent-66)]"
+            />
+            <button
+              onClick={handleSaveToken}
+              disabled={!tokenValue.trim()}
+              className="px-2 py-1 rounded text-[10px] font-medium border border-[var(--accent-44)] text-[var(--accent-88)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleCancelToken}
+              className="px-1.5 py-1 rounded text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tokenSaved && integration.connected && (
+        <div className="mt-2.5 pt-2.5 border-t border-[var(--accent-26)]">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTestConnection}
+              disabled={testing}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border border-[var(--accent-44)] text-[var(--accent-88)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-60"
+            >
+              {testing && <Loader2 className="w-3 h-3 animate-spin" />}
+              Test connection
+            </button>
+            {testResult && (
+              <span
+                className={`text-[10px] ${
+                  testResult.success
+                    ? "text-[var(--accent)]"
+                    : "text-red-400"
+                }`}
+              >
+                {testResult.message}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

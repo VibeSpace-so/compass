@@ -277,6 +277,7 @@ export default function ProjectDetail({
               integrations={integrations}
               onToggle={onToggleIntegration}
               stageId={project.currentStage}
+              projectId={project.id}
             />
 
             <div className="flex gap-2">
