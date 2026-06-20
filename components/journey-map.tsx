@@ -2,6 +2,7 @@
 
 import { STAGES } from "@/lib/stages";
 import { DebtLevel, StageId } from "@/lib/types";
+import StageIcon from "./stage-icon";
 
 interface JourneyMapProps {
   activeStage?: StageId;
@@ -11,7 +12,7 @@ interface JourneyMapProps {
 
 function DebtBadge({ level, label }: { level: DebtLevel; label: string }) {
   const colors: Record<DebtLevel, string> = {
-    low: "border-green-27 text-[var(--accent-88)] bg-[var(--accent-10)]",
+    low: "border-[var(--accent-26)] text-[var(--accent-88)] bg-[var(--accent-10)]",
     medium: "border-yellow-600/40 text-yellow-500 bg-yellow-500/10",
     high: "border-red-500/40 text-red-400 bg-red-500/10",
   };
@@ -38,14 +39,13 @@ export default function JourneyMap({
             <h2 className="text-lg md:text-xl font-medium text-[var(--accent)] mb-2">
               The Vibe Coding Journey
             </h2>
-            <p className="text-xs text-[var(--accent-66)]">
-              // each stage has tradeoffs — compass helps you see them
+            <p className="text-xs text-[var(--accent-66)] leading-relaxed">
+              Each stage has tradeoffs. Compass helps you see them.
             </p>
           </div>
         )}
 
         <div className="relative">
-          {/* Vertical connector line (desktop) */}
           <div className="hidden md:block stage-connector" />
 
           <div className="space-y-3 md:space-y-4">
@@ -75,10 +75,9 @@ export default function JourneyMap({
                   `}
                 >
                   <div className="flex items-start gap-3 md:gap-4">
-                    {/* Stage number + icon */}
                     <div
                       className={`
-                        flex-shrink-0 w-10 h-10 rounded flex items-center justify-center text-lg
+                        flex-shrink-0 w-10 h-10 rounded flex items-center justify-center
                         ${
                           isActive
                             ? "bg-[var(--accent)] text-black"
@@ -88,12 +87,16 @@ export default function JourneyMap({
                         }
                       `}
                     >
-                      {isPast ? "✓" : stage.icon}
+                      <StageIcon
+                        name={stage.lucideIcon}
+                        completed={!!isPast}
+                        className="w-4 h-4"
+                      />
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] text-[var(--accent-44)]">
+                        <span className="text-[10px] text-[var(--accent-44)] tabular-nums">
                           {String(idx + 1).padStart(2, "0")}
                         </span>
                         <h3
@@ -108,7 +111,7 @@ export default function JourneyMap({
                         )}
                       </div>
 
-                      <p className="text-xs text-[var(--accent-66)] mb-2 leading-relaxed">
+                      <p className="text-xs text-[var(--accent-88)] mb-2 leading-relaxed">
                         {stage.description}
                       </p>
 

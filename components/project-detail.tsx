@@ -10,12 +10,15 @@ import {
   Save,
   ChevronDown,
 } from "lucide-react";
+import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
 
 interface ProjectDetailProps {
   project: Project;
   onUpdate: (updates: Partial<Project>) => void;
   onBack: () => void;
+  chatPanel: React.ReactNode;
+  integrationsPanel: React.ReactNode;
 }
 
 function DebtSelector({
@@ -68,22 +71,33 @@ function DebtSelector({
   );
 }
 
+type Tab = "chat" | "guidance" | "integrations";
+
 export default function ProjectDetail({
   project,
   onUpdate,
   onBack,
+  chatPanel,
+  integrationsPanel,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("chat");
 
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "chat", label: "Chat" },
+    { id: "guidance", label: "Guidance" },
+    { id: "integrations", label: "Integrations" },
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <button
           onClick={onBack}
           className="p-1.5 rounded border border-[var(--accent-26)] text-[var(--accent-44)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
@@ -120,10 +134,18 @@ export default function ProjectDetail({
             </h1>
           )}
         </div>
+
+        {/* Current stage badge */}
+        {stage && (
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--accent-44)] bg-[var(--accent-10)]">
+            <StageIcon name={stage.lucideIcon} className="w-3 h-3 text-[var(--accent)]" />
+            <span className="text-[10px] text-[var(--accent-88)]">{stage.label}</span>
+          </div>
+        )}
       </div>
 
       {/* Description */}
-      <div className="mb-6">
+      <div className="mb-5">
         {editingDesc ? (
           <textarea
             defaultValue={project.description}
@@ -133,11 +155,11 @@ export default function ProjectDetail({
               onUpdate({ description: e.target.value.trim() });
               setEditingDesc(false);
             }}
-            className="w-full bg-transparent border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent-cc)] focus:border-[var(--accent)] outline-none resize-none"
+            className="w-full bg-transparent border border-[var(--accent-26)] rounded px-3 py-2 text-sm text-[var(--accent-cc)] focus:border-[var(--accent)] outline-none resize-none"
           />
         ) : (
           <p
-            className="text-xs text-[var(--accent-66)] cursor-pointer hover:text-[var(--accent-cc)] transition-colors"
+            className="text-sm text-[var(--accent-88)] cursor-pointer hover:text-[var(--accent-cc)] transition-colors leading-relaxed"
             onClick={() => setEditingDesc(true)}
             title="Click to edit"
           >
@@ -146,195 +168,213 @@ export default function ProjectDetail({
         )}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {/* Left column — Current stage + guidance */}
-        <div className="md:col-span-2 space-y-4">
-          {/* Current stage card */}
-          {stage && (
-            <div className="border border-[var(--accent)] rounded p-5 bg-[var(--accent-10)] relative overflow-hidden">
-              <div className="crt-overlay opacity-30" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">{stage.icon}</span>
-                  <span className="text-[10px] text-black bg-[var(--accent)] px-2 py-0.5 rounded font-medium">
-                    CURRENT STAGE
-                  </span>
-                </div>
-                <h3 className="text-base font-medium text-[var(--accent)] mb-2">
-                  {stage.label}
-                </h3>
-                <p className="text-xs text-[var(--accent-cc)] leading-relaxed mb-4">
-                  {stage.description}
-                </p>
+      {/* Tabs */}
+      <div className="flex border-b border-[var(--accent-26)] mb-5">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? "text-[var(--accent)] border-[var(--accent)]"
+                : "text-[var(--accent-44)] border-transparent hover:text-[var(--accent-88)]"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-                {/* Next action */}
-                <div className="bg-black/40 rounded p-3 mb-3">
-                  <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1">
-                    → Next move
+      {/* Tab content */}
+      {activeTab === "chat" && (
+        <div className="min-h-[400px]">{chatPanel}</div>
+      )}
+
+      {activeTab === "integrations" && (
+        <div>{integrationsPanel}</div>
+      )}
+
+      {activeTab === "guidance" && (
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Left column — Current stage + guidance */}
+          <div className="md:col-span-2 space-y-4">
+            {stage && (
+              <div className="border border-[var(--accent)] rounded p-5 bg-[var(--accent-10)] relative overflow-hidden">
+                <div className="crt-overlay opacity-30" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <StageIcon name={stage.lucideIcon} className="w-5 h-5 text-[var(--accent)]" />
+                    <span className="text-[10px] text-black bg-[var(--accent)] px-2 py-0.5 rounded font-medium">
+                      CURRENT STAGE
+                    </span>
                   </div>
-                  <p className="text-xs text-[var(--accent)] leading-relaxed">
-                    {stage.nextAction}
+                  <h3 className="text-base font-medium text-[var(--accent)] mb-2">
+                    {stage.label}
+                  </h3>
+                  <p className="text-sm text-[var(--accent-cc)] leading-relaxed mb-4">
+                    {stage.description}
                   </p>
-                </div>
 
-                {/* Tools */}
-                <div className="mb-3">
-                  <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1.5">
-                    Recommended tools
+                  <div className="bg-black/40 rounded p-3 mb-3">
+                    <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1">
+                      Next move
+                    </div>
+                    <p className="text-sm text-[var(--accent)] leading-relaxed">
+                      {stage.nextAction}
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {stage.tools.map((tool) => (
-                      <button
-                        key={tool}
-                        onClick={() => onUpdate({ selectedTool: tool })}
-                        className={`px-2 py-1 rounded text-[10px] border transition-colors ${
-                          project.selectedTool === tool
-                            ? "border-[var(--accent)] bg-[var(--accent)] text-black"
-                            : "border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)]"
-                        }`}
-                      >
-                        {tool}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Links */}
-                <div>
-                  <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1.5">
-                    Resources
+                  <div className="mb-3">
+                    <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1.5">
+                      Recommended tools
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {stage.tools.map((tool) => (
+                        <button
+                          key={tool}
+                          onClick={() => onUpdate({ selectedTool: tool })}
+                          className={`px-2.5 py-1 rounded text-xs border transition-colors ${
+                            project.selectedTool === tool
+                              ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                              : "border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)]"
+                          }`}
+                        >
+                          {tool}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {stage.links.map((link) => (
-                      <a
-                        key={link.url}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-[11px] text-[var(--accent-88)] hover:text-[var(--accent)] transition-colors"
-                      >
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        {link.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Debt note */}
-                <div className="mt-3 pt-3 border-t border-[var(--accent-26)]">
-                  <p className="text-[10px] text-[var(--accent-66)] italic leading-relaxed">
-                    {stage.debtNote}
-                  </p>
+                  <div>
+                    <div className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider mb-1.5">
+                      Resources
+                    </div>
+                    <div className="space-y-1.5">
+                      {stage.links.map((link) => (
+                        <a
+                          key={link.url}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs text-[var(--accent-88)] hover:text-[var(--accent)] transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          {link.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-[var(--accent-26)]">
+                    <p className="text-xs text-[var(--accent-66)] italic leading-relaxed">
+                      {stage.debtNote}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Stage navigation */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const idx = STAGES.findIndex(
-                  (s) => s.id === project.currentStage
-                );
-                if (idx > 0) {
-                  onUpdate({ currentStage: STAGES[idx - 1].id });
-                }
-              }}
-              disabled={project.currentStage === STAGES[0].id}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              Previous stage
-            </button>
-            {nextStage && (
+            <div className="flex gap-2">
               <button
-                onClick={() => onUpdate({ currentStage: nextStage.id })}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
+                onClick={() => {
+                  const idx = STAGES.findIndex(
+                    (s) => s.id === project.currentStage
+                  );
+                  if (idx > 0) {
+                    onUpdate({ currentStage: STAGES[idx - 1].id });
+                  }
+                }}
+                disabled={project.currentStage === STAGES[0].id}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Advance to {nextStage.label}
-                <ArrowRight className="w-3 h-3" />
+                <ArrowLeft className="w-3 h-3" />
+                Previous stage
               </button>
+              {nextStage && (
+                <button
+                  onClick={() => onUpdate({ currentStage: nextStage.id })}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
+                >
+                  Advance to {nextStage.label}
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowMap(!showMap)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            >
+              <ChevronDown
+                className={`w-3 h-3 transition-transform ${showMap ? "rotate-180" : ""}`}
+              />
+              {showMap ? "Hide" : "Show"} full journey map
+            </button>
+
+            {showMap && (
+              <JourneyMap
+                activeStage={project.currentStage}
+                onStageClick={(id: StageId) =>
+                  onUpdate({ currentStage: id })
+                }
+                compact
+              />
             )}
           </div>
 
-          {/* Journey map toggle */}
-          <button
-            onClick={() => setShowMap(!showMap)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
-          >
-            <ChevronDown
-              className={`w-3 h-3 transition-transform ${showMap ? "rotate-180" : ""}`}
-            />
-            {showMap ? "Hide" : "Show"} full journey map
-          </button>
-
-          {showMap && (
-            <JourneyMap
-              activeStage={project.currentStage}
-              onStageClick={(id: StageId) =>
-                onUpdate({ currentStage: id })
-              }
-              compact
-            />
-          )}
-        </div>
-
-        {/* Right column — Notes + Debt */}
-        <div className="space-y-4">
-          {/* Notes */}
-          <div className="border border-[var(--accent-26)] rounded p-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-[var(--accent-88)]">Notes</label>
-              <Save className="w-3 h-3 text-[var(--accent-44)]" />
-            </div>
-            <textarea
-              value={project.notes}
-              onChange={(e) => onUpdate({ notes: e.target.value })}
-              placeholder="Jot down thoughts, decisions, reminders..."
-              rows={6}
-              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent-cc)] focus:border-[var(--accent)] outline-none resize-none"
-            />
-          </div>
-
-          {/* Selected tool */}
-          <div className="border border-[var(--accent-26)] rounded p-4">
-            <label className="block text-xs text-[var(--accent-88)] mb-1.5">
-              Selected tool
-            </label>
-            <div className="text-sm text-[var(--accent)]">
-              {project.selectedTool || (
-                <span className="text-[var(--accent-44)]">None selected</span>
-              )}
-            </div>
-          </div>
-
-          {/* Debt indicators */}
-          <div className="border border-[var(--accent-26)] rounded p-4 space-y-3">
-            <div className="text-xs text-[var(--accent-88)] font-medium">
-              Debt indicators
+          {/* Right column — Notes + Debt */}
+          <div className="space-y-4">
+            <div className="border border-[var(--accent-26)] rounded p-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-[var(--accent-88)]">Notes</label>
+                <Save className="w-3 h-3 text-[var(--accent-44)]" />
+              </div>
+              <textarea
+                value={project.notes}
+                onChange={(e) => onUpdate({ notes: e.target.value })}
+                placeholder="Jot down thoughts, decisions, reminders..."
+                rows={6}
+                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent-cc)] focus:border-[var(--accent)] outline-none resize-none"
+              />
             </div>
 
-            <DebtSelector
-              label="Technical debt"
-              value={project.technicalDebt}
-              onChange={(v) => onUpdate({ technicalDebt: v })}
-            />
+            <div className="border border-[var(--accent-26)] rounded p-4">
+              <label className="block text-xs text-[var(--accent-88)] mb-1.5">
+                Selected tool
+              </label>
+              <div className="text-sm text-[var(--accent)]">
+                {project.selectedTool || (
+                  <span className="text-[var(--accent-44)]">None selected</span>
+                )}
+              </div>
+            </div>
 
-            <DebtSelector
-              label="Cognitive debt"
-              value={project.cognitiveDebt}
-              onChange={(v) => onUpdate({ cognitiveDebt: v })}
-            />
+            <div className="border border-[var(--accent-26)] rounded p-4 space-y-3">
+              <div className="text-xs text-[var(--accent-88)] font-medium">
+                Debt indicators
+              </div>
 
-            <p className="text-[10px] text-[var(--accent-44)] leading-relaxed pt-1">
-              Technical debt = code you'll need to fix later.
-              <br />
-              Cognitive debt = complexity you can't hold in your head.
-            </p>
+              <DebtSelector
+                label="Technical debt"
+                value={project.technicalDebt}
+                onChange={(v) => onUpdate({ technicalDebt: v })}
+              />
+
+              <DebtSelector
+                label="Cognitive debt"
+                value={project.cognitiveDebt}
+                onChange={(v) => onUpdate({ cognitiveDebt: v })}
+              />
+
+              <p className="text-[10px] text-[var(--accent-44)] leading-relaxed pt-1">
+                Technical debt = code you&apos;ll need to fix later.
+                <br />
+                Cognitive debt = complexity you can&apos;t hold in your head.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { AppState, Project, BYOKSettings, BYOKProvider } from "./types";
+import { AppState, Project, BYOKProvider, ChatMessage, Integration } from "./types";
+import { DEFAULT_INTEGRATIONS } from "./integrations";
 
 const STORAGE_KEY = "vibe-compass-state";
 const BYOK_KEYS_PREFIX = "vibe-compass-key-";
@@ -15,6 +16,8 @@ function defaultState(): AppState {
     projects: [],
     selectedProjectId: null,
     byokSettings: { providers: DEFAULT_PROVIDERS },
+    integrations: DEFAULT_INTEGRATIONS,
+    chatHistory: {},
   };
 }
 
@@ -31,6 +34,12 @@ export function loadState(): AppState {
       ...p,
       keySet: !!localStorage.getItem(BYOK_KEYS_PREFIX + p.id),
     }));
+    if (!parsed.integrations) {
+      parsed.integrations = DEFAULT_INTEGRATIONS;
+    }
+    if (!parsed.chatHistory) {
+      parsed.chatHistory = {};
+    }
     return parsed;
   } catch {
     return defaultState();
@@ -101,11 +110,13 @@ export function updateProject(
 }
 
 export function deleteProject(state: AppState, id: string): AppState {
+  const { [id]: _removed, ...remainingChat } = state.chatHistory;
   const newState: AppState = {
     ...state,
     projects: state.projects.filter((p) => p.id !== id),
     selectedProjectId:
       state.selectedProjectId === id ? null : state.selectedProjectId,
+    chatHistory: remainingChat,
   };
   saveState(newState);
   return newState;
@@ -142,6 +153,43 @@ export function toggleProvider(
       providers: state.byokSettings.providers.map((p) =>
         p.id === providerId ? { ...p, enabled: !p.enabled } : p
       ),
+    },
+  };
+  saveState(newState);
+  return newState;
+}
+
+export function hasAnyKeyConfigured(state: AppState): boolean {
+  return state.byokSettings.providers.some(
+    (p) => p.enabled && p.keySet
+  );
+}
+
+export function toggleIntegration(
+  state: AppState,
+  integrationId: string
+): AppState {
+  const newState: AppState = {
+    ...state,
+    integrations: state.integrations.map((i) =>
+      i.id === integrationId ? { ...i, connected: !i.connected } : i
+    ),
+  };
+  saveState(newState);
+  return newState;
+}
+
+export function addChatMessage(
+  state: AppState,
+  projectId: string,
+  message: ChatMessage
+): AppState {
+  const existing = state.chatHistory[projectId] || [];
+  const newState: AppState = {
+    ...state,
+    chatHistory: {
+      ...state.chatHistory,
+      [projectId]: [...existing, message],
     },
   };
   saveState(newState);
