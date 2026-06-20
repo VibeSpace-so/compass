@@ -65,6 +65,20 @@ export interface Integration {
   url?: string;
 }
 
+export interface IntegrationContext {
+  id: string;
+  integrationId: string;
+  title: string;
+  content: string;
+  url?: string;
+  updatedAt?: string;
+}
+
+export interface IntegrationTestResult {
+  success: boolean;
+  message: string;
+}
+
 export interface AppState {
   projects: Project[];
   selectedProjectId: string | null;
