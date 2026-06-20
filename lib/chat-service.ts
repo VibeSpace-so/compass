@@ -107,7 +107,10 @@ function formatMessages(
 
   // Include recent history (last 10 messages for context window)
   const recentHistory = history.slice(-10);
-  for (const msg of recentHistory) {
+  // Ensure history starts with a user message (required by Anthropic and others)
+  const startIdx = recentHistory.findIndex((m) => m.role === "user");
+  const trimmedHistory = startIdx >= 0 ? recentHistory.slice(startIdx) : [];
+  for (const msg of trimmedHistory) {
     if (msg.role === "user" || msg.role === "assistant") {
       messages.push({ role: msg.role, content: msg.content });
     }

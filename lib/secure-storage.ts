@@ -44,9 +44,9 @@ export function hasCachedKey(key: string): boolean {
  */
 export async function saveEncrypted(key: string, value: string): Promise<void> {
   if (!sessionPassword) throw new Error("No session password set");
+  keyCache.set(key, value);
   const encrypted = await encrypt(value, sessionPassword);
   localStorage.setItem(ENCRYPTED_PREFIX + key, encrypted);
-  keyCache.set(key, value);
 }
 
 /**
