@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Default (green) palette — matches vibespace.so ─── */
+:root {
+  --accent:    #15D555;
+  --accent-44: #15D55544;
+  --accent-88: #15D55588;
+  --accent-cc: #15D555CC;
+  --accent-66: #15D55566;
+  --accent-26: #15D55526;
+  --accent-15: #15D55515;
+  --accent-10: #15D55510;
+  --theme-transition: 0.4s;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition:
+    color var(--theme-transition) ease,
+    background-color var(--theme-transition) ease,
+    border-color var(--theme-transition) ease,
+    box-shadow var(--theme-transition) ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #000;
+  color: var(--accent);
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--accent);
+  color: #000;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: var(--accent-44); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-88); }
+
+/* Terminal prompt */
+.terminal-prompt::before {
+  content: "$ ";
+  color: var(--accent-88);
+}
+
+/* Form focus */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--accent-44);
+}
+
+/* ─── CRT scanline overlay ─── */
+.crt-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 58%, rgba(0,0,0,0.5) 100%),
+    linear-gradient(rgba(21,213,85,0.08), rgba(21,213,85,0));
+  animation: crt-flicker 6s infinite steps(1);
+}
+
+.crt-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.22),
+    rgba(0,0,0,0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.crt-overlay::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 30%; top: -30%;
+  background: linear-gradient(
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0) 100%
+  );
+  animation: crt-scan 7s linear infinite;
+}
+
+@keyframes crt-scan {
+  0% { top: -30%; }
+  100% { top: 100%; }
+}
+
+@keyframes crt-flicker {
+  0%, 88%, 100% { opacity: 1; }
+  90% { opacity: 0.82; }
+  92% { opacity: 1; }
+  95% { opacity: 0.9; }
+  97% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt-overlay, .crt-overlay::after { animation: none; }
+}
+
+/* ─── Stage connector line ─── */
+.stage-connector {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-26),
+    var(--accent-44),
+    var(--accent-26)
+  );
+}
+
+/* ─── Debt badge pulse ─── */
+@keyframes debt-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.debt-badge-high {
+  animation: debt-pulse 2s ease-in-out infinite;
+}
