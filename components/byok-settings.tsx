@@ -18,16 +18,19 @@ interface BYOKSettingsProps {
   providers: BYOKProvider[];
   onToggleProvider: (id: string) => void;
   onProvidersChange: () => void;
+  projectId: string | null;
 }
 
 function ProviderRow({
   provider,
   onToggle,
   onKeysChange,
+  projectId,
 }: {
   provider: BYOKProvider;
   onToggle: () => void;
   onKeysChange: () => void;
+  projectId: string;
 }) {
   const [showKey, setShowKey] = useState(false);
   const [editingKey, setEditingKey] = useState(false);
@@ -35,9 +38,9 @@ function ProviderRow({
 
   function handleSaveKey() {
     if (keyValue.trim()) {
-      saveBYOKKey(provider.id, keyValue.trim());
+      saveBYOKKey(projectId, provider.id, keyValue.trim());
     } else {
-      removeBYOKKey(provider.id);
+      removeBYOKKey(projectId, provider.id);
     }
     setEditingKey(false);
     setKeyValue("");
@@ -45,13 +48,13 @@ function ProviderRow({
   }
 
   function handleRemoveKey() {
-    removeBYOKKey(provider.id);
+    removeBYOKKey(projectId, provider.id);
     setKeyValue("");
     setEditingKey(false);
     onKeysChange();
   }
 
-  const currentKey = getBYOKKey(provider.id);
+  const currentKey = getBYOKKey(projectId, provider.id);
 
   return (
     <div className="border border-[var(--accent-26)] rounded p-3">
@@ -170,8 +173,10 @@ export default function BYOKSettings({
   providers,
   onToggleProvider,
   onProvidersChange,
+  projectId,
 }: BYOKSettingsProps) {
   if (!open) return null;
+  if (!projectId) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -219,6 +224,7 @@ export default function BYOKSettings({
               provider={provider}
               onToggle={() => onToggleProvider(provider.id)}
               onKeysChange={onProvidersChange}
+              projectId={projectId}
             />
           ))}
         </div>

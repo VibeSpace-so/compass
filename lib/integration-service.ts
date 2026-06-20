@@ -1,7 +1,7 @@
 import { IntegrationContext, IntegrationTestResult } from "./types";
 import {
-  saveEncrypted,
-  removeEncrypted,
+  saveEncryptedKey,
+  removeEncryptedKey,
   getCachedKey,
   hasCachedKey,
 } from "./secure-storage";
@@ -9,66 +9,65 @@ import {
 // Re-export types for connector convenience
 export type { IntegrationContext, IntegrationTestResult };
 
-const TOKEN_PREFIX = "vibe-compass-integration-";
-
 // ---------------------------------------------------------------------------
-// IntegrationAuth – per-integration token storage in localStorage
+// IntegrationAuth – per-project integration token storage
 // ---------------------------------------------------------------------------
 
 export const IntegrationAuth = {
-  saveIntegrationToken(integrationId: string, token: string): void {
+  saveIntegrationToken(projectId: string, integrationId: string, token: string): void {
     if (typeof window === "undefined") return;
-    saveEncrypted("integration-" + integrationId, token).catch(() => {
-      localStorage.setItem(TOKEN_PREFIX + integrationId, token);
+    saveEncryptedKey(projectId, "integration-" + integrationId, token).catch(() => {
+      // Fail closed: token remains in memory cache only
     });
   },
 
-  getIntegrationToken(integrationId: string): string | null {
+  getIntegrationToken(projectId: string, integrationId: string): string | null {
     if (typeof window === "undefined") return null;
-    const cached = getCachedKey("integration-" + integrationId);
-    if (cached) return cached;
-    return localStorage.getItem(TOKEN_PREFIX + integrationId);
+    const cached = getCachedKey(projectId, "integration-" + integrationId);
+    return cached || null;
   },
 
-  removeIntegrationToken(integrationId: string): void {
+  removeIntegrationToken(projectId: string, integrationId: string): void {
     if (typeof window === "undefined") return;
-    removeEncrypted("integration-" + integrationId);
-    localStorage.removeItem(TOKEN_PREFIX + integrationId);
+    removeEncryptedKey(projectId, "integration-" + integrationId);
   },
 
-  hasIntegrationToken(integrationId: string): boolean {
+  hasIntegrationToken(projectId: string, integrationId: string): boolean {
     if (typeof window === "undefined") return false;
-    return hasCachedKey("integration-" + integrationId) || localStorage.getItem(TOKEN_PREFIX + integrationId) !== null;
+    return hasCachedKey(projectId, "integration-" + integrationId);
   },
 };
 
-// Standalone function exports used by connectors
+// Active project context for connectors (set by the UI layer when a project is opened)
+let activeProjectId: string | null = null;
+
+export function setActiveProjectForConnectors(projectId: string | null): void {
+  activeProjectId = projectId;
+}
+
+export function getActiveProjectForConnectors(): string | null {
+  return activeProjectId;
+}
+
+// Standalone function exports used by connectors (use active project context)
 export function saveIntegrationToken(id: string, token: string): void {
-  IntegrationAuth.saveIntegrationToken(id, token);
+  if (!activeProjectId) return;
+  IntegrationAuth.saveIntegrationToken(activeProjectId, id, token);
 }
 
 export function getIntegrationToken(id: string): string | null {
-  return IntegrationAuth.getIntegrationToken(id);
+  if (!activeProjectId) return null;
+  return IntegrationAuth.getIntegrationToken(activeProjectId, id);
 }
 
 export function hasIntegrationToken(id: string): boolean {
-  return IntegrationAuth.hasIntegrationToken(id);
+  if (!activeProjectId) return false;
+  return IntegrationAuth.hasIntegrationToken(activeProjectId, id);
 }
 
 export function removeIntegrationToken(id: string): void {
-  IntegrationAuth.removeIntegrationToken(id);
-}
-
-/**
- * Re-check token status after decryption cache is loaded.
- * Call this after loadAllEncryptedKeys() to update integration connected state.
- */
-export function refreshTokenStatus(integrationIds: string[]): Map<string, boolean> {
-  const status = new Map<string, boolean>();
-  for (const id of integrationIds) {
-    status.set(id, IntegrationAuth.hasIntegrationToken(id));
-  }
-  return status;
+  if (!activeProjectId) return;
+  IntegrationAuth.removeIntegrationToken(activeProjectId, id);
 }
 
 // ---------------------------------------------------------------------------

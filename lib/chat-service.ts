@@ -32,12 +32,12 @@ const PROVIDERS: LLMProvider[] = [
   },
 ];
 
-function getActiveProvider(enabledProviderIds?: string[]): { provider: LLMProvider; apiKey: string } | null {
+function getActiveProvider(projectId: string, enabledProviderIds?: string[]): { provider: LLMProvider; apiKey: string } | null {
   for (const provider of PROVIDERS) {
     if (enabledProviderIds && !enabledProviderIds.includes(provider.id)) {
       continue;
     }
-    const key = getBYOKKey(provider.id);
+    const key = getBYOKKey(projectId, provider.id);
     if (key) {
       return { provider, apiKey: key };
     }
@@ -228,7 +228,7 @@ export async function generateChatResponse(
   history: ChatMessage[],
   enabledProviderIds?: string[]
 ): Promise<string> {
-  const active = getActiveProvider(enabledProviderIds);
+  const active = getActiveProvider(project.id, enabledProviderIds);
   if (!active) {
     return "No API key configured. Please add an API key in Settings to enable AI-powered chat.";
   }

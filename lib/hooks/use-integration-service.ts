@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import {
   IntegrationAuth,
   getIntegrationRegistry,
+  setActiveProjectForConnectors,
 } from "@/lib/integration-service";
 import { createDefaultConnectors } from "@/lib/connectors";
 import type { IntegrationContext } from "@/lib/types";
 
-export function useIntegrationService() {
+export function useIntegrationService(projectId: string | null) {
   const registry = useMemo(() => {
     const reg = getIntegrationRegistry();
-    // Register default connectors if not already registered
     const connectors = createDefaultConnectors();
     for (const connector of connectors) {
       if (!reg.getConnector(connector.id)) {
@@ -21,21 +21,30 @@ export function useIntegrationService() {
     return reg;
   }, []);
 
+  // Keep the active project context in sync for connectors
+  useEffect(() => {
+    setActiveProjectForConnectors(projectId);
+  }, [projectId]);
+
   const saveToken = useCallback((integrationId: string, token: string) => {
-    IntegrationAuth.saveIntegrationToken(integrationId, token);
-  }, []);
+    if (!projectId) return;
+    IntegrationAuth.saveIntegrationToken(projectId, integrationId, token);
+  }, [projectId]);
 
   const getToken = useCallback((integrationId: string) => {
-    return IntegrationAuth.getIntegrationToken(integrationId);
-  }, []);
+    if (!projectId) return null;
+    return IntegrationAuth.getIntegrationToken(projectId, integrationId);
+  }, [projectId]);
 
   const removeToken = useCallback((integrationId: string) => {
-    IntegrationAuth.removeIntegrationToken(integrationId);
-  }, []);
+    if (!projectId) return;
+    IntegrationAuth.removeIntegrationToken(projectId, integrationId);
+  }, [projectId]);
 
   const hasToken = useCallback((integrationId: string) => {
-    return IntegrationAuth.hasIntegrationToken(integrationId);
-  }, []);
+    if (!projectId) return false;
+    return IntegrationAuth.hasIntegrationToken(projectId, integrationId);
+  }, [projectId]);
 
   const fetchContext = useCallback(
     async (query?: string): Promise<IntegrationContext[]> => {

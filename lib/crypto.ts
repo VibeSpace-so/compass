@@ -1,22 +1,23 @@
 /**
  * Client-side encryption utilities using Web Crypto API.
  * AES-GCM with PBKDF2 key derivation from a user password.
+ * All operations are scoped per-project.
  */
 
-const SALT_KEY = "vibe-compass-salt";
-const VERIFY_KEY = "vibe-compass-verify";
+const SALT_PREFIX = "vibe-compass-project-salt-";
+const VERIFY_PREFIX = "vibe-compass-project-verify-";
 const PBKDF2_ITERATIONS = 100_000;
 
-function getStoredSalt(): Uint8Array | null {
+function getStoredSalt(projectId: string): Uint8Array | null {
   if (typeof window === "undefined") return null;
-  const stored = localStorage.getItem(SALT_KEY);
+  const stored = localStorage.getItem(SALT_PREFIX + projectId);
   if (!stored) return null;
   return new Uint8Array(JSON.parse(stored));
 }
 
-function createAndStoreSalt(): Uint8Array {
+function createAndStoreSalt(projectId: string): Uint8Array {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  localStorage.setItem(SALT_KEY, JSON.stringify(Array.from(salt)));
+  localStorage.setItem(SALT_PREFIX + projectId, JSON.stringify(Array.from(salt)));
   return salt;
 }
 
@@ -39,10 +40,10 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey>
   );
 }
 
-export async function encrypt(plaintext: string, password: string): Promise<string> {
-  let salt = getStoredSalt();
+export async function encrypt(plaintext: string, password: string, projectId: string): Promise<string> {
+  let salt = getStoredSalt(projectId);
   if (!salt) {
-    salt = createAndStoreSalt();
+    salt = createAndStoreSalt(projectId);
   }
 
   const key = await deriveKey(password, salt);
@@ -55,17 +56,15 @@ export async function encrypt(plaintext: string, password: string): Promise<stri
     encoder.encode(plaintext)
   );
 
-  const result = {
+  return JSON.stringify({
     iv: Array.from(iv),
     data: Array.from(new Uint8Array(ciphertext)),
-  };
-
-  return JSON.stringify(result);
+  });
 }
 
-export async function decrypt(encrypted: string, password: string): Promise<string> {
-  const salt = getStoredSalt();
-  if (!salt) throw new Error("No encryption salt found");
+export async function decrypt(encrypted: string, password: string, projectId: string): Promise<string> {
+  const salt = getStoredSalt(projectId);
+  if (!salt) throw new Error("No encryption salt found for project");
 
   const key = await deriveKey(password, salt);
   const { iv, data } = JSON.parse(encrypted);
@@ -80,23 +79,22 @@ export async function decrypt(encrypted: string, password: string): Promise<stri
 }
 
 /**
- * Store a verification token so we can check if the password is correct
- * without decrypting all data.
+ * Set up encryption for a project (store verification token).
  */
-export async function setVerificationToken(password: string): Promise<void> {
-  const token = await encrypt("compass-verified", password);
-  localStorage.setItem(VERIFY_KEY, token);
+export async function setupProjectEncryption(projectId: string, password: string): Promise<void> {
+  const token = await encrypt("compass-verified", password, projectId);
+  localStorage.setItem(VERIFY_PREFIX + projectId, token);
 }
 
 /**
- * Check if the provided password matches the stored verification token.
+ * Verify a password for a specific project.
  */
-export async function verifyPassword(password: string): Promise<boolean> {
-  const stored = localStorage.getItem(VERIFY_KEY);
+export async function verifyProjectPassword(projectId: string, password: string): Promise<boolean> {
+  const stored = localStorage.getItem(VERIFY_PREFIX + projectId);
   if (!stored) return false;
 
   try {
-    const decrypted = await decrypt(stored, password);
+    const decrypted = await decrypt(stored, password, projectId);
     return decrypted === "compass-verified";
   } catch {
     return false;
@@ -104,17 +102,42 @@ export async function verifyPassword(password: string): Promise<boolean> {
 }
 
 /**
- * Check if encryption has been set up (password exists).
+ * Check if a project has encryption set up.
  */
-export function isEncryptionSetup(): boolean {
+export function isProjectEncrypted(projectId: string): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(VERIFY_KEY) !== null;
+  return localStorage.getItem(VERIFY_PREFIX + projectId) !== null;
 }
 
 /**
- * Wipe all encrypted data and encryption setup.
+ * Wipe all encrypted data for a specific project.
  */
-export function wipeAllData(): void {
+export function wipeProjectData(projectId: string): void {
   if (typeof window === "undefined") return;
-  localStorage.clear();
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.includes(projectId)) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+}
+
+/**
+ * Migrate from old global encryption to per-project.
+ * Removes old global keys.
+ */
+export function cleanupOldGlobalEncryption(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("vibe-compass-salt");
+  localStorage.removeItem("vibe-compass-verify");
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("vibe-compass-enc-")) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
 }

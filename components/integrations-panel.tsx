@@ -18,12 +18,14 @@ interface IntegrationsPanelProps {
   integrations: Integration[];
   onToggle: (id: string) => void;
   stageId: StageId;
+  projectId: string;
 }
 
 export default function IntegrationsPanel({
   integrations,
   onToggle,
   stageId,
+  projectId,
 }: IntegrationsPanelProps) {
   const suggestions = getSuggestionsForStage(stageId);
 
@@ -51,6 +53,7 @@ export default function IntegrationsPanel({
               integration={integration}
               suggestion={suggestion}
               onToggle={onToggle}
+              projectId={projectId}
             />
           );
         })}
@@ -63,13 +66,15 @@ function SuggestionCard({
   integration,
   suggestion,
   onToggle,
+  projectId,
 }: {
   integration: Integration;
   suggestion: StageSuggestion;
   onToggle: (id: string) => void;
+  projectId: string;
 }) {
   const { saveToken, hasToken, removeToken, registry } =
-    useIntegrationService();
+    useIntegrationService(projectId);
 
   const [showTokenForm, setShowTokenForm] = useState(false);
   const [tokenValue, setTokenValue] = useState("");

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Lock } from "lucide-react";
 
 interface CreateProjectModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, description: string) => void;
+  onCreate: (name: string, description: string, password: string) => void;
 }
 
 export default function CreateProjectModal({
@@ -16,11 +16,17 @@ export default function CreateProjectModal({
 }: CreateProjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setName("");
       setDescription("");
+      setPassword("");
+      setConfirmPassword("");
+      setError("");
     }
   }, [open]);
 
@@ -29,9 +35,22 @@ export default function CreateProjectModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    onCreate(name.trim(), description.trim());
+
+    if (password.length < 4) {
+      setError("Password must be at least 4 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    onCreate(name.trim(), description.trim(), password);
     setName("");
     setDescription("");
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
   }
 
   return (
@@ -85,6 +104,39 @@ export default function CreateProjectModal({
             />
           </div>
 
+          <div className="border-t border-[var(--accent-26)] pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="w-3.5 h-3.5 text-[var(--accent-66)]" />
+              <span className="text-xs text-[var(--accent-88)]">
+                Encryption password
+              </span>
+            </div>
+            <p className="text-[10px] text-[var(--accent-44)] mb-3 leading-relaxed">
+              Your API keys, tokens, and chat history will be encrypted with this
+              password. It never leaves your device.
+            </p>
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                placeholder="Create password (min 4 chars)"
+                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+              />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
+                placeholder="Confirm password"
+                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-400">{error}</p>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -95,7 +147,7 @@ export default function CreateProjectModal({
             </button>
             <button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() || !password}
               className="flex-1 px-4 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
               create project →
