@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Project, StageId, DebtLevel } from "@/lib/types";
+import { Project, StageId, DebtLevel, Integration } from "@/lib/types";
 import { getStage, getNextStage, STAGES } from "@/lib/stages";
 import {
   ArrowLeft,
@@ -12,13 +12,15 @@ import {
 } from "lucide-react";
 import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
+import IntegrationsPanel from "./integrations-panel";
 
 interface ProjectDetailProps {
   project: Project;
   onUpdate: (updates: Partial<Project>) => void;
   onBack: () => void;
   chatPanel: React.ReactNode;
-  integrationsPanel: React.ReactNode;
+  integrations: Integration[];
+  onToggleIntegration: (id: string) => void;
 }
 
 function DebtSelector({
@@ -71,14 +73,15 @@ function DebtSelector({
   );
 }
 
-type Tab = "chat" | "guidance" | "integrations";
+type Tab = "chat" | "guidance";
 
 export default function ProjectDetail({
   project,
   onUpdate,
   onBack,
   chatPanel,
-  integrationsPanel,
+  integrations,
+  onToggleIntegration,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -91,7 +94,6 @@ export default function ProjectDetail({
   const tabs: { id: Tab; label: string }[] = [
     { id: "chat", label: "Chat" },
     { id: "guidance", label: "Guidance" },
-    { id: "integrations", label: "Integrations" },
   ];
 
   return (
@@ -190,13 +192,9 @@ export default function ProjectDetail({
         <div className="min-h-[400px]">{chatPanel}</div>
       )}
 
-      {activeTab === "integrations" && (
-        <div>{integrationsPanel}</div>
-      )}
-
       {activeTab === "guidance" && (
         <div className="grid md:grid-cols-3 gap-4">
-          {/* Left column — Current stage + guidance */}
+          {/* Left column — Current stage + guidance + integrations */}
           <div className="md:col-span-2 space-y-4">
             {stage && (
               <div className="border border-[var(--accent)] rounded p-5 bg-[var(--accent-10)] relative overflow-hidden">
@@ -273,6 +271,13 @@ export default function ProjectDetail({
                 </div>
               </div>
             )}
+
+            {/* Contextual integrations for this stage */}
+            <IntegrationsPanel
+              integrations={integrations}
+              onToggle={onToggleIntegration}
+              stageId={project.currentStage}
+            />
 
             <div className="flex gap-2">
               <button
