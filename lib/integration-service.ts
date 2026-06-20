@@ -1,5 +1,8 @@
 import { IntegrationContext, IntegrationTestResult } from "./types";
 
+// Re-export types for connector convenience
+export type { IntegrationContext, IntegrationTestResult };
+
 const TOKEN_PREFIX = "vibe-compass-integration-";
 
 // ---------------------------------------------------------------------------
@@ -27,6 +30,23 @@ export const IntegrationAuth = {
     return localStorage.getItem(TOKEN_PREFIX + integrationId) !== null;
   },
 };
+
+// Standalone function exports used by connectors
+export function saveIntegrationToken(id: string, token: string): void {
+  IntegrationAuth.saveIntegrationToken(id, token);
+}
+
+export function getIntegrationToken(id: string): string | null {
+  return IntegrationAuth.getIntegrationToken(id);
+}
+
+export function hasIntegrationToken(id: string): boolean {
+  return IntegrationAuth.hasIntegrationToken(id);
+}
+
+export function removeIntegrationToken(id: string): void {
+  IntegrationAuth.removeIntegrationToken(id);
+}
 
 // ---------------------------------------------------------------------------
 // IntegrationConnector – abstract connector shape
