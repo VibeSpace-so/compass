@@ -40,6 +40,12 @@ export function loadState(): AppState {
     if (!parsed.chatHistory) {
       parsed.chatHistory = {};
     }
+    parsed.projects = parsed.projects.map((p) => {
+      if ((p.currentStage as string) === "build") {
+        return { ...p, currentStage: "landing-page" as const };
+      }
+      return p;
+    });
     return parsed;
   } catch {
     return defaultState();

@@ -186,7 +186,7 @@ export default function CompassPage() {
           />
         ) : (
           <>
-            <Hero onStart={handleStart} />
+            <Hero onStart={handleStart} hasProjects={state.projects.length > 0} />
 
             <div className="border-t border-[var(--accent-26)]">
               <JourneyMap />

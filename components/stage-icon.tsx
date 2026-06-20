@@ -3,6 +3,7 @@
 import {
   Lightbulb,
   FileText,
+  Layout,
   Hammer,
   GitBranch,
   Rocket,
@@ -14,6 +15,7 @@ import {
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Lightbulb,
   FileText,
+  Layout,
   Hammer,
   GitBranch,
   Rocket,
