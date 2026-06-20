@@ -1,4 +1,10 @@
 import { IntegrationContext, IntegrationTestResult } from "./types";
+import {
+  saveEncrypted,
+  removeEncrypted,
+  getCachedKey,
+  hasCachedKey,
+} from "./secure-storage";
 
 // Re-export types for connector convenience
 export type { IntegrationContext, IntegrationTestResult };
@@ -12,22 +18,27 @@ const TOKEN_PREFIX = "vibe-compass-integration-";
 export const IntegrationAuth = {
   saveIntegrationToken(integrationId: string, token: string): void {
     if (typeof window === "undefined") return;
-    localStorage.setItem(TOKEN_PREFIX + integrationId, token);
+    saveEncrypted("integration-" + integrationId, token).catch(() => {
+      localStorage.setItem(TOKEN_PREFIX + integrationId, token);
+    });
   },
 
   getIntegrationToken(integrationId: string): string | null {
     if (typeof window === "undefined") return null;
+    const cached = getCachedKey("integration-" + integrationId);
+    if (cached) return cached;
     return localStorage.getItem(TOKEN_PREFIX + integrationId);
   },
 
   removeIntegrationToken(integrationId: string): void {
     if (typeof window === "undefined") return;
+    removeEncrypted("integration-" + integrationId);
     localStorage.removeItem(TOKEN_PREFIX + integrationId);
   },
 
   hasIntegrationToken(integrationId: string): boolean {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem(TOKEN_PREFIX + integrationId) !== null;
+    return hasCachedKey("integration-" + integrationId) || localStorage.getItem(TOKEN_PREFIX + integrationId) !== null;
   },
 };
 
@@ -46,6 +57,18 @@ export function hasIntegrationToken(id: string): boolean {
 
 export function removeIntegrationToken(id: string): void {
   IntegrationAuth.removeIntegrationToken(id);
+}
+
+/**
+ * Re-check token status after decryption cache is loaded.
+ * Call this after loadAllEncryptedKeys() to update integration connected state.
+ */
+export function refreshTokenStatus(integrationIds: string[]): Map<string, boolean> {
+  const status = new Map<string, boolean>();
+  for (const id of integrationIds) {
+    status.set(id, IntegrationAuth.hasIntegrationToken(id));
+  }
+  return status;
 }
 
 // ---------------------------------------------------------------------------

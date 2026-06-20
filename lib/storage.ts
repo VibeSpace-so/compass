@@ -1,5 +1,11 @@
 import { AppState, Project, BYOKProvider, ChatMessage, Integration } from "./types";
 import { DEFAULT_INTEGRATIONS } from "./integrations";
+import {
+  saveEncrypted,
+  removeEncrypted,
+  getCachedKey,
+  hasCachedKey,
+} from "./secure-storage";
 
 const STORAGE_KEY = "vibe-compass-state";
 const BYOK_KEYS_PREFIX = "vibe-compass-key-";
@@ -32,7 +38,7 @@ export function loadState(): AppState {
     }
     parsed.byokSettings.providers = parsed.byokSettings.providers.map((p) => ({
       ...p,
-      keySet: !!localStorage.getItem(BYOK_KEYS_PREFIX + p.id),
+      keySet: hasCachedKey("byok-" + p.id) || !!localStorage.getItem(BYOK_KEYS_PREFIX + p.id),
     }));
     if (!parsed.integrations) {
       parsed.integrations = DEFAULT_INTEGRATIONS;
@@ -61,7 +67,7 @@ export function saveState(state: AppState): void {
         id,
         name,
         enabled,
-        keySet: !!localStorage.getItem(BYOK_KEYS_PREFIX + id),
+        keySet: hasCachedKey("byok-" + id) || !!localStorage.getItem(BYOK_KEYS_PREFIX + id),
       })),
     },
   };
@@ -136,16 +142,24 @@ export function selectProject(state: AppState, id: string | null): AppState {
 
 export function saveBYOKKey(providerId: string, key: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(BYOK_KEYS_PREFIX + providerId, key);
+  // Save encrypted (async, fire-and-forget for UI responsiveness)
+  saveEncrypted("byok-" + providerId, key).catch(() => {
+    // Fallback: save unencrypted if encryption not set up yet
+    localStorage.setItem(BYOK_KEYS_PREFIX + providerId, key);
+  });
 }
 
 export function removeBYOKKey(providerId: string): void {
   if (typeof window === "undefined") return;
+  removeEncrypted("byok-" + providerId);
   localStorage.removeItem(BYOK_KEYS_PREFIX + providerId);
 }
 
 export function getBYOKKey(providerId: string): string {
   if (typeof window === "undefined") return "";
+  // Read from encrypted cache first, fall back to plaintext
+  const cached = getCachedKey("byok-" + providerId);
+  if (cached) return cached;
   return localStorage.getItem(BYOK_KEYS_PREFIX + providerId) || "";
 }
 

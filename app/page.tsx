@@ -14,6 +14,11 @@ import {
   toggleIntegration,
   addChatMessage,
 } from "@/lib/storage";
+import {
+  setSessionPassword,
+  migrateToEncrypted,
+  loadAllEncryptedKeys,
+} from "@/lib/secure-storage";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -22,6 +27,7 @@ import ProjectDetail from "@/components/project-detail";
 import CreateProjectModal from "@/components/create-project-modal";
 import BYOKSettings from "@/components/byok-settings";
 import ChatPanel from "@/components/chat-panel";
+import PasswordGate from "@/components/password-gate";
 
 
 type View = "home" | "project";
@@ -32,10 +38,19 @@ export default function CompassPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBYOK, setShowBYOK] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  async function handleUnlock(password: string) {
+    setSessionPassword(password);
+    await migrateToEncrypted();
+    await loadAllEncryptedKeys();
     setState(loadState());
+    setUnlocked(true);
+  }
+
+  useEffect(() => {
+    // Don't load state until unlocked
   }, []);
 
   const handleCreateProject = useCallback(
@@ -137,6 +152,10 @@ export default function CompassPage() {
     },
     []
   );
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={handleUnlock} />;
+  }
 
   if (!state) {
     return (
