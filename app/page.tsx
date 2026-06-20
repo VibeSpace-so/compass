@@ -22,7 +22,7 @@ import ProjectDetail from "@/components/project-detail";
 import CreateProjectModal from "@/components/create-project-modal";
 import BYOKSettings from "@/components/byok-settings";
 import ChatPanel from "@/components/chat-panel";
-import IntegrationsPanel from "@/components/integrations-panel";
+
 
 type View = "home" | "project";
 
@@ -177,12 +177,8 @@ export default function CompassPage() {
                 onSetupKeys={() => setShowBYOK(true)}
               />
             }
-            integrationsPanel={
-              <IntegrationsPanel
-                integrations={state.integrations}
-                onToggle={handleToggleIntegration}
-              />
-            }
+            integrations={state.integrations}
+            onToggleIntegration={handleToggleIntegration}
           />
         ) : (
           <>
