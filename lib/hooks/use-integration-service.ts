@@ -5,10 +5,21 @@ import {
   IntegrationAuth,
   getIntegrationRegistry,
 } from "@/lib/integration-service";
+import { createDefaultConnectors } from "@/lib/connectors";
 import type { IntegrationContext } from "@/lib/types";
 
 export function useIntegrationService() {
-  const registry = useMemo(() => getIntegrationRegistry(), []);
+  const registry = useMemo(() => {
+    const reg = getIntegrationRegistry();
+    // Register default connectors if not already registered
+    const connectors = createDefaultConnectors();
+    for (const connector of connectors) {
+      if (!reg.getConnector(connector.id)) {
+        reg.registerConnector(connector);
+      }
+    }
+    return reg;
+  }, []);
 
   const saveToken = useCallback((integrationId: string, token: string) => {
     IntegrationAuth.saveIntegrationToken(integrationId, token);
