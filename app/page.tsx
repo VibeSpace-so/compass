@@ -175,6 +175,7 @@ export default function CompassPage() {
                 onSendMessage={handleSendMessage}
                 isEnabled={chatEnabled}
                 onSetupKeys={() => setShowBYOK(true)}
+                integrations={state.integrations}
               />
             }
             integrations={state.integrations}
