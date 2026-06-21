@@ -8,7 +8,7 @@ import {
   saveEncryptedChat,
   getCachedChat,
 } from "./secure-storage";
-import { getCachedMemories } from "./memories";
+import { getCachedMemories, clearProjectMemories } from "./memories";
 
 const STORAGE_KEY = "vibe-compass-state";
 
@@ -151,12 +151,15 @@ export function updateProject(
 
 export function deleteProject(state: AppState, id: string): AppState {
   const { [id]: _removed, ...remainingChat } = state.chatHistory;
+  const { [id]: _removedMem, ...remainingMemories } = state.memories;
+  clearProjectMemories(id);
   const newState: AppState = {
     ...state,
     projects: state.projects.filter((p) => p.id !== id),
     selectedProjectId:
       state.selectedProjectId === id ? null : state.selectedProjectId,
     chatHistory: remainingChat,
+    memories: remainingMemories,
   };
   saveState(newState);
   return newState;

@@ -207,10 +207,12 @@ export default function CompassPage() {
 
   const handleStageAdvance = useCallback(
     (newStage: StageId) => {
-      if (!state || !state.selectedProjectId) return;
-      setState(updateProject(state, state.selectedProjectId, { currentStage: newStage }));
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return updateProject(prev, prev.selectedProjectId, { currentStage: newStage });
+      });
     },
-    [state]
+    []
   );
 
   const handleRemoveMemory = useCallback(
