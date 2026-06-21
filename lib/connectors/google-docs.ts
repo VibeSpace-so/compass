@@ -1,23 +1,30 @@
 import {
-  IntegrationConnector,
   IntegrationContext,
   IntegrationTestResult,
   getIntegrationToken,
   hasIntegrationToken,
 } from "@/lib/integration-service";
+import { ToolCapableConnector, ChatTool, ToolCallResult } from "@/lib/tool-types";
 
-const DRIVE_API = "https://www.googleapis.com/drive/v3";
+const PROXY_URL = "/api/integrations/gdocs";
 
-/**
- * Google Docs / Drive connector.
- *
- * NOTE: Google APIs enforce CORS restrictions for browser-only apps.
- * In production, proxy requests through a Next.js API route or use the
- * Google Identity Services library with a proper OAuth consent screen.
- * The fetch calls below are structurally complete and will work once a
- * proxy or server-side relay is in place.
- */
-export class GoogleDocsConnector implements IntegrationConnector {
+async function proxyCall(
+  action: string,
+  params: Record<string, unknown>,
+  token: string
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  const res = await fetch(PROXY_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action, params }),
+  });
+  return res.json() as Promise<{ success: boolean; data?: unknown; error?: string }>;
+}
+
+export class GoogleDocsConnector implements ToolCapableConnector {
   readonly id = "gdocs";
   readonly name = "Google Docs";
 
@@ -32,23 +39,11 @@ export class GoogleDocsConnector implements IntegrationConnector {
     }
 
     try {
-      const res = await fetch(
-        `${DRIVE_API}/about?fields=user(displayName,emailAddress)`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!res.ok) {
-        return {
-          success: false,
-          message: `Google API error: ${res.statusText}`,
-        };
+      const result = await proxyCall("list_docs", {}, token);
+      if (!result.success) {
+        return { success: false, message: `Google API error: ${result.error ?? "unknown"}` };
       }
-
-      const data = (await res.json()) as {
-        user?: { displayName?: string; emailAddress?: string };
-      };
-      const name = data.user?.displayName ?? data.user?.emailAddress ?? "unknown";
-      return { success: true, message: `Connected as ${name}.` };
+      return { success: true, message: "Connected to Google Docs." };
     } catch (err) {
       return {
         success: false,
@@ -62,27 +57,92 @@ export class GoogleDocsConnector implements IntegrationConnector {
     if (!token) return [];
 
     try {
-      const q = query
-        ? `mimeType='application/vnd.google-apps.document' and fullText contains '${query.replace(/'/g, "\\'")}'`
-        : "mimeType='application/vnd.google-apps.document'";
-
-      const params = new URLSearchParams({
-        q,
-        fields: "files(id,name,modifiedTime,webViewLink)",
-        pageSize: "20",
-        orderBy: "modifiedTime desc",
-      });
-
-      const res = await fetch(`${DRIVE_API}/files?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) return [];
-
-      const data = (await res.json()) as { files?: DriveFile[] };
+      const action = query ? "search" : "list_docs";
+      const params: Record<string, unknown> = query ? { query } : {};
+      const result = await proxyCall(action, params, token);
+      if (!result.success || !result.data) return [];
+      const data = result.data as { files?: DriveFile[] };
       return (data.files ?? []).map((file) => this.fileToContext(file));
     } catch {
       return [];
+    }
+  }
+
+  getTools(): ChatTool[] {
+    return [
+      {
+        name: "gdocs_search",
+        description: "Search Google Drive for documents",
+        integrationId: this.id,
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query" },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        name: "gdocs_get_doc",
+        description: "Get document content",
+        integrationId: this.id,
+        parameters: {
+          type: "object",
+          properties: {
+            doc_id: { type: "string", description: "Google Doc ID" },
+          },
+          required: ["doc_id"],
+        },
+      },
+      {
+        name: "gdocs_create_doc",
+        description: "Create a new Google Docs document",
+        integrationId: this.id,
+        parameters: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Document title" },
+            content: { type: "string", description: "Initial document text" },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "gdocs_update_doc",
+        description: "Update/append to a Google Docs document",
+        integrationId: this.id,
+        parameters: {
+          type: "object",
+          properties: {
+            doc_id: { type: "string", description: "Google Doc ID" },
+            content: { type: "string", description: "Text to append" },
+          },
+          required: ["doc_id", "content"],
+        },
+      },
+    ];
+  }
+
+  async executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolCallResult> {
+    const token = getIntegrationToken(this.id);
+    if (!token) return { success: false, error: "No Google OAuth token configured." };
+
+    const actionMap: Record<string, string> = {
+      gdocs_search: "search",
+      gdocs_get_doc: "get_doc",
+      gdocs_create_doc: "create_doc",
+      gdocs_update_doc: "update_doc",
+    };
+    const action = actionMap[toolName];
+    if (!action) return { success: false, error: `Unknown tool: ${toolName}` };
+
+    try {
+      return await proxyCall(action, params, token);
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 

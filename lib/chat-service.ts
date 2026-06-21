@@ -2,6 +2,17 @@ import { ChatMessage, Integration, Project } from "./types";
 import { getStage } from "./stages";
 import { getSuggestionsForStage } from "./integrations";
 import { getBYOKKey } from "./storage";
+import {
+  getAvailableTools,
+  executeTool,
+  toolsToOpenAIFormat,
+  toolsToAnthropicFormat,
+  toolsToGeminiFormat,
+} from "./chat-tools";
+import { getFlowContext } from "./flow-orchestrator";
+import { ChatTool } from "./tool-types";
+
+const MAX_TOOL_CALLS_PER_TURN = 3;
 
 interface LLMProvider {
   id: string;
@@ -27,12 +38,19 @@ const PROVIDERS: LLMProvider[] = [
   },
   {
     id: "google",
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
     model: "gemini-2.0-flash",
   },
 ];
 
-function getActiveProvider(projectId: string, enabledProviderIds?: string[]): { provider: LLMProvider; apiKey: string } | null {
+// Providers that support function calling
+const TOOL_CAPABLE_PROVIDERS = new Set(["groq", "openai", "anthropic", "google"]);
+
+function getActiveProvider(
+  projectId: string,
+  enabledProviderIds?: string[]
+): { provider: LLMProvider; apiKey: string } | null {
   for (const provider of PROVIDERS) {
     if (enabledProviderIds && !enabledProviderIds.includes(provider.id)) {
       continue;
@@ -45,7 +63,10 @@ function getActiveProvider(projectId: string, enabledProviderIds?: string[]): { 
   return null;
 }
 
-function buildSystemPrompt(project: Project, integrations: Integration[]): string {
+export function buildSystemPrompt(
+  project: Project,
+  integrations: Integration[]
+): string {
   const stage = getStage(project.currentStage);
   if (!stage) return "You are Compass, a helpful assistant for vibe coders.";
 
@@ -56,16 +77,23 @@ function buildSystemPrompt(project: Project, integrations: Integration[]): strin
     return integ && !integ.connected;
   });
 
-  const connectedList = connected.length > 0
-    ? `Connected integrations: ${connected.map((i) => i.name).join(", ")}.`
-    : "No integrations connected yet.";
+  const connectedList =
+    connected.length > 0
+      ? `Connected integrations: ${connected.map((i) => i.name).join(", ")}.`
+      : "No integrations connected yet.";
 
-  const suggestedList = unconnected.length > 0
-    ? `\nSuggested integrations for this stage:\n${unconnected.map((s) => {
-        const integ = integrations.find((i) => i.id === s.integrationId);
-        return `- ${integ?.name}: ${s.purpose} → ${s.outcome}`;
-      }).join("\n")}`
-    : "";
+  const suggestedList =
+    unconnected.length > 0
+      ? `\nSuggested integrations for this stage:\n${unconnected
+          .map((s) => {
+            const integ = integrations.find((i) => i.id === s.integrationId);
+            return `- ${integ?.name}: ${s.purpose} → ${s.outcome}`;
+          })
+          .join("\n")}`
+      : "";
+
+  const connectedIds = connected.map((i) => i.id);
+  const flowContext = getFlowContext(project.currentStage, connectedIds);
 
   return `You are Compass, a guided assistant for vibe coders built by Vibe Space. You help users navigate the vibe coding journey — from ideation to launch — with clarity and opinionated guidance.
 
@@ -82,6 +110,8 @@ STAGE CONTEXT: ${stage.debtNote}
 INTEGRATIONS:
 ${connectedList}${suggestedList}
 
+${flowContext}
+
 RESOURCES FOR THIS STAGE:
 ${stage.links.map((l) => `- ${l.label}: ${l.url}`).join("\n")}
 
@@ -93,7 +123,9 @@ YOUR ROLE:
 - When they ask about debt or risk, explain clearly what adds or reduces complexity.
 - Keep responses concise (2-4 paragraphs max). Avoid generic filler.
 - If suggesting an integration, mention its purpose and expected outcome.
-- Never make up information about tools or links. Use only what's in the context above.`;
+- Never make up information about tools or links. Use only what's in the context above.
+- When a user request can be fulfilled by an available tool action, USE the tool rather than just describing what to do.
+- Announce what you're about to do before calling a tool.`;
 }
 
 function formatMessages(
@@ -105,9 +137,7 @@ function formatMessages(
     { role: "system", content: systemPrompt },
   ];
 
-  // Include recent history (last 10 messages for context window)
   const recentHistory = history.slice(-10);
-  // Ensure history starts with a user message (required by Anthropic and others)
   const startIdx = recentHistory.findIndex((m) => m.role === "user");
   const trimmedHistory = startIdx >= 0 ? recentHistory.slice(startIdx) : [];
   for (const msg of trimmedHistory) {
@@ -120,13 +150,146 @@ function formatMessages(
   return messages;
 }
 
-async function callOpenAICompatible(
+// ---------------------------------------------------------------------------
+// Tool call types shared across providers
+// ---------------------------------------------------------------------------
+
+export interface ToolCallInfo {
+  id: string;
+  toolName: string;
+  integrationId: string;
+  args: Record<string, unknown>;
+  status: "executing" | "success" | "error";
+  result?: string;
+}
+
+export interface ChatResponseWithTools {
+  content: string;
+  toolCalls: ToolCallInfo[];
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI-compatible provider (Groq, OpenAI) — with tool calling
+// ---------------------------------------------------------------------------
+
+interface OpenAIToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+interface OpenAIChoice {
+  message: {
+    content?: string | null;
+    tool_calls?: OpenAIToolCall[];
+    role: string;
+  };
+  finish_reason: string;
+}
+
+async function callOpenAICompatibleWithTools(
   endpoint: string,
   model: string,
   apiKey: string,
-  messages: { role: string; content: string }[]
-): Promise<string> {
-  const response = await fetch(endpoint, {
+  messages: { role: string; content: string }[],
+  tools: ChatTool[],
+  onToolCall?: (info: ToolCallInfo) => void
+): Promise<ChatResponseWithTools> {
+  const toolDefs = tools.length > 0 ? toolsToOpenAIFormat(tools) : undefined;
+  const allToolCalls: ToolCallInfo[] = [];
+
+  // Allow up to MAX_TOOL_CALLS_PER_TURN rounds of tool calling
+  const conversationMessages: Record<string, unknown>[] = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
+    const body: Record<string, unknown> = {
+      model,
+      messages: conversationMessages,
+      max_tokens: 1024,
+      temperature: 0.7,
+    };
+    if (toolDefs && toolDefs.length > 0) {
+      body.tools = toolDefs;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error (${response.status}): ${error}`);
+    }
+
+    const data = (await response.json()) as { choices: OpenAIChoice[] };
+    const choice = data.choices?.[0];
+    if (!choice) {
+      return { content: "I couldn't generate a response. Please try again.", toolCalls: allToolCalls };
+    }
+
+    const msg = choice.message;
+
+    // No tool calls → return text
+    if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      return {
+        content: msg.content || "I couldn't generate a response. Please try again.",
+        toolCalls: allToolCalls,
+      };
+    }
+
+    // Execute tool calls
+    conversationMessages.push({
+      role: "assistant",
+      content: msg.content ?? null,
+      tool_calls: msg.tool_calls,
+    });
+
+    for (const tc of msg.tool_calls) {
+      let args: Record<string, unknown> = {};
+      try {
+        args = JSON.parse(tc.function.arguments);
+      } catch {
+        // pass
+      }
+
+      const tool = tools.find((t) => t.name === tc.function.name);
+      const info: ToolCallInfo = {
+        id: tc.id,
+        toolName: tc.function.name,
+        integrationId: tool?.integrationId ?? "unknown",
+        args,
+        status: "executing",
+      };
+
+      allToolCalls.push(info);
+      onToolCall?.(info);
+
+      const result = await executeTool(tc.function.name, args);
+
+      info.status = result.success ? "success" : "error";
+      info.result = result.success
+        ? JSON.stringify(result.data)
+        : (result.error ?? "Unknown error");
+      onToolCall?.(info);
+
+      conversationMessages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: info.result,
+      });
+    }
+  }
+
+  // Exhausted tool rounds — get final text response
+  const finalResponse = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -134,31 +297,139 @@ async function callOpenAICompatible(
     },
     body: JSON.stringify({
       model,
-      messages,
+      messages: conversationMessages,
       max_tokens: 1024,
       temperature: 0.7,
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API error (${response.status}): ${error}`);
+  if (!finalResponse.ok) {
+    const error = await finalResponse.text();
+    throw new Error(`API error (${finalResponse.status}): ${error}`);
   }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+  const finalData = (await finalResponse.json()) as { choices: OpenAIChoice[] };
+  return {
+    content:
+      finalData.choices?.[0]?.message?.content ||
+      "I couldn't generate a response. Please try again.",
+    toolCalls: allToolCalls,
+  };
 }
 
-async function callAnthropic(
+// ---------------------------------------------------------------------------
+// Anthropic — with tool calling
+// ---------------------------------------------------------------------------
+
+interface AnthropicContentBlock {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+}
+
+interface AnthropicResponse {
+  content: AnthropicContentBlock[];
+  stop_reason: string;
+}
+
+async function callAnthropicWithTools(
   apiKey: string,
   systemPrompt: string,
-  messages: { role: string; content: string }[]
-): Promise<string> {
-  const anthropicMessages = messages
+  messages: { role: string; content: string }[],
+  tools: ChatTool[],
+  onToolCall?: (info: ToolCallInfo) => void
+): Promise<ChatResponseWithTools> {
+  const toolDefs = tools.length > 0 ? toolsToAnthropicFormat(tools) : undefined;
+  const allToolCalls: ToolCallInfo[] = [];
+
+  const anthropicMessages: { role: string; content: string | AnthropicContentBlock[] }[] = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role, content: m.content }));
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
+    const body: Record<string, unknown> = {
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: anthropicMessages,
+    };
+    if (toolDefs && toolDefs.length > 0) {
+      body.tools = toolDefs;
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Anthropic API error (${response.status}): ${error}`);
+    }
+
+    const data = (await response.json()) as AnthropicResponse;
+
+    const textBlocks = data.content.filter((b) => b.type === "text");
+    const toolUseBlocks = data.content.filter((b) => b.type === "tool_use");
+
+    if (toolUseBlocks.length === 0 || data.stop_reason !== "tool_use") {
+      const text = textBlocks.map((b) => b.text ?? "").join("\n") ||
+        "I couldn't generate a response. Please try again.";
+      return { content: text, toolCalls: allToolCalls };
+    }
+
+    // Process tool calls
+    anthropicMessages.push({ role: "assistant", content: data.content });
+
+    const toolResults: AnthropicContentBlock[] = [];
+
+    for (const block of toolUseBlocks) {
+      const tool = tools.find((t) => t.name === block.name);
+      const info: ToolCallInfo = {
+        id: block.id ?? `tc_${Date.now()}`,
+        toolName: block.name ?? "unknown",
+        integrationId: tool?.integrationId ?? "unknown",
+        args: block.input ?? {},
+        status: "executing",
+      };
+
+      allToolCalls.push(info);
+      onToolCall?.(info);
+
+      const result = await executeTool(block.name ?? "", block.input ?? {});
+
+      info.status = result.success ? "success" : "error";
+      info.result = result.success
+        ? JSON.stringify(result.data)
+        : (result.error ?? "Unknown error");
+      onToolCall?.(info);
+
+      toolResults.push({
+        type: "tool_result",
+        id: block.id,
+        text: undefined,
+        name: undefined,
+        input: undefined,
+        ...({ tool_use_id: block.id, content: info.result } as unknown as Record<string, unknown>),
+      } as unknown as AnthropicContentBlock);
+    }
+
+    anthropicMessages.push({
+      role: "user",
+      content: toolResults as unknown as string,
+    });
+  }
+
+  // Final text response after tool rounds
+  const finalResponse = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -174,25 +445,55 @@ async function callAnthropic(
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Anthropic API error (${response.status}): ${error}`);
+  if (!finalResponse.ok) {
+    const error = await finalResponse.text();
+    throw new Error(`Anthropic API error (${finalResponse.status}): ${error}`);
   }
 
-  const data = await response.json();
-  return data.content?.[0]?.text || "I couldn't generate a response. Please try again.";
+  const finalData = (await finalResponse.json()) as AnthropicResponse;
+  const text = finalData.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text ?? "")
+    .join("\n") || "I couldn't generate a response. Please try again.";
+
+  return { content: text, toolCalls: allToolCalls };
 }
 
-async function callGoogle(
+// ---------------------------------------------------------------------------
+// Google Gemini — with function calling
+// ---------------------------------------------------------------------------
+
+interface GeminiPart {
+  text?: string;
+  functionCall?: { name: string; args: Record<string, unknown> };
+  functionResponse?: { name: string; response: Record<string, unknown> };
+}
+
+interface GeminiCandidate {
+  content: { parts: GeminiPart[]; role: string };
+  finishReason?: string;
+}
+
+interface GeminiResponse {
+  candidates: GeminiCandidate[];
+}
+
+async function callGoogleWithTools(
   apiKey: string,
   systemPrompt: string,
-  messages: { role: string; content: string }[]
-): Promise<string> {
+  messages: { role: string; content: string }[],
+  tools: ChatTool[],
+  onToolCall?: (info: ToolCallInfo) => void
+): Promise<ChatResponseWithTools> {
+  const allToolCalls: ToolCallInfo[] = [];
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+
   let contents = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+      parts: [{ text: m.content }] as GeminiPart[],
     }));
 
   // Gemini requires the first content to have role "user"
@@ -200,9 +501,91 @@ async function callGoogle(
     contents = contents.slice(1);
   }
 
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  const geminiTools = tools.length > 0 ? [toolsToGeminiFormat(tools)] : undefined;
 
-  const response = await fetch(url, {
+  for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
+    const body: Record<string, unknown> = {
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+    };
+    if (geminiTools) {
+      body.tools = geminiTools;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Google API error (${response.status}): ${error}`);
+    }
+
+    const data = (await response.json()) as GeminiResponse;
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      return {
+        content: "I couldn't generate a response. Please try again.",
+        toolCalls: allToolCalls,
+      };
+    }
+
+    const parts = candidate.content.parts;
+    const functionCalls = parts.filter((p) => p.functionCall);
+    const textParts = parts.filter((p) => p.text);
+
+    if (functionCalls.length === 0) {
+      const text = textParts.map((p) => p.text ?? "").join("\n") ||
+        "I couldn't generate a response. Please try again.";
+      return { content: text, toolCalls: allToolCalls };
+    }
+
+    // Add the model response to contents
+    contents.push({ role: "model", parts });
+
+    // Execute function calls and build response parts
+    const responseParts: GeminiPart[] = [];
+
+    for (const part of functionCalls) {
+      const fc = part.functionCall!;
+      const tool = tools.find((t) => t.name === fc.name);
+      const info: ToolCallInfo = {
+        id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        toolName: fc.name,
+        integrationId: tool?.integrationId ?? "unknown",
+        args: fc.args,
+        status: "executing",
+      };
+
+      allToolCalls.push(info);
+      onToolCall?.(info);
+
+      const result = await executeTool(fc.name, fc.args);
+
+      info.status = result.success ? "success" : "error";
+      info.result = result.success
+        ? JSON.stringify(result.data)
+        : (result.error ?? "Unknown error");
+      onToolCall?.(info);
+
+      responseParts.push({
+        functionResponse: {
+          name: fc.name,
+          response: result.success
+            ? { result: result.data }
+            : { error: result.error ?? "Unknown error" },
+        },
+      });
+    }
+
+    contents.push({ role: "user", parts: responseParts });
+  }
+
+  // Final text response
+  const finalResponse = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
@@ -212,21 +595,31 @@ async function callGoogle(
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Google API error (${response.status}): ${error}`);
+  if (!finalResponse.ok) {
+    const error = await finalResponse.text();
+    throw new Error(`Google API error (${finalResponse.status}): ${error}`);
   }
 
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response. Please try again.";
+  const finalData = (await finalResponse.json()) as GeminiResponse;
+  const text = finalData.candidates?.[0]?.content?.parts
+    ?.filter((p) => p.text)
+    .map((p) => p.text ?? "")
+    .join("\n") || "I couldn't generate a response. Please try again.";
+
+  return { content: text, toolCalls: allToolCalls };
 }
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export async function generateChatResponse(
   userMessage: string,
   project: Project,
   integrations: Integration[],
   history: ChatMessage[],
-  enabledProviderIds?: string[]
+  enabledProviderIds?: string[],
+  onToolCall?: (info: ToolCallInfo) => void
 ): Promise<string> {
   const active = getActiveProvider(project.id, enabledProviderIds);
   if (!active) {
@@ -237,17 +630,41 @@ export async function generateChatResponse(
   const systemPrompt = buildSystemPrompt(project, integrations);
   const messages = formatMessages(systemPrompt, history, userMessage);
 
+  // Collect available tools from connectors
+  const tools = TOOL_CAPABLE_PROVIDERS.has(provider.id) ? getAvailableTools() : [];
+
   try {
+    let result: ChatResponseWithTools;
+
     if (provider.id === "anthropic") {
-      return await callAnthropic(apiKey, systemPrompt, messages);
+      result = await callAnthropicWithTools(
+        apiKey,
+        systemPrompt,
+        messages,
+        tools,
+        onToolCall
+      );
+    } else if (provider.id === "google") {
+      result = await callGoogleWithTools(
+        apiKey,
+        systemPrompt,
+        messages,
+        tools,
+        onToolCall
+      );
+    } else {
+      // OpenAI-compatible (Groq, OpenAI)
+      result = await callOpenAICompatibleWithTools(
+        provider.endpoint,
+        provider.model,
+        apiKey,
+        messages,
+        tools,
+        onToolCall
+      );
     }
 
-    if (provider.id === "google") {
-      return await callGoogle(apiKey, systemPrompt, messages);
-    }
-
-    // OpenAI-compatible (Groq, OpenAI)
-    return await callOpenAICompatible(provider.endpoint, provider.model, apiKey, messages);
+    return result.content;
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     return `Error calling ${provider.id}: ${msg}\n\nPlease check your API key and try again.`;

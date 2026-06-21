@@ -1,23 +1,14 @@
 import {
-  IntegrationConnector,
   IntegrationContext,
   IntegrationTestResult,
   getIntegrationToken,
   hasIntegrationToken,
 } from "@/lib/integration-service";
+import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
 
-const DISCORD_API = "https://discord.com/api/v10";
+const PROXY_URL = "/api/integrations/discord";
 
-/**
- * Discord bot connector.
- *
- * Expects a bot token stored via the integration service. The token is
- * sent as `Bot <token>` in the Authorization header.
- *
- * NOTE: Discord API does not allow browser-origin requests (CORS). In
- * production, proxy through a Next.js API route or server-side relay.
- */
-export class DiscordConnector implements IntegrationConnector {
+export class DiscordConnector implements ToolCapableConnector {
   readonly id = "discord";
   readonly name = "Discord";
 
@@ -32,22 +23,11 @@ export class DiscordConnector implements IntegrationConnector {
     }
 
     try {
-      const res = await fetch(`${DISCORD_API}/users/@me`, {
-        headers: { Authorization: `Bot ${token}` },
-      });
-
-      if (!res.ok) {
-        return {
-          success: false,
-          message: `Discord API error: ${res.statusText}`,
-        };
+      const res = await this.proxyCall(token, "list_guilds", {});
+      if (!res.success) {
+        return { success: false, message: res.error ?? "Failed to connect to Discord." };
       }
-
-      const user = (await res.json()) as { username?: string; id?: string };
-      return {
-        success: true,
-        message: `Connected as ${user.username ?? user.id ?? "unknown"}.`,
-      };
+      return { success: true, message: "Connected to Discord successfully." };
     } catch (err) {
       return {
         success: false,
@@ -61,18 +41,41 @@ export class DiscordConnector implements IntegrationConnector {
     if (!token) return [];
 
     try {
-      const guildsRes = await fetch(`${DISCORD_API}/users/@me/guilds`, {
-        headers: { Authorization: `Bot ${token}` },
-      });
+      const guildsRes = await this.proxyCall(token, "list_guilds", {});
+      if (!guildsRes.success) return [];
 
-      if (!guildsRes.ok) return [];
-
-      const guilds = (await guildsRes.json()) as DiscordGuild[];
+      const guilds = guildsRes.data as DiscordGuild[];
       const contexts: IntegrationContext[] = [];
 
       for (const guild of guilds.slice(0, 3)) {
-        const messages = await this.fetchGuildMessages(token, guild);
-        contexts.push(...messages);
+        const channelsRes = await this.proxyCall(token, "list_channels", {
+          guild_id: guild.id,
+        });
+        if (!channelsRes.success) continue;
+
+        const channels = channelsRes.data as DiscordChannel[];
+        const textChannels = channels.filter((c) => c.type === 0).slice(0, 3);
+
+        for (const channel of textChannels) {
+          const msgsRes = await this.proxyCall(token, "read_messages", {
+            channel_id: channel.id,
+            limit: 5,
+          });
+          if (!msgsRes.success) continue;
+
+          const msgs = msgsRes.data as DiscordMessage[];
+          for (const msg of msgs) {
+            if (!msg.content) continue;
+            contexts.push({
+              id: msg.id,
+              integrationId: this.id,
+              title: `#${channel.name} in ${guild.name}`,
+              content: msg.content,
+              url: `https://discord.com/channels/${guild.id}/${channel.id}/${msg.id}`,
+              updatedAt: msg.timestamp,
+            });
+          }
+        }
       }
 
       return contexts;
@@ -81,52 +84,103 @@ export class DiscordConnector implements IntegrationConnector {
     }
   }
 
-  private async fetchGuildMessages(
-    token: string,
-    guild: DiscordGuild
-  ): Promise<IntegrationContext[]> {
-    try {
-      const channelsRes = await fetch(
-        `${DISCORD_API}/guilds/${guild.id}/channels`,
-        { headers: { Authorization: `Bot ${token}` } }
-      );
+  getTools(): ChatTool[] {
+    return [
+      {
+        name: "discord_list_channels",
+        description: "List Discord channels in a guild",
+        parameters: {
+          type: "object",
+          properties: {
+            guild_id: { type: "string", description: "The Discord guild (server) ID" },
+          },
+          required: ["guild_id"],
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "discord_read_messages",
+        description: "Read recent messages from a Discord channel",
+        parameters: {
+          type: "object",
+          properties: {
+            channel_id: { type: "string", description: "The Discord channel ID" },
+            limit: { type: "number", description: "Number of messages to fetch (default 20)" },
+          },
+          required: ["channel_id"],
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "discord_send_message",
+        description: "Send a message to a Discord channel",
+        parameters: {
+          type: "object",
+          properties: {
+            channel_id: { type: "string", description: "The Discord channel ID" },
+            content: { type: "string", description: "Message content to send" },
+          },
+          required: ["channel_id", "content"],
+        },
+        integrationId: this.id,
+      },
+      {
+        name: "discord_search",
+        description: "Search Discord messages in a guild",
+        parameters: {
+          type: "object",
+          properties: {
+            guild_id: { type: "string", description: "The Discord guild (server) ID" },
+            query: { type: "string", description: "Search query" },
+          },
+          required: ["guild_id", "query"],
+        },
+        integrationId: this.id,
+      },
+    ];
+  }
 
-      if (!channelsRes.ok) return [];
-
-      const channels = (await channelsRes.json()) as DiscordChannel[];
-      const textChannels = channels
-        .filter((c) => c.type === 0)
-        .slice(0, 3);
-
-      const contexts: IntegrationContext[] = [];
-
-      for (const channel of textChannels) {
-        const msgsRes = await fetch(
-          `${DISCORD_API}/channels/${channel.id}/messages?limit=5`,
-          { headers: { Authorization: `Bot ${token}` } }
-        );
-
-        if (!msgsRes.ok) continue;
-
-        const msgs = (await msgsRes.json()) as DiscordMessage[];
-
-        for (const msg of msgs) {
-          if (!msg.content) continue;
-          contexts.push({
-            id: msg.id,
-            integrationId: this.id,
-            title: `#${channel.name} in ${guild.name}`,
-            content: msg.content,
-            url: `https://discord.com/channels/${guild.id}/${channel.id}/${msg.id}`,
-            updatedAt: msg.timestamp,
-          });
-        }
-      }
-
-      return contexts;
-    } catch {
-      return [];
+  async executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolCallResult> {
+    const token = getIntegrationToken(this.id);
+    if (!token) {
+      return { success: false, error: "No Discord token configured." };
     }
+
+    const actionMap: Record<string, string> = {
+      discord_list_channels: "list_channels",
+      discord_read_messages: "read_messages",
+      discord_send_message: "send_message",
+      discord_search: "search_messages",
+    };
+
+    const action = actionMap[toolName];
+    if (!action) {
+      return { success: false, error: `Unknown tool: ${toolName}` };
+    }
+
+    return this.proxyCall(token, action, params);
+  }
+
+  private async proxyCall(
+    token: string,
+    action: string,
+    params: Record<string, unknown>
+  ): Promise<ToolCallResult> {
+    const res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, params }),
+    });
+
+    const json = (await res.json()) as { success: boolean; data?: unknown; error?: string };
+    return {
+      success: json.success,
+      data: json.data,
+      error: json.error,
+    };
   }
 }
 
