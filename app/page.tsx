@@ -24,6 +24,7 @@ import {
 import {
   setupProjectEncryption,
   isProjectEncrypted,
+  verifyProjectPassword,
   cleanupOldGlobalEncryption,
   wipeProjectData,
 } from "@/lib/crypto";
@@ -74,19 +75,34 @@ export default function CompassPage() {
   );
 
   const handleSelectProject = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!state) return;
       const newState = selectProject(state, id);
       setState(newState);
 
       // Check if project is already unlocked in this session
       if (isProjectUnlocked(id)) {
-        // Reload state with project's decrypted keys
         setActiveProjectForConnectors(id);
         setState(loadStateForProject(id));
         setView("project");
       } else if (isProjectEncrypted(id)) {
-        // Needs unlock
+        // Try auto-unlock with deterministic default password
+        const project = state.projects.find((p) => p.id === id);
+        if (project) {
+          const defaultPwd = "compass-default-" + project.name.toLowerCase().replace(/\s+/g, "-");
+          const valid = await verifyProjectPassword(id, defaultPwd);
+          if (valid) {
+            setProjectPassword(id, defaultPwd);
+            await loadAllProjectKeys(id);
+            await loadEncryptedChat(id);
+            await loadEncryptedMemories(id);
+            setActiveProjectForConnectors(id);
+            setState(loadStateForProject(id));
+            setView("project");
+            return;
+          }
+        }
+        // Custom encryption — needs manual unlock
         setView("unlock");
       } else {
         // Legacy project without encryption — open directly
