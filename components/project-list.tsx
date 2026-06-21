@@ -1,7 +1,7 @@
 "use client";
 
 import { Project } from "@/lib/types";
-import { getStage } from "@/lib/stages";
+import { getStage, getStageIndex, STAGES } from "@/lib/stages";
 import { FolderOpen, Plus, Trash2 } from "lucide-react";
 import StageIcon from "./stage-icon";
 
@@ -11,6 +11,24 @@ interface ProjectListProps {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onCreate: () => void;
+}
+
+function MiniProgress({ stageId }: { stageId: string }) {
+  const idx = getStageIndex(stageId);
+  return (
+    <div className="flex gap-0.5 items-center">
+      {STAGES.map((_, i) => (
+        <div
+          key={i}
+          className={`h-1 rounded-full transition-all ${
+            i <= idx
+              ? "w-3 bg-[var(--accent)]"
+              : "w-1.5 bg-[var(--accent-26)]"
+          }`}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function ProjectList({
@@ -86,9 +104,11 @@ export default function ProjectList({
                 <div className="text-sm text-[var(--accent)] font-medium truncate">
                   {project.name}
                 </div>
-                <div className="text-[10px] text-[var(--accent-66)]">
-                  Stage: {stage?.label || project.currentStage} · Updated{" "}
-                  {new Date(project.updatedAt).toLocaleDateString()}
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-[var(--accent-66)]">
+                    {stage?.label || project.currentStage}
+                  </span>
+                  <MiniProgress stageId={project.currentStage} />
                 </div>
               </div>
 

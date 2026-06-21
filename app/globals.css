@@ -143,3 +143,32 @@ input::placeholder, textarea::placeholder {
 .debt-badge-high {
   animation: debt-pulse 2s ease-in-out infinite;
 }
+
+/* ─── Chat markdown prose ─── */
+.prose-chat > *:first-child { margin-top: 0; }
+.prose-chat > *:last-child { margin-bottom: 0; }
+.prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+.prose-chat th, .prose-chat td {
+  border: 1px solid var(--accent-26);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+.prose-chat th {
+  background: var(--accent-10);
+  color: var(--accent-88);
+  font-weight: 500;
+}
+.prose-chat hr {
+  border-color: var(--accent-26);
+  margin: 0.75rem 0;
+}
+
+/* ─── Mobile responsive panels ─── */
+@media (max-width: 768px) {
+  .md\:flex-row { flex-direction: column; }
+}

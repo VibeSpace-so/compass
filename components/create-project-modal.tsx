@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Lock } from "lucide-react";
+import { X, Lock, Shield } from "lucide-react";
 
 interface CreateProjectModalProps {
   open: boolean;
@@ -18,6 +18,7 @@ export default function CreateProjectModal({
   const [description, setDescription] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showEncryption, setShowEncryption] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function CreateProjectModal({
       setDescription("");
       setPassword("");
       setConfirmPassword("");
+      setShowEncryption(false);
       setError("");
     }
   }, [open]);
@@ -36,21 +38,20 @@ export default function CreateProjectModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+    if (showEncryption) {
+      if (password.length < 4) {
+        setError("Password must be at least 4 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
     }
 
-    onCreate(name.trim(), description.trim(), password);
-    setName("");
-    setDescription("");
-    setPassword("");
-    setConfirmPassword("");
-    setError("");
+    // If no encryption, use a default internal password (transparent to user)
+    const effectivePassword = showEncryption ? password : "compass-default-" + name.trim().toLowerCase().replace(/\s+/g, "-");
+    onCreate(name.trim(), description.trim(), effectivePassword);
   }
 
   return (
@@ -65,8 +66,7 @@ export default function CreateProjectModal({
       <div className="relative w-full max-w-md mx-4 border border-[var(--accent-44)] rounded bg-[#0a0a0a] p-6 shadow-[0_0_40px_var(--accent-15)]">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-medium text-[var(--accent)]">
-            <span className="text-[var(--accent-44)]">$ </span>
-            new_project
+            Start a new project
           </h2>
           <button
             onClick={onClose}
@@ -79,13 +79,13 @@ export default function CreateProjectModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs text-[var(--accent-88)] mb-1.5">
-              Project name
+              What are you building?
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My vibe coded app"
+              placeholder="My app name"
               className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
               autoFocus
             />
@@ -93,45 +93,70 @@ export default function CreateProjectModal({
 
           <div>
             <label className="block text-xs text-[var(--accent-88)] mb-1.5">
-              Description
+              One-liner description (optional)
             </label>
-            <textarea
+            <input
+              type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of what you're building..."
-              rows={3}
-              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] resize-none"
+              placeholder="A tool that helps people..."
+              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
             />
           </div>
 
-          <div className="border-t border-[var(--accent-26)] pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Lock className="w-3.5 h-3.5 text-[var(--accent-66)]" />
-              <span className="text-xs text-[var(--accent-88)]">
-                Encryption password
-              </span>
+          {/* Optional encryption toggle */}
+          {!showEncryption ? (
+            <button
+              type="button"
+              onClick={() => setShowEncryption(true)}
+              className="flex items-center gap-2 text-[10px] text-[var(--accent-44)] hover:text-[var(--accent-88)] transition-colors"
+            >
+              <Shield className="w-3 h-3" />
+              Add encryption password (optional)
+            </button>
+          ) : (
+            <div className="border border-[var(--accent-26)] rounded p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-[var(--accent-66)]" />
+                  <span className="text-xs text-[var(--accent-88)]">
+                    Encryption password
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEncryption(false);
+                    setPassword("");
+                    setConfirmPassword("");
+                    setError("");
+                  }}
+                  className="text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)]"
+                >
+                  Remove
+                </button>
+              </div>
+              <p className="text-[10px] text-[var(--accent-44)] leading-relaxed">
+                Encrypts API keys, chat, and memories. You&apos;ll need this password to access the project after closing the tab.
+              </p>
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  placeholder="Create password (min 4 chars)"
+                  className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
+                  placeholder="Confirm password"
+                  className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+                />
+              </div>
             </div>
-            <p className="text-[10px] text-[var(--accent-44)] mb-3 leading-relaxed">
-              Your API keys, tokens, and chat history will be encrypted with this
-              password. It never leaves your device.
-            </p>
-            <div className="space-y-2">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                placeholder="Create password (min 4 chars)"
-                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
-                placeholder="Confirm password"
-                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-              />
-            </div>
-          </div>
+          )}
 
           {error && (
             <p className="text-xs text-red-400">{error}</p>
@@ -143,14 +168,14 @@ export default function CreateProjectModal({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             >
-              cancel
+              Cancel
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || !password}
+              disabled={!name.trim()}
               className="flex-1 px-4 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              create project →
+              Start building
             </button>
           </div>
         </form>
