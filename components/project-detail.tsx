@@ -103,9 +103,9 @@ export default function ProjectDetail({
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-2 sm:gap-3 mb-4">
         <button
           onClick={onBack}
           className="p-1.5 rounded border border-[var(--accent-26)] text-[var(--accent-44)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
@@ -134,7 +134,7 @@ export default function ProjectDetail({
             />
           ) : (
             <h1
-              className="text-lg font-medium text-[var(--accent)] cursor-pointer hover:underline decoration-[var(--accent-44)] underline-offset-4"
+              className="text-base sm:text-lg font-medium text-[var(--accent)] cursor-pointer hover:underline decoration-[var(--accent-44)] underline-offset-4 truncate"
               onClick={() => setEditingName(true)}
               title="Click to edit"
             >
@@ -177,12 +177,12 @@ export default function ProjectDetail({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[var(--accent-26)] mb-5">
+      <div className="flex border-b border-[var(--accent-26)] mb-4 sm:mb-5 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-3 sm:px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab.id
                 ? "text-[var(--accent)] border-[var(--accent)]"
                 : "text-[var(--accent-44)] border-transparent hover:text-[var(--accent-88)]"
@@ -205,11 +205,11 @@ export default function ProjectDetail({
       )}
 
       {activeTab === "guidance" && (
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid gap-4 lg:grid-cols-3">
           {/* Left column — Current stage + guidance + integrations */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4">
             {stage && (
-              <div className="border border-[var(--accent)] rounded p-5 bg-[var(--accent-10)] relative overflow-hidden">
+              <div className="border border-[var(--accent)] rounded p-3 sm:p-5 bg-[var(--accent-10)] relative overflow-hidden">
                 <div className="crt-overlay opacity-30" />
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-1">
@@ -303,17 +303,19 @@ export default function ProjectDetail({
                   }
                 }}
                 disabled={project.currentStage === STAGES[0].id}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ArrowLeft className="w-3 h-3" />
-                Previous stage
+                <span className="hidden sm:inline">Previous stage</span>
+                <span className="sm:hidden">Back</span>
               </button>
               {nextStage && (
                 <button
                   onClick={() => onUpdate({ currentStage: nextStage.id })}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded text-xs bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
                 >
-                  Advance to {nextStage.label}
+                  <span className="hidden sm:inline">Advance to {nextStage.label}</span>
+                  <span className="sm:hidden">Next</span>
                   <ArrowRight className="w-3 h-3" />
                 </button>
               )}

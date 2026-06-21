@@ -28,7 +28,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={jetbrainsMono.variable}>
-      <body className="font-mono min-h-screen bg-black text-[var(--accent)] flex flex-col">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
+      <body className="font-mono min-h-screen min-h-[100dvh] bg-black text-[var(--accent)] flex flex-col overflow-x-hidden">
         {children}
       </body>
     </html>

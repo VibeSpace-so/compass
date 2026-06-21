@@ -65,7 +65,7 @@ export default function ProjectList({
             <div
               key={project.id}
               className={`
-                flex items-center gap-3 p-3 rounded border cursor-pointer transition-all
+                flex items-center gap-3 p-3 sm:p-3 rounded border cursor-pointer transition-all active:scale-[0.98]
                 ${
                   isSelected
                     ? "border-[var(--accent)] bg-[var(--accent-10)]"

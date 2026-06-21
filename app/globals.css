@@ -143,3 +143,43 @@ input::placeholder, textarea::placeholder {
 .debt-badge-high {
   animation: debt-pulse 2s ease-in-out infinite;
 }
+
+/* ─── Mobile responsiveness ─── */
+
+/* Ensure minimum touch targets */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exempt small inline elements that are already part of larger targets */
+  .touch-exempt {
+    min-height: unset;
+    min-width: unset;
+  }
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent text from being too small on mobile inputs */
+input, textarea, select {
+  font-size: 16px; /* Prevents iOS zoom on focus */
+}
+@media (min-width: 768px) {
+  input, textarea, select {
+    font-size: inherit;
+  }
+}
+
+/* Mobile scrolling improvements */
+@media (max-width: 767px) {
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
