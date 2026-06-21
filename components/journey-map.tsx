@@ -45,7 +45,7 @@ export default function JourneyMap({
           </div>
 
           {/* Horizontal compact overview */}
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
             {STAGES.map((stage, idx) => (
               <button
                 key={stage.id}
@@ -114,8 +114,8 @@ export default function JourneyMap({
                   disabled={!onStageClick}
                   className={`
                     w-full text-left relative
-                    border rounded p-4 md:p-5
-                    transition-all duration-200
+                    border rounded p-3 sm:p-4 md:p-5
+                    transition-all duration-200 active:scale-[0.99]
                     ${
                       isActive
                         ? "border-[var(--accent)] bg-[var(--accent-10)] shadow-[0_0_20px_var(--accent-26)]"

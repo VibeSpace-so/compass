@@ -78,10 +78,10 @@ export default function ProjectUnlock({
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-sm space-y-5 sm:space-y-6">
         <div className="text-center space-y-2">
           <Lock className="w-8 h-8 mx-auto text-[var(--accent)]" />
-          <h1 className="text-lg font-medium text-[var(--accent)]">
+          <h1 className="text-base sm:text-lg font-medium text-[var(--accent)] break-words">
             Unlock &ldquo;{projectName}&rdquo;
           </h1>
           <p className="text-xs text-[var(--accent-88)]">

@@ -144,7 +144,7 @@ function SuggestionCard({
         }
       `}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-medium text-[var(--accent)]">
@@ -163,11 +163,11 @@ function SuggestionCard({
           </p>
         </div>
 
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex items-center sm:flex-col sm:items-end gap-2 sm:gap-1.5">
           <button
             onClick={handleConnect}
             className={`
-              flex-shrink-0 px-2.5 py-1 rounded text-[10px] font-medium border transition-colors
+              flex-shrink-0 px-3 py-1.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-[10px] font-medium border transition-colors
               ${
                 integration.connected
                   ? "border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black"

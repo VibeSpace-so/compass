@@ -324,7 +324,7 @@ export default function CompassPage() {
         )}
       </main>
 
-      <footer className="border-t border-[var(--accent-26)] bg-[#0a0a0a] py-8">
+      <footer className="border-t border-[var(--accent-26)] bg-[#0a0a0a] py-6 sm:py-8 safe-bottom">
         <div className="max-w-3xl mx-auto w-full px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
@@ -385,7 +385,7 @@ export default function CompassPage() {
       />
 
       {confirmDelete && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg">
+        <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 px-4 py-3 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg text-center">
           Click delete again to confirm
         </div>
       )}

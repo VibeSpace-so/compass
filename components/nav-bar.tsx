@@ -22,7 +22,7 @@ export default function NavBar({
         >
           <Compass className="w-4 h-4" />
           <span className="text-sm font-medium">compass</span>
-          <span className="text-[10px] text-[var(--accent-44)]">
+          <span className="hidden sm:inline text-[10px] text-[var(--accent-44)]">
             by vibe space
           </span>
         </button>

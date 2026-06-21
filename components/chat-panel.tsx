@@ -251,7 +251,7 @@ export default function ChatPanel({
 
   if (!isEnabled) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4">
+      <div className="flex flex-col items-center justify-center py-10 sm:py-16 px-4">
         <div className="w-12 h-12 rounded-full border border-[var(--accent-26)] flex items-center justify-center mb-4">
           <Lock className="w-5 h-5 text-[var(--accent-44)]" />
         </div>
@@ -260,7 +260,7 @@ export default function ChatPanel({
         </h3>
         <p className="text-xs text-[var(--accent-88)] text-center max-w-sm mb-5 leading-relaxed">
           Set up at least one AI provider to enable the guided chat experience.
-          Your keys stay in your browser — they never leave this device.
+          Your keys stay in your browser.
         </p>
         <button
           onClick={onSetupKeys}
@@ -276,9 +276,9 @@ export default function ChatPanel({
   const greeting = getSystemGreeting(project, integrations);
 
   return (
-    <div className="flex flex-col h-[500px]">
+    <div className="flex flex-col h-[calc(100dvh-280px)] min-h-[300px] max-h-[600px]">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1 mobile-scroll">
         {/* System greeting */}
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-7 h-7 rounded bg-[var(--accent-10)] border border-[var(--accent-26)] flex items-center justify-center">
@@ -369,7 +369,7 @@ export default function ChatPanel({
                 handleSend();
               }
             }}
-            placeholder="Ask about your next step, tools, or debt..."
+            placeholder="Ask anything..."
             className="flex-1 bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
           />
           <button
