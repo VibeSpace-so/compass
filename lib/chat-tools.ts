@@ -113,14 +113,21 @@ function executeSystemTool(
     return { success: false, error: "No active project context." };
   }
 
+  const VALID_MEMORY_TYPES: MemoryType[] = [
+    "preference", "decision", "constraint", "context", "learning", "artifact",
+  ];
+
   switch (toolName) {
     case "save_memory": {
-      const memType = params.type as MemoryType;
+      const memType = params.type as string;
       const content = params.content as string;
       if (!memType || !content) {
         return { success: false, error: "Missing type or content." };
       }
-      const memory = addMemory(_activeProjectId, memType, content, _activeStage, "ai");
+      if (!VALID_MEMORY_TYPES.includes(memType as MemoryType)) {
+        return { success: false, error: `Invalid memory type "${memType}". Must be one of: ${VALID_MEMORY_TYPES.join(", ")}` };
+      }
+      const memory = addMemory(_activeProjectId, memType as MemoryType, content, _activeStage, "ai");
       return {
         success: true,
         data: { id: memory.id, type: memory.type, content: memory.content },
