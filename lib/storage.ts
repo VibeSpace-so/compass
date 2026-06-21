@@ -1,4 +1,4 @@
-import { AppState, Project, BYOKProvider, ChatMessage, Integration } from "./types";
+import { AppState, Project, BYOKProvider, ChatMessage, Integration, ProjectMemory } from "./types";
 import { DEFAULT_INTEGRATIONS } from "./integrations";
 import {
   saveEncryptedKey,
@@ -8,6 +8,7 @@ import {
   saveEncryptedChat,
   getCachedChat,
 } from "./secure-storage";
+import { getCachedMemories, clearProjectMemories } from "./memories";
 
 const STORAGE_KEY = "vibe-compass-state";
 
@@ -25,6 +26,7 @@ function defaultState(): AppState {
     byokSettings: { providers: DEFAULT_PROVIDERS },
     integrations: DEFAULT_INTEGRATIONS,
     chatHistory: {},
+    memories: {},
   };
 }
 
@@ -42,6 +44,9 @@ export function loadState(): AppState {
     }
     if (!parsed.chatHistory) {
       parsed.chatHistory = {};
+    }
+    if (!parsed.memories) {
+      parsed.memories = {};
     }
     parsed.projects = parsed.projects.map((p) => {
       if ((p.currentStage as string) === "build") {
@@ -70,12 +75,17 @@ export function loadStateForProject(projectId: string): AppState {
   if (cachedChat.length > 0) {
     state.chatHistory = { ...state.chatHistory, [projectId]: cachedChat };
   }
+  // Load memories from encrypted cache
+  const cachedMem = getCachedMemories(projectId);
+  if (cachedMem.length > 0) {
+    state.memories = { ...state.memories, [projectId]: cachedMem };
+  }
   return state;
 }
 
 export function saveState(state: AppState): void {
   if (typeof window === "undefined") return;
-  // Don't persist chatHistory or keySet in plaintext state — those come from encrypted storage
+  // Don't persist chatHistory, memories, or keySet in plaintext state — those come from encrypted storage
   const toSave: AppState = {
     ...state,
     byokSettings: {
@@ -87,6 +97,7 @@ export function saveState(state: AppState): void {
       })),
     },
     chatHistory: {}, // Chat is encrypted per-project, not in global state
+    memories: {},    // Memories are encrypted per-project
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 }
@@ -140,12 +151,15 @@ export function updateProject(
 
 export function deleteProject(state: AppState, id: string): AppState {
   const { [id]: _removed, ...remainingChat } = state.chatHistory;
+  const { [id]: _removedMem, ...remainingMemories } = state.memories;
+  clearProjectMemories(id);
   const newState: AppState = {
     ...state,
     projects: state.projects.filter((p) => p.id !== id),
     selectedProjectId:
       state.selectedProjectId === id ? null : state.selectedProjectId,
     chatHistory: remainingChat,
+    memories: remainingMemories,
   };
   saveState(newState);
   return newState;

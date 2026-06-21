@@ -79,10 +79,28 @@ export interface IntegrationTestResult {
   message: string;
 }
 
+export type MemoryType =
+  | "preference"
+  | "decision"
+  | "constraint"
+  | "context"
+  | "learning"
+  | "artifact";
+
+export interface ProjectMemory {
+  id: string;
+  type: MemoryType;
+  content: string;
+  stage: StageId;
+  createdAt: string;
+  source: "user" | "ai";
+}
+
 export interface AppState {
   projects: Project[];
   selectedProjectId: string | null;
   byokSettings: BYOKSettings;
   integrations: Integration[];
   chatHistory: Record<string, ChatMessage[]>;
+  memories: Record<string, ProjectMemory[]>;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Terminal } from "lucide-react";
-import { AppState, Project, ChatMessage } from "@/lib/types";
+import { AppState, Project, ChatMessage, StageId } from "@/lib/types";
 import {
   loadState,
   loadStateForProject,
@@ -28,6 +28,7 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
+import { getCachedMemories, removeMemory, loadEncryptedMemories } from "@/lib/memories";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -103,9 +104,10 @@ export default function CompassPage() {
       setProjectPassword(projectId, password);
       await loadAllProjectKeys(projectId);
       await loadEncryptedChat(projectId);
+      await loadEncryptedMemories(projectId);
       setActiveProjectForConnectors(projectId);
 
-      // Reload state with decrypted keys and chat
+      // Reload state with decrypted keys, chat, and memories
       setState(loadStateForProject(projectId));
       setView("project");
     },
@@ -203,6 +205,39 @@ export default function CompassPage() {
     []
   );
 
+  const handleStageAdvance = useCallback(
+    (newStage: StageId) => {
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return updateProject(prev, prev.selectedProjectId, { currentStage: newStage });
+      });
+    },
+    []
+  );
+
+  const handleRemoveMemory = useCallback(
+    (memoryId: string) => {
+      if (!state || !state.selectedProjectId) return;
+      removeMemory(state.selectedProjectId, memoryId);
+      // Refresh memories in state
+      const updated = getCachedMemories(state.selectedProjectId);
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return { ...prev, memories: { ...prev.memories, [prev.selectedProjectId!]: updated } };
+      });
+    },
+    [state]
+  );
+
+  const handleMemoriesRefresh = useCallback(() => {
+    if (!state?.selectedProjectId) return;
+    const updated = getCachedMemories(state.selectedProjectId);
+    setState((prev) => {
+      if (!prev || !prev.selectedProjectId) return prev;
+      return { ...prev, memories: { ...prev.memories, [prev.selectedProjectId!]: updated } };
+    });
+  }, [state]);
+
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -256,10 +291,14 @@ export default function CompassPage() {
                     .filter((p) => p.enabled && p.keySet)
                     .map((p) => p.id)
                 }
+                onStageAdvance={handleStageAdvance}
+                onMemoriesChange={handleMemoriesRefresh}
               />
             }
             integrations={state.integrations}
             onToggleIntegration={handleToggleIntegration}
+            memories={state.memories[selectedProject.id] || []}
+            onRemoveMemory={handleRemoveMemory}
           />
         ) : (
           <>

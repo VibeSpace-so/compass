@@ -8,6 +8,7 @@ import { ChatTool } from "./tool-types";
  * when deciding which tool to call.
  */
 const INTEGRATION_VERBS: Record<string, string> = {
+  perplexity: "search the web, research ideas, find competitors, validate concepts",
   notion: "search Notion pages, create Notion pages",
   gdocs: "create Google Docs, search Google Docs",
   figma: "fetch Figma designs, list Figma components",
@@ -27,21 +28,21 @@ const INTEGRATION_VERBS: Record<string, string> = {
  */
 const STAGE_TOOL_HINTS: Record<StageId, string> = {
   ideation:
-    "Help the user brainstorm. If they mention notes or docs, offer to search Notion or Google Docs. If they want to capture ideas, offer to create a doc.",
+    "GUIDE THE USER TO: 1) Define their idea clearly (one sentence), 2) Research if similar products exist using Perplexity, 3) Identify their target user, 4) Save key decisions as memories. When the idea is clear and validated, suggest advancing to Context.",
   context:
-    "Help the user gather context. Proactively offer to search Notion, Google Docs, Slack, or Discord for relevant specs, decisions, and prior work.",
+    "GUIDE THE USER TO: 1) Research technical approaches and best practices with Perplexity, 2) Define constraints and preferences (save as memories), 3) Create a project brief with target user, features, and tech choices. When context is solid, suggest advancing to Landing Page.",
   "landing-page":
-    "Help build a landing page. Suggest creating a doc outline first, then deploying with Lovable or Vercel. Offer to search Figma for design references.",
+    "GUIDE THE USER TO: 1) Generate a copy-ready prompt for Lovable/Cursor that includes all project context and memories, 2) The user will paste this prompt into the tool and build externally, 3) When they return, ask what they built and save progress. Suggest advancing to GitHub when the page is ready.",
   github:
-    "Help with version control setup. Offer to use Devin or Claude Code for repo scaffolding and README generation.",
+    "GUIDE THE USER TO: 1) Create a GitHub repo (offer to generate a README prompt for Cursor/Claude Code), 2) Push their landing page code, 3) Set up basic CI if needed. Suggest advancing to Hosting once code is pushed.",
   hosting:
-    "Help deploy the project. Proactively suggest deploying to Vercel. Offer to check deployment status or notify the team via Slack.",
+    "GUIDE THE USER TO: 1) Deploy to Vercel from their GitHub repo (use Vercel integration if connected), 2) Verify the deployment works, 3) Share the live URL for feedback. Suggest advancing to Domain once deployed.",
   domain:
-    "Help configure a custom domain. Suggest checking Vercel domain settings if Vercel is connected.",
+    "GUIDE THE USER TO: 1) Choose and register a domain, 2) Connect it to their hosting provider (Vercel domains if connected), 3) Verify DNS propagation. Suggest advancing to Build Prototype once domain is live.",
   "build-prototype":
-    "Help build features. Offer to search Notion for specs, reference Figma designs, delegate tasks to Devin or Claude Code, and deploy with Vercel.",
+    "GUIDE THE USER TO: 1) Define core features (from memories/brief), 2) Generate implementation prompts for Cursor/Claude Code/Devin with full project context, 3) Build iteratively — one feature at a time, 4) Search Figma for design references if connected. The user builds externally and returns to update progress.",
   "next-features":
-    "Help prioritize features. Offer to search Notion for the backlog, pull Slack/Discord feedback, and delegate implementation to AI coding tools.",
+    "GUIDE THE USER TO: 1) Gather user feedback from Slack/Discord, 2) Prioritize the backlog (use Notion if connected), 3) Generate implementation prompts for the next features, 4) Delegate to AI coding tools. Keep iterating.",
 };
 
 /**
@@ -66,7 +67,13 @@ export function getFlowContext(
   }
 
   const lines: string[] = ["AVAILABLE ACTIONS:"];
+  // Always show system tools
+  const systemTools = byIntegration.get("_system");
+  if (systemTools) {
+    lines.push(`- System: save memories, update memories, advance stage, generate project brief (tools: ${systemTools.map((t) => t.name).join(", ")})`);
+  }
   for (const [integrationId, intTools] of byIntegration) {
+    if (integrationId === "_system") continue;
     const connected = connectedIntegrations.includes(integrationId);
     if (!connected) continue;
     const names = intTools.map((t) => t.name).join(", ");

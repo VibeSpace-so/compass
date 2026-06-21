@@ -47,6 +47,16 @@ export const DEFAULT_INTEGRATIONS: Integration[] = [
     url: "https://figma.com",
   },
 
+  // Research
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    category: "context",
+    description: "Web search for research, validation, and competitive analysis.",
+    connected: false,
+    url: "https://perplexity.ai",
+  },
+
   // Build & Deploy
   {
     id: "vercel",
@@ -122,6 +132,11 @@ export interface StageSuggestion {
 export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
   ideation: [
     {
+      integrationId: "perplexity",
+      purpose: "Research your idea — find competitors, validate demand, and discover market gaps.",
+      outcome: "Make informed decisions with real data before building anything.",
+    },
+    {
       integrationId: "notion",
       purpose: "Pull your brainstorming notes and idea docs into Compass.",
       outcome: "Your ideas stay organized and accessible as you refine your concept.",
@@ -138,6 +153,11 @@ export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
     },
   ],
   context: [
+    {
+      integrationId: "perplexity",
+      purpose: "Research best practices, technical approaches, and frameworks for your project.",
+      outcome: "Build on proven patterns instead of reinventing the wheel.",
+    },
     {
       integrationId: "notion",
       purpose: "Pull your project briefs, specs, and research notes.",

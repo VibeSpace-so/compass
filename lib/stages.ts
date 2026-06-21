@@ -9,7 +9,7 @@ export const STAGES: StageMetadata[] = [
     risk: "low",
     complexity: "low",
     nextAction: "Write a one-sentence project description and identify your core user.",
-    tools: ["ChatGPT", "Claude", "Notion", "Google Docs"],
+    tools: ["Perplexity", "ChatGPT", "Claude", "Notion", "Google Docs"],
     links: [
       { label: "How to validate an idea fast", url: "https://www.ycombinator.com/library/8h-how-to-get-startup-ideas" },
       { label: "Lean Canvas template", url: "https://leanstack.com/lean-canvas" },
@@ -24,7 +24,7 @@ export const STAGES: StageMetadata[] = [
     risk: "low",
     complexity: "medium",
     nextAction: "Create a project brief with target user, key features, and constraints.",
-    tools: ["Cursor", "v0.dev", "Claude", "Perplexity"],
+    tools: ["Perplexity", "Cursor", "v0.dev", "Claude"],
     links: [
       { label: "Writing effective AI prompts", url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview" },
       { label: "Context-first development", url: "https://cursor.com/blog/context" },
