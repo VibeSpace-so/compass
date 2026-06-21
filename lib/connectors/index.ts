@@ -11,6 +11,7 @@ import { CursorConnector } from "./cursor";
 import { ClaudeCodeConnector } from "./claude-code";
 import { CodexConnector } from "./codex";
 import { Base44Connector } from "./base44";
+import { PerplexityConnector } from "./perplexity";
 
 export { NotionConnector } from "./notion";
 export { GoogleDocsConnector } from "./google-docs";
@@ -24,6 +25,7 @@ export { CursorConnector } from "./cursor";
 export { ClaudeCodeConnector } from "./claude-code";
 export { CodexConnector } from "./codex";
 export { Base44Connector } from "./base44";
+export { PerplexityConnector } from "./perplexity";
 
 export function createDefaultConnectors(): IntegrationConnector[] {
   return [
@@ -39,5 +41,6 @@ export function createDefaultConnectors(): IntegrationConnector[] {
     new ClaudeCodeConnector(),
     new CodexConnector(),
     new Base44Connector(),
+    new PerplexityConnector(),
   ];
 }

@@ -12,7 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { ChatMessage, Integration, Project } from "@/lib/types";
+import { ChatMessage, Integration, Project, StageId } from "@/lib/types";
 import { getStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 import { getSuggestionsForStage } from "@/lib/integrations";
@@ -26,6 +26,8 @@ interface ChatPanelProps {
   onSetupKeys: () => void;
   integrations: Integration[];
   enabledProviderIds?: string[];
+  onStageAdvance?: (newStage: StageId) => void;
+  onMemoriesChange?: () => void;
 }
 
 interface ToolCallDisplay {
@@ -36,6 +38,7 @@ interface ToolCallDisplay {
 }
 
 const INTEGRATION_LABELS: Record<string, string> = {
+  _system: "Compass",
   notion: "Notion",
   gdocs: "Google Docs",
   figma: "Figma",
@@ -48,10 +51,15 @@ const INTEGRATION_LABELS: Record<string, string> = {
   codex: "Codex",
   devin: "Devin",
   base44: "Base44",
+  perplexity: "Perplexity",
 };
 
 function getToolActionLabel(toolName: string, integrationId: string): string {
   const label = INTEGRATION_LABELS[integrationId] ?? integrationId;
+  if (toolName === "save_memory") return "Saving to memory...";
+  if (toolName === "update_memory") return "Updating memory...";
+  if (toolName === "advance_stage") return "Advancing stage...";
+  if (toolName === "generate_project_brief") return "Generating brief...";
   if (toolName.includes("search")) return `Searching ${label}...`;
   if (toolName.includes("create")) return `Creating in ${label}...`;
   if (toolName.includes("send")) return `Sending via ${label}...`;
@@ -150,6 +158,8 @@ export default function ChatPanel({
   onSetupKeys,
   integrations,
   enabledProviderIds,
+  onStageAdvance,
+  onMemoriesChange,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -213,8 +223,11 @@ export default function ChatPanel({
         integrations,
         messages,
         enabledProviderIds,
-        handleToolCall
+        handleToolCall,
+        onStageAdvance
       );
+      // Refresh memories after chat (tool calls may have saved new ones)
+      onMemoriesChange?.();
       const assistantMessage: ChatMessage = {
         id: generateId(),
         role: "assistant",

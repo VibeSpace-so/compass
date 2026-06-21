@@ -1,4 +1,4 @@
-import { ChatMessage, Integration, Project } from "./types";
+import { ChatMessage, Integration, Project, StageId } from "./types";
 import { getStage } from "./stages";
 import { getSuggestionsForStage } from "./integrations";
 import { getBYOKKey } from "./storage";
@@ -8,8 +8,10 @@ import {
   toolsToOpenAIFormat,
   toolsToAnthropicFormat,
   toolsToGeminiFormat,
+  setToolContext,
 } from "./chat-tools";
 import { getFlowContext } from "./flow-orchestrator";
+import { formatMemoriesForPrompt } from "./memories";
 import { ChatTool } from "./tool-types";
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
@@ -94,8 +96,9 @@ export function buildSystemPrompt(
 
   const connectedIds = connected.map((i) => i.id);
   const flowContext = getFlowContext(project.currentStage, connectedIds);
+  const memoriesContext = formatMemoriesForPrompt(project.id);
 
-  return `You are Compass, a guided assistant for vibe coders built by Vibe Space. You help users navigate the vibe coding journey — from ideation to launch — with clarity and opinionated guidance.
+  return `You are Compass, an opinionated AI guide for vibe coders built by Vibe Space. You LEAD the user through the vibe coding journey — from ideation to launch. You don't just answer questions; you proactively guide, suggest next steps, and drive progress.
 
 CURRENT PROJECT: "${project.name}"
 ${project.description ? `Description: ${project.description}` : ""}
@@ -107,6 +110,8 @@ TECHNICAL DEBT: ${project.technicalDebt} | COGNITIVE DEBT: ${project.cognitiveDe
 
 STAGE CONTEXT: ${stage.debtNote}
 
+${memoriesContext}
+
 INTEGRATIONS:
 ${connectedList}${suggestedList}
 
@@ -115,17 +120,19 @@ ${flowContext}
 RESOURCES FOR THIS STAGE:
 ${stage.links.map((l) => `- ${l.label}: ${l.url}`).join("\n")}
 
-YOUR ROLE:
-- Be direct, friendly, and helpful. Sound like: "You are here." / "Here's your next move." / "This choice adds complexity." / "Keep it simple for now."
-- Guide the user through their current stage with opinionated, actionable advice.
-- When they ask about tools, suggest the recommended ones for their stage and explain tradeoffs.
-- When they ask about integrations, reference the connected/suggested ones above.
-- When they ask about debt or risk, explain clearly what adds or reduces complexity.
-- Keep responses concise (2-4 paragraphs max). Avoid generic filler.
-- If suggesting an integration, mention its purpose and expected outcome.
-- Never make up information about tools or links. Use only what's in the context above.
+YOUR ROLE — PROACTIVE GUIDE:
+- You LEAD the experience. Don't wait for the user to know what to ask. Tell them: "Here's where you are. Here's your next move."
+- Be direct, opinionated, and action-oriented. Sound like a knowledgeable friend who's shipped products before.
+- When the user shares information about their project (target user, tech choices, constraints, preferences), use save_memory to persist it. This builds a knowledge base that helps you give better advice over time.
+- When the user completes key milestones for the current stage, proactively suggest advancing to the next stage using advance_stage.
+- When the user needs to use an external tool (Lovable, Cursor, etc.), generate a complete, copy-ready prompt they can paste directly into that tool. Include all relevant project context and memories.
+- Guide the user through research before building. Suggest web searches (Perplexity) to validate ideas, find competitors, and gather best practices.
+- Keep responses concise (2-4 paragraphs max) but always end with a clear next action or question.
+- If the user seems stuck, proactively offer 2-3 concrete next steps they can take right now.
+- Track progress by saving learnings and decisions as memories. Reference past decisions when giving new advice.
 - When a user request can be fulfilled by an available tool action, USE the tool rather than just describing what to do.
-- Announce what you're about to do before calling a tool.`;
+- Announce what you're about to do before calling a tool.
+- Never make up information about tools or links. Use only what's in the context above.`;
 }
 
 function formatMessages(
@@ -501,7 +508,12 @@ async function callGoogleWithTools(
     contents = contents.slice(1);
   }
 
-  const geminiTools = tools.length > 0 ? [toolsToGeminiFormat(tools)] : undefined;
+  const geminiToolsArr: Record<string, unknown>[] = [];
+  if (tools.length > 0) {
+    geminiToolsArr.push(toolsToGeminiFormat(tools));
+  }
+  // Enable Google Search grounding for web research capabilities
+  geminiToolsArr.push({ googleSearch: {} });
 
   for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
     const body: Record<string, unknown> = {
@@ -509,8 +521,8 @@ async function callGoogleWithTools(
       contents,
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
     };
-    if (geminiTools) {
-      body.tools = geminiTools;
+    if (geminiToolsArr.length > 0) {
+      body.tools = geminiToolsArr;
     }
 
     const response = await fetch(url, {
@@ -619,12 +631,16 @@ export async function generateChatResponse(
   integrations: Integration[],
   history: ChatMessage[],
   enabledProviderIds?: string[],
-  onToolCall?: (info: ToolCallInfo) => void
+  onToolCall?: (info: ToolCallInfo) => void,
+  onStageAdvance?: (newStage: StageId) => void
 ): Promise<string> {
   const active = getActiveProvider(project.id, enabledProviderIds);
   if (!active) {
     return "No API key configured. Please add an API key in Settings to enable AI-powered chat.";
   }
+
+  // Set tool context for system tools (memories, stage advancement)
+  setToolContext(project.id, project.currentStage, onStageAdvance);
 
   const { provider, apiKey } = active;
   const systemPrompt = buildSystemPrompt(project, integrations);

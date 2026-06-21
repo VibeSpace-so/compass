@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Project, StageId, DebtLevel, Integration } from "@/lib/types";
+import { Project, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, STAGES } from "@/lib/stages";
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
 import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
 import IntegrationsPanel from "./integrations-panel";
+import { ProjectBrief } from "./project-brief";
 
 interface ProjectDetailProps {
   project: Project;
@@ -21,6 +22,8 @@ interface ProjectDetailProps {
   chatPanel: React.ReactNode;
   integrations: Integration[];
   onToggleIntegration: (id: string) => void;
+  memories: ProjectMemory[];
+  onRemoveMemory?: (memoryId: string) => void;
 }
 
 function DebtSelector({
@@ -73,7 +76,7 @@ function DebtSelector({
   );
 }
 
-type Tab = "chat" | "guidance";
+type Tab = "chat" | "guidance" | "brief";
 
 export default function ProjectDetail({
   project,
@@ -82,6 +85,8 @@ export default function ProjectDetail({
   chatPanel,
   integrations,
   onToggleIntegration,
+  memories,
+  onRemoveMemory,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -93,6 +98,7 @@ export default function ProjectDetail({
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "chat", label: "Chat" },
+    { id: "brief", label: `Brief${memories.length > 0 ? ` (${memories.length})` : ""}` },
     { id: "guidance", label: "Guidance" },
   ];
 
@@ -190,6 +196,12 @@ export default function ProjectDetail({
       {/* Tab content */}
       {activeTab === "chat" && (
         <div className="min-h-[400px]">{chatPanel}</div>
+      )}
+
+      {activeTab === "brief" && (
+        <div className="min-h-[400px] border border-[var(--accent-26)] rounded">
+          <ProjectBrief memories={memories} onRemoveMemory={onRemoveMemory} />
+        </div>
       )}
 
       {activeTab === "guidance" && (
