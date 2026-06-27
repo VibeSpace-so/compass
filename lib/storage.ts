@@ -15,7 +15,11 @@ import {
   clearProjectMemories,
   rewriteProjectMemories,
 } from "./memories";
-import { setupProjectEncryption, removeProjectEncryption } from "./crypto";
+import {
+  setupProjectEncryption,
+  removeProjectVerifyToken,
+  removeProjectSalt,
+} from "./crypto";
 
 const STORAGE_KEY = "vibe-compass-state";
 
@@ -131,9 +135,14 @@ export async function encryptProject(
 export async function disableProjectEncryption(
   projectId: string
 ): Promise<void> {
-  removeProjectEncryption(projectId);
+  // Remove the verify token first so isProjectEncrypted() flips to false and
+  // the rewrites below take the plaintext path. Keep the salt until the
+  // rewrites succeed, so any not-yet-rewritten ciphertext stays decryptable
+  // if a rewrite fails mid-way.
+  removeProjectVerifyToken(projectId);
   await rewriteProjectKeysAndChat(projectId);
   await rewriteProjectMemories(projectId);
+  removeProjectSalt(projectId);
 }
 
 export function generateId(): string {
