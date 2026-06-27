@@ -389,6 +389,14 @@ export default function BYOKSettings({
           onDisableEncryption={onDisableEncryption}
         />
 
+        <div className="flex items-start gap-2 mb-5 p-3 rounded border border-yellow-600/30 bg-yellow-500/5">
+          <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <div className="text-[10px] text-yellow-500/80 leading-relaxed">
+            Clearing your browser data will delete stored keys. Keep your
+            original keys in a secure password manager.
+          </div>
+        </div>
+
         <div className="space-y-2">
           {providers.map((provider) => (
             <ProviderRow

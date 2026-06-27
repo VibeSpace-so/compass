@@ -65,7 +65,9 @@ export default function CompassPage() {
       // New projects start unencrypted; the user can encrypt later.
       setActiveProjectForConnectors(newProject.id);
 
-      setState(newState);
+      // Reload fresh per-project state so stale keySet flags from a
+      // previously opened project don't trigger a false encrypt reminder.
+      setState(loadStateForProject(newProject.id));
       setShowCreateModal(false);
       setView("project");
     },
