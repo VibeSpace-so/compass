@@ -110,6 +110,35 @@ export function isProjectEncrypted(projectId: string): boolean {
 }
 
 /**
+ * Remove encryption for a project (delete salt + verification token).
+ * Existing data is left untouched in localStorage and must be re-written
+ * in plaintext by the caller.
+ */
+export function removeProjectEncryption(projectId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(VERIFY_PREFIX + projectId);
+  localStorage.removeItem(SALT_PREFIX + projectId);
+}
+
+/**
+ * Remove only the verification token. After this, isProjectEncrypted()
+ * returns false, but existing ciphertext remains decryptable (salt intact).
+ */
+export function removeProjectVerifyToken(projectId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(VERIFY_PREFIX + projectId);
+}
+
+/**
+ * Remove only the encryption salt. Call after data has been re-written in
+ * plaintext, so no ciphertext is left orphaned without a salt.
+ */
+export function removeProjectSalt(projectId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(SALT_PREFIX + projectId);
+}
+
+/**
  * Wipe all encrypted data for a specific project.
  */
 export function wipeProjectData(projectId: string): void {

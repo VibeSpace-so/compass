@@ -14,6 +14,8 @@ import {
   hasAnyKeyConfigured,
   toggleIntegration,
   addChatMessage,
+  encryptProject,
+  disableProjectEncryption,
 } from "@/lib/storage";
 import {
   setProjectPassword,
@@ -22,7 +24,6 @@ import {
   loadEncryptedChat,
 } from "@/lib/secure-storage";
 import {
-  setupProjectEncryption,
   isProjectEncrypted,
   cleanupOldGlobalEncryption,
   wipeProjectData,
@@ -56,17 +57,17 @@ export default function CompassPage() {
   }, []);
 
   const handleCreateProject = useCallback(
-    async (name: string, description: string, password: string) => {
+    (name: string, description: string) => {
       if (!state) return;
       const newState = createProject(state, name, description);
       const newProject = newState.projects[newState.projects.length - 1];
 
-      // Set up encryption for the new project
-      await setupProjectEncryption(newProject.id, password);
-      setProjectPassword(newProject.id, password);
+      // New projects start unencrypted; the user can encrypt later.
       setActiveProjectForConnectors(newProject.id);
 
-      setState(newState);
+      // Reload fresh per-project state so stale keySet flags from a
+      // previously opened project don't trigger a false encrypt reminder.
+      setState(loadStateForProject(newProject.id));
       setShowCreateModal(false);
       setView("project");
     },
@@ -74,24 +75,43 @@ export default function CompassPage() {
   );
 
   const handleSelectProject = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!state) return;
       const newState = selectProject(state, id);
       setState(newState);
 
-      // Check if project is already unlocked in this session
-      if (isProjectUnlocked(id)) {
-        // Reload state with project's decrypted keys
-        setActiveProjectForConnectors(id);
-        setState(loadStateForProject(id));
-        setView("project");
-      } else if (isProjectEncrypted(id)) {
-        // Needs unlock
+      // Encrypted but not yet unlocked this session — gate behind password.
+      if (isProjectEncrypted(id) && !isProjectUnlocked(id)) {
         setView("unlock");
-      } else {
-        // Legacy project without encryption — open directly
-        setView("project");
+        return;
       }
+
+      // Unencrypted, or already unlocked — load data (plaintext or cached)
+      // and open directly.
+      await loadAllProjectKeys(id);
+      await loadEncryptedChat(id);
+      await loadEncryptedMemories(id);
+      setActiveProjectForConnectors(id);
+      setState(loadStateForProject(id));
+      setView("project");
+    },
+    [state]
+  );
+
+  const handleEncryptProject = useCallback(
+    async (password: string) => {
+      if (!state?.selectedProjectId) return;
+      await encryptProject(state.selectedProjectId, password);
+      setState(loadStateForProject(state.selectedProjectId));
+    },
+    [state]
+  );
+
+  const handleDisableEncryption = useCallback(
+    async () => {
+      if (!state?.selectedProjectId) return;
+      await disableProjectEncryption(state.selectedProjectId);
+      setState(loadStateForProject(state.selectedProjectId));
     },
     [state]
   );
@@ -253,6 +273,10 @@ export default function CompassPage() {
   );
 
   const chatEnabled = hasAnyKeyConfigured(state);
+  const selectedEncrypted = selectedProject
+    ? isProjectEncrypted(selectedProject.id)
+    : false;
+  const hasStoredKeys = state.byokSettings.providers.some((p) => p.keySet);
 
   return (
     <>
@@ -299,6 +323,8 @@ export default function CompassPage() {
             onToggleIntegration={handleToggleIntegration}
             memories={state.memories[selectedProject.id] || []}
             onRemoveMemory={handleRemoveMemory}
+            showEncryptReminder={!selectedEncrypted && hasStoredKeys}
+            onEncryptClick={() => setShowBYOK(true)}
           />
         ) : (
           <>
@@ -382,6 +408,9 @@ export default function CompassPage() {
         onToggleProvider={handleToggleProvider}
         onProvidersChange={handleReloadProviders}
         projectId={state.selectedProjectId}
+        isEncrypted={selectedEncrypted}
+        onEncrypt={handleEncryptProject}
+        onDisableEncryption={handleDisableEncryption}
       />
 
       {confirmDelete && (
