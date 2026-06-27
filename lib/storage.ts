@@ -7,8 +7,15 @@ import {
   hasCachedKey,
   saveEncryptedChat,
   getCachedChat,
+  setProjectPassword,
+  rewriteProjectKeysAndChat,
 } from "./secure-storage";
-import { getCachedMemories, clearProjectMemories } from "./memories";
+import {
+  getCachedMemories,
+  clearProjectMemories,
+  rewriteProjectMemories,
+} from "./memories";
+import { setupProjectEncryption, removeProjectEncryption } from "./crypto";
 
 const STORAGE_KEY = "vibe-compass-state";
 
@@ -100,6 +107,33 @@ export function saveState(state: AppState): void {
     memories: {},    // Memories are encrypted per-project
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+}
+
+/**
+ * Encrypt an existing (unencrypted) project with a password. Sets up the
+ * salt + verification token, then re-writes all cached keys, chat, and
+ * memories as ciphertext. Requires the project's data to be in memory.
+ */
+export async function encryptProject(
+  projectId: string,
+  password: string
+): Promise<void> {
+  await setupProjectEncryption(projectId, password);
+  setProjectPassword(projectId, password);
+  await rewriteProjectKeysAndChat(projectId);
+  await rewriteProjectMemories(projectId);
+}
+
+/**
+ * Remove encryption from a project, re-writing its data in plaintext.
+ * The project must be unlocked (data present in memory caches).
+ */
+export async function disableProjectEncryption(
+  projectId: string
+): Promise<void> {
+  removeProjectEncryption(projectId);
+  await rewriteProjectKeysAndChat(projectId);
+  await rewriteProjectMemories(projectId);
 }
 
 export function generateId(): string {

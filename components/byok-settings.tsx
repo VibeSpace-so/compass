@@ -8,6 +8,8 @@ import {
   EyeOff,
   KeyRound,
   AlertTriangle,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import { BYOKProvider } from "@/lib/types";
 import { saveBYOKKey, removeBYOKKey, getBYOKKey } from "@/lib/storage";
@@ -19,6 +21,171 @@ interface BYOKSettingsProps {
   onToggleProvider: (id: string) => void;
   onProvidersChange: () => void;
   projectId: string | null;
+  isEncrypted: boolean;
+  onEncrypt: (password: string) => Promise<void>;
+  onDisableEncryption: () => Promise<void>;
+}
+
+function EncryptionSection({
+  isEncrypted,
+  hasKeys,
+  onEncrypt,
+  onDisableEncryption,
+}: {
+  isEncrypted: boolean;
+  hasKeys: boolean;
+  onEncrypt: (password: string) => Promise<void>;
+  onDisableEncryption: () => Promise<void>;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function reset() {
+    setShowForm(false);
+    setPassword("");
+    setConfirm("");
+    setError("");
+  }
+
+  async function handleEnable() {
+    if (password.length < 4) {
+      setError("Password must be at least 4 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onEncrypt(password);
+      reset();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDisable() {
+    setBusy(true);
+    try {
+      await onDisableEncryption();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (isEncrypted) {
+    return (
+      <div className="flex items-start gap-2 mb-4 p-3 rounded border border-[var(--accent-44)] bg-[var(--accent-10)]">
+        <Lock className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <div className="text-[11px] text-[var(--accent)] font-medium">
+            Encryption is on
+          </div>
+          <div className="text-[10px] text-[var(--accent-88)] leading-relaxed mt-0.5">
+            Keys, tokens, chat, and memories are encrypted with your password.
+          </div>
+          <button
+            onClick={handleDisable}
+            disabled={busy}
+            className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+          >
+            <LockOpen className="w-3 h-3" />
+            {busy ? "working…" : "Disable encryption"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <div className="mb-4 p-3 rounded border border-[var(--accent-44)] bg-[var(--accent-10)] space-y-2">
+        <div className="flex items-center gap-2">
+          <Lock className="w-3.5 h-3.5 text-[var(--accent)]" />
+          <span className="text-[11px] text-[var(--accent)] font-medium">
+            Encrypt this project
+          </span>
+        </div>
+        <p className="text-[10px] text-[var(--accent-66)] leading-relaxed">
+          Set a password to encrypt your keys, tokens, chat, and memories. You&apos;ll
+          need it to unlock the project after a refresh. It never leaves this device.
+        </p>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setError(""); }}
+          placeholder="Create password (min 4 chars)"
+          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
+          autoFocus
+        />
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => { setConfirm(e.target.value); setError(""); }}
+          placeholder="Confirm password"
+          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
+        />
+        {error && <p className="text-[10px] text-red-400">{error}</p>}
+        <div className="flex gap-2 pt-0.5">
+          <button
+            onClick={reset}
+            disabled={busy}
+            className="flex-1 px-3 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+          >
+            cancel
+          </button>
+          <button
+            onClick={handleEnable}
+            disabled={busy || !password || !confirm}
+            className="flex-1 px-3 py-1.5 rounded text-[10px] bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40"
+          >
+            {busy ? "encrypting…" : "Enable encryption"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-start gap-2 mb-4 p-3 rounded border ${
+        hasKeys
+          ? "border-yellow-600/40 bg-yellow-500/5"
+          : "border-[var(--accent-26)] bg-[var(--accent-10)]"
+      }`}
+    >
+      {hasKeys ? (
+        <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+      ) : (
+        <LockOpen className="w-4 h-4 text-[var(--accent-66)] flex-shrink-0 mt-0.5" />
+      )}
+      <div className="flex-1">
+        <div
+          className={`text-[11px] font-medium ${
+            hasKeys ? "text-yellow-500" : "text-[var(--accent-88)]"
+          }`}
+        >
+          {hasKeys ? "Reminder: encrypt your project" : "Encryption is off"}
+        </div>
+        <div className="text-[10px] text-[var(--accent-88)] leading-relaxed mt-0.5">
+          {hasKeys
+            ? "You've saved API keys. Encrypt this project with a password to protect them."
+            : "This project is unencrypted. Add a password anytime to encrypt your data."}
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline"
+        >
+          <Lock className="w-3 h-3" />
+          Encrypt project
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function ProviderRow({
@@ -174,9 +341,14 @@ export default function BYOKSettings({
   onToggleProvider,
   onProvidersChange,
   projectId,
+  isEncrypted,
+  onEncrypt,
+  onDisableEncryption,
 }: BYOKSettingsProps) {
   if (!open) return null;
   if (!projectId) return null;
+
+  const hasKeys = providers.some((p) => p.keySet);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -209,13 +381,13 @@ export default function BYOKSettings({
           </div>
         </div>
 
-        <div className="flex items-start gap-2 mb-5 p-3 rounded border border-yellow-600/30 bg-yellow-500/5">
-          <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-          <div className="text-[10px] text-yellow-500/80 leading-relaxed">
-            Clearing your browser data will delete stored keys. Keep your
-            original keys in a secure password manager.
-          </div>
-        </div>
+        {/* Encryption status / reminder */}
+        <EncryptionSection
+          isEncrypted={isEncrypted}
+          hasKeys={hasKeys}
+          onEncrypt={onEncrypt}
+          onDisableEncryption={onDisableEncryption}
+        />
 
         <div className="space-y-2">
           {providers.map((provider) => (

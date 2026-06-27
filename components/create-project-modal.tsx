@@ -6,7 +6,7 @@ import { X, Lock } from "lucide-react";
 interface CreateProjectModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, description: string, password: string) => void;
+  onCreate: (name: string, description: string) => void;
 }
 
 export default function CreateProjectModal({
@@ -16,17 +16,11 @@ export default function CreateProjectModal({
 }: CreateProjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setName("");
       setDescription("");
-      setPassword("");
-      setConfirmPassword("");
-      setError("");
     }
   }, [open]);
 
@@ -36,21 +30,9 @@ export default function CreateProjectModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    onCreate(name.trim(), description.trim(), password);
+    onCreate(name.trim(), description.trim());
     setName("");
     setDescription("");
-    setPassword("");
-    setConfirmPassword("");
-    setError("");
   }
 
   return (
@@ -104,38 +86,13 @@ export default function CreateProjectModal({
             />
           </div>
 
-          <div className="border-t border-[var(--accent-26)] pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Lock className="w-3.5 h-3.5 text-[var(--accent-66)]" />
-              <span className="text-xs text-[var(--accent-88)]">
-                Encryption password
-              </span>
-            </div>
-            <p className="text-[10px] text-[var(--accent-44)] mb-3 leading-relaxed">
-              Your API keys, tokens, and chat history will be encrypted with this
-              password. It never leaves your device.
+          <div className="flex items-start gap-2 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
+            <Lock className="w-3.5 h-3.5 text-[var(--accent-66)] flex-shrink-0 mt-0.5" />
+            <p className="text-[10px] text-[var(--accent-66)] leading-relaxed">
+              Your project starts unencrypted. After adding API keys you can
+              encrypt it with a password from the API keys settings.
             </p>
-            <div className="space-y-2">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                placeholder="Create password (min 4 chars)"
-                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
-                placeholder="Confirm password"
-                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-              />
-            </div>
           </div>
-
-          {error && (
-            <p className="text-xs text-red-400">{error}</p>
-          )}
 
           <div className="flex gap-3 pt-2">
             <button
@@ -147,7 +104,7 @@ export default function CreateProjectModal({
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || !password}
+              disabled={!name.trim()}
               className="flex-1 px-4 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
               create project →
