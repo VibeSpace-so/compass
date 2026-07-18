@@ -47,8 +47,7 @@ export default function CreateProjectModal({
       <div className="relative w-full max-w-md border border-[var(--accent-44)] rounded bg-[#0a0a0a] p-5 sm:p-6 shadow-[0_0_40px_var(--accent-15)] my-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-medium text-[var(--accent)]">
-            <span className="text-[var(--accent-44)]">$ </span>
-            new_project
+            Start a new project
           </h2>
           <button
             onClick={onClose}
@@ -61,13 +60,13 @@ export default function CreateProjectModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs text-[var(--accent-88)] mb-1.5">
-              Project name
+              What are you building?
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My vibe coded app"
+              placeholder="My app name"
               className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
               autoFocus
             />
@@ -75,14 +74,14 @@ export default function CreateProjectModal({
 
           <div>
             <label className="block text-xs text-[var(--accent-88)] mb-1.5">
-              Description
+              One-liner description (optional)
             </label>
-            <textarea
+            <input
+              type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of what you're building..."
-              rows={3}
-              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] resize-none"
+              placeholder="A tool that helps people..."
+              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
             />
           </div>
 
@@ -100,14 +99,14 @@ export default function CreateProjectModal({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             >
-              cancel
+              Cancel
             </button>
             <button
               type="submit"
               disabled={!name.trim()}
               className="flex-1 px-4 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              create project →
+              Start building
             </button>
           </div>
         </form>
