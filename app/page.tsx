@@ -25,7 +25,6 @@ import {
 } from "@/lib/secure-storage";
 import {
   isProjectEncrypted,
-  verifyProjectPassword,
   cleanupOldGlobalEncryption,
   wipeProjectData,
 } from "@/lib/crypto";
