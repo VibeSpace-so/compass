@@ -166,13 +166,10 @@ input::placeholder, textarea::placeholder {
   }
 }
 
-/* Prevent text from being too small on mobile inputs */
-input, textarea, select {
-  font-size: 16px; /* Prevents iOS zoom on focus */
-}
-@media (min-width: 768px) {
+/* Prevent text from being too small on mobile inputs (iOS zooms on focus below 16px) */
+@media (max-width: 767px) {
   input, textarea, select {
-    font-size: inherit;
+    font-size: 16px !important;
   }
 }
 
