@@ -14,6 +14,8 @@ import {
   hasAnyKeyConfigured,
   toggleIntegration,
   addChatMessage,
+  encryptProject,
+  disableProjectEncryption,
 } from "@/lib/storage";
 import {
   setProjectPassword,
@@ -22,7 +24,6 @@ import {
   loadEncryptedChat,
 } from "@/lib/secure-storage";
 import {
-  setupProjectEncryption,
   isProjectEncrypted,
   verifyProjectPassword,
   cleanupOldGlobalEncryption,
@@ -57,17 +58,17 @@ export default function CompassPage() {
   }, []);
 
   const handleCreateProject = useCallback(
-    async (name: string, description: string, password: string) => {
+    (name: string, description: string) => {
       if (!state) return;
       const newState = createProject(state, name, description);
       const newProject = newState.projects[newState.projects.length - 1];
 
-      // Set up encryption for the new project
-      await setupProjectEncryption(newProject.id, password);
-      setProjectPassword(newProject.id, password);
+      // New projects start unencrypted; the user can encrypt later.
       setActiveProjectForConnectors(newProject.id);
 
-      setState(newState);
+      // Reload fresh per-project state so stale keySet flags from a
+      // previously opened project don't trigger a false encrypt reminder.
+      setState(loadStateForProject(newProject.id));
       setShowCreateModal(false);
       setView("project");
     },
@@ -80,34 +81,38 @@ export default function CompassPage() {
       const newState = selectProject(state, id);
       setState(newState);
 
-      // Check if project is already unlocked in this session
-      if (isProjectUnlocked(id)) {
-        setActiveProjectForConnectors(id);
-        setState(loadStateForProject(id));
-        setView("project");
-      } else if (isProjectEncrypted(id)) {
-        // Try auto-unlock with deterministic default password
-        const project = state.projects.find((p) => p.id === id);
-        if (project) {
-          const defaultPwd = "compass-default-" + project.name.toLowerCase().replace(/\s+/g, "-");
-          const valid = await verifyProjectPassword(id, defaultPwd);
-          if (valid) {
-            setProjectPassword(id, defaultPwd);
-            await loadAllProjectKeys(id);
-            await loadEncryptedChat(id);
-            await loadEncryptedMemories(id);
-            setActiveProjectForConnectors(id);
-            setState(loadStateForProject(id));
-            setView("project");
-            return;
-          }
-        }
-        // Custom encryption — needs manual unlock
+      // Encrypted but not yet unlocked this session — gate behind password.
+      if (isProjectEncrypted(id) && !isProjectUnlocked(id)) {
         setView("unlock");
-      } else {
-        // Legacy project without encryption — open directly
-        setView("project");
+        return;
       }
+
+      // Unencrypted, or already unlocked — load data (plaintext or cached)
+      // and open directly.
+      await loadAllProjectKeys(id);
+      await loadEncryptedChat(id);
+      await loadEncryptedMemories(id);
+      setActiveProjectForConnectors(id);
+      setState(loadStateForProject(id));
+      setView("project");
+    },
+    [state]
+  );
+
+  const handleEncryptProject = useCallback(
+    async (password: string) => {
+      if (!state?.selectedProjectId) return;
+      await encryptProject(state.selectedProjectId, password);
+      setState(loadStateForProject(state.selectedProjectId));
+    },
+    [state]
+  );
+
+  const handleDisableEncryption = useCallback(
+    async () => {
+      if (!state?.selectedProjectId) return;
+      await disableProjectEncryption(state.selectedProjectId);
+      setState(loadStateForProject(state.selectedProjectId));
     },
     [state]
   );
@@ -269,6 +274,10 @@ export default function CompassPage() {
   );
 
   const chatEnabled = hasAnyKeyConfigured(state);
+  const selectedEncrypted = selectedProject
+    ? isProjectEncrypted(selectedProject.id)
+    : false;
+  const hasStoredKeys = state.byokSettings.providers.some((p) => p.keySet);
 
   return (
     <>
@@ -315,6 +324,8 @@ export default function CompassPage() {
             onToggleIntegration={handleToggleIntegration}
             memories={state.memories[selectedProject.id] || []}
             onRemoveMemory={handleRemoveMemory}
+            showEncryptReminder={!selectedEncrypted && hasStoredKeys}
+            onEncryptClick={() => setShowBYOK(true)}
           />
         ) : (
           <>
@@ -340,7 +351,7 @@ export default function CompassPage() {
         )}
       </main>
 
-      <footer className="border-t border-[var(--accent-26)] bg-[#0a0a0a] py-8">
+      <footer className="border-t border-[var(--accent-26)] bg-[#0a0a0a] py-6 sm:py-8 safe-bottom">
         <div className="max-w-3xl mx-auto w-full px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
@@ -398,10 +409,13 @@ export default function CompassPage() {
         onToggleProvider={handleToggleProvider}
         onProvidersChange={handleReloadProviders}
         projectId={state.selectedProjectId}
+        isEncrypted={selectedEncrypted}
+        onEncrypt={handleEncryptProject}
+        onDisableEncryption={handleDisableEncryption}
       />
 
       {confirmDelete && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg">
+        <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 px-4 py-3 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg text-center">
           Click delete again to confirm
         </div>
       )}

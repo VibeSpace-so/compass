@@ -14,6 +14,7 @@ import {
   Wrench,
   MapPin,
   Info,
+  Lock,
   X,
 } from "lucide-react";
 import StageIcon from "./stage-icon";
@@ -30,6 +31,8 @@ interface ProjectDetailProps {
   onToggleIntegration: (id: string) => void;
   memories: ProjectMemory[];
   onRemoveMemory?: (memoryId: string) => void;
+  showEncryptReminder?: boolean;
+  onEncryptClick?: () => void;
 }
 
 function DebtSelector({
@@ -110,12 +113,15 @@ export default function ProjectDetail({
   onToggleIntegration,
   memories,
   onRemoveMemory,
+  showEncryptReminder = false,
+  onEncryptClick,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("context");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showMap, setShowMap] = useState(false);
+  const [reminderDismissed, setReminderDismissed] = useState(false);
 
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
@@ -241,6 +247,30 @@ export default function ProjectDetail({
               </p>
             )}
           </div>
+
+          {/* Encrypt reminder */}
+          {showEncryptReminder && !reminderDismissed && (
+            <div className="flex items-center gap-2 mb-3 p-3 rounded border border-yellow-600/40 bg-yellow-500/5 flex-shrink-0">
+              <Lock className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+              <div className="flex-1 text-[11px] text-yellow-500/90 leading-relaxed">
+                You&apos;ve added API keys. Encrypt this project with a password to
+                protect them.
+              </div>
+              <button
+                onClick={onEncryptClick}
+                className="flex-shrink-0 px-2.5 py-1 rounded text-[10px] font-medium border border-yellow-600/50 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+              >
+                Encrypt now
+              </button>
+              <button
+                onClick={() => setReminderDismissed(true)}
+                className="flex-shrink-0 p-1 text-yellow-500/60 hover:text-yellow-500 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Chat fills remaining space */}
           <div className="flex-1 overflow-hidden">

@@ -41,7 +41,7 @@ export function ProjectBrief({ memories, onRemoveMemory }: ProjectBriefProps) {
   const typeOrder: MemoryType[] = ["context", "decision", "preference", "constraint", "learning", "artifact"];
 
   return (
-    <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+    <div className="flex flex-col gap-4 p-3 sm:p-4 overflow-y-auto h-full mobile-scroll">
       <div className="flex items-center gap-2 mb-2">
         <Brain className="w-4 h-4 text-green-400" />
         <h3 className="text-zinc-200 font-medium text-sm">Core Memories</h3>

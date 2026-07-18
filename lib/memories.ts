@@ -5,7 +5,7 @@
  */
 
 import { ProjectMemory, MemoryType, StageId } from "./types";
-import { encrypt, decrypt } from "./crypto";
+import { encrypt, decrypt, isProjectEncrypted } from "./crypto";
 import { getProjectPassword } from "./secure-storage";
 import { generateId } from "./storage";
 
@@ -117,35 +117,47 @@ export function formatMemoriesForPrompt(projectId: string): string {
   return lines.join("\n");
 }
 
-// --- Encrypted persistence ---
+// --- Persistence (encrypted or plaintext depending on project mode) ---
 
 async function saveEncryptedMemories(
   projectId: string,
   memories: ProjectMemory[]
 ): Promise<void> {
-  const password = getProjectPassword(projectId);
-  if (!password) throw new Error("Project not unlocked");
+  const storageKey = MEMORY_PREFIX + projectId;
+  if (isProjectEncrypted(projectId)) {
+    const password = getProjectPassword(projectId);
+    if (!password) throw new Error("Project not unlocked");
+    const encrypted = await encrypt(JSON.stringify(memories), password, projectId);
+    localStorage.setItem(storageKey, encrypted);
+  } else {
+    localStorage.setItem(storageKey, JSON.stringify(memories));
+  }
+}
 
-  const encrypted = await encrypt(
-    JSON.stringify(memories),
-    password,
-    projectId
-  );
-  localStorage.setItem(MEMORY_PREFIX + projectId, encrypted);
+/**
+ * Re-write cached memories using the project's current storage mode.
+ * Used when toggling encryption on or off.
+ */
+export async function rewriteProjectMemories(projectId: string): Promise<void> {
+  const memories = memoryCache.get(projectId);
+  if (memories && memories.length > 0) {
+    await saveEncryptedMemories(projectId, memories);
+  }
 }
 
 export async function loadEncryptedMemories(
   projectId: string
 ): Promise<ProjectMemory[]> {
+  const encrypted = isProjectEncrypted(projectId);
   const password = getProjectPassword(projectId);
-  if (!password) return [];
+  if (encrypted && !password) return [];
 
   const stored = localStorage.getItem(MEMORY_PREFIX + projectId);
   if (!stored) return [];
 
   try {
-    const decrypted = await decrypt(stored, password, projectId);
-    const memories = JSON.parse(decrypted) as ProjectMemory[];
+    const json = encrypted ? await decrypt(stored, password!, projectId) : stored;
+    const memories = JSON.parse(json) as ProjectMemory[];
     memoryCache.set(projectId, memories);
     return memories;
   } catch {

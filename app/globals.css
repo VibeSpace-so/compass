@@ -168,7 +168,40 @@ input::placeholder, textarea::placeholder {
   margin: 0.75rem 0;
 }
 
-/* ─── Mobile responsive panels ─── */
-@media (max-width: 768px) {
-  .md\:flex-row { flex-direction: column; }
+
+/* ─── Mobile responsiveness ─── */
+
+/* Ensure minimum touch targets */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exempt small inline elements that are already part of larger targets */
+  .touch-exempt {
+    min-height: unset;
+    min-width: unset;
+  }
+}
+
+/* Safe area padding for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent text from being too small on mobile inputs (iOS zooms on focus below 16px) */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile scrolling improvements */
+@media (max-width: 767px) {
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 }

@@ -445,7 +445,7 @@ export default function ChatPanel({
   return (
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1 mobile-scroll">
         {/* System greeting */}
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-7 h-7 rounded bg-[var(--accent-10)] border border-[var(--accent-26)] flex items-center justify-center">

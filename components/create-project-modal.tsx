@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Lock, Shield } from "lucide-react";
+import { X, Lock } from "lucide-react";
 
 interface CreateProjectModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, description: string, password: string) => void;
+  onCreate: (name: string, description: string) => void;
 }
 
 export default function CreateProjectModal({
@@ -16,19 +16,11 @@ export default function CreateProjectModal({
 }: CreateProjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showEncryption, setShowEncryption] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setName("");
       setDescription("");
-      setPassword("");
-      setConfirmPassword("");
-      setShowEncryption(false);
-      setError("");
     }
   }, [open]);
 
@@ -38,32 +30,21 @@ export default function CreateProjectModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (showEncryption) {
-      if (password.length < 4) {
-        setError("Password must be at least 4 characters.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-      }
-    }
-
-    // If no encryption, use a default internal password (transparent to user)
-    const effectivePassword = showEncryption ? password : "compass-default-" + name.trim().toLowerCase().replace(/\s+/g, "-");
-    onCreate(name.trim(), description.trim(), effectivePassword);
+    onCreate(name.trim(), description.trim());
+    setName("");
+    setDescription("");
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md mx-4 border border-[var(--accent-44)] rounded bg-[#0a0a0a] p-6 shadow-[0_0_40px_var(--accent-15)]">
+      <div className="relative w-full max-w-md border border-[var(--accent-44)] rounded bg-[#0a0a0a] p-5 sm:p-6 shadow-[0_0_40px_var(--accent-15)] my-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-medium text-[var(--accent)]">
             Start a new project
@@ -104,63 +85,13 @@ export default function CreateProjectModal({
             />
           </div>
 
-          {/* Optional encryption toggle */}
-          {!showEncryption ? (
-            <button
-              type="button"
-              onClick={() => setShowEncryption(true)}
-              className="flex items-center gap-2 text-[10px] text-[var(--accent-44)] hover:text-[var(--accent-88)] transition-colors"
-            >
-              <Shield className="w-3 h-3" />
-              Add encryption password (optional)
-            </button>
-          ) : (
-            <div className="border border-[var(--accent-26)] rounded p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Lock className="w-3.5 h-3.5 text-[var(--accent-66)]" />
-                  <span className="text-xs text-[var(--accent-88)]">
-                    Encryption password
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEncryption(false);
-                    setPassword("");
-                    setConfirmPassword("");
-                    setError("");
-                  }}
-                  className="text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)]"
-                >
-                  Remove
-                </button>
-              </div>
-              <p className="text-[10px] text-[var(--accent-44)] leading-relaxed">
-                Encrypts API keys, chat, and memories. You&apos;ll need this password to access the project after closing the tab.
-              </p>
-              <div className="space-y-2">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                  placeholder="Create password (min 4 chars)"
-                  className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-                />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
-                  placeholder="Confirm password"
-                  className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
-                />
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <p className="text-xs text-red-400">{error}</p>
-          )}
+          <div className="flex items-start gap-2 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
+            <Lock className="w-3.5 h-3.5 text-[var(--accent-66)] flex-shrink-0 mt-0.5" />
+            <p className="text-[10px] text-[var(--accent-66)] leading-relaxed">
+              Your project starts unencrypted. After adding API keys you can
+              encrypt it with a password from the API keys settings.
+            </p>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <button
