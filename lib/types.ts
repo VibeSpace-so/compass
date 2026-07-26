@@ -102,6 +102,34 @@ export interface ProjectMemory {
   stage: StageId;
   createdAt: string;
   source: "user" | "ai";
+  updatedAt?: string;
+  pinned?: boolean;
+  tags?: string[];
+}
+
+export type ProjectDocSectionId =
+  | "summary"
+  | "problem"
+  | "targetUser"
+  | "techStack"
+  | "features"
+  | "decisions"
+  | "constraints"
+  | "openQuestions"
+  | "milestones";
+
+export interface ProjectDocSection {
+  id: ProjectDocSectionId;
+  title: string;
+  content: string;
+  updatedAt: string;
+  source: "user" | "ai";
+}
+
+export interface ProjectDoc {
+  projectId: string;
+  sections: ProjectDocSection[];
+  updatedAt: string;
 }
 
 export interface AppState {
@@ -111,4 +139,5 @@ export interface AppState {
   integrations: Integration[];
   chatHistory: Record<string, ChatMessage[]>;
   memories: Record<string, ProjectMemory[]>;
+  projectDocs: Record<string, ProjectDoc>;
 }
