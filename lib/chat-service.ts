@@ -194,6 +194,81 @@ interface OpenAIChoice {
   finish_reason: string;
 }
 
+export function parseInlineToolCalls(
+  content: string,
+  tools?: ChatTool[]
+): { name: string; arguments: Record<string, unknown> }[] {
+  const available = tools ? new Set(tools.map((tool) => tool.name)) : null;
+  const calls: { name: string; arguments: Record<string, unknown> }[] = [];
+  const seen = new Set<string>();
+  const add = (name: string, raw: string) => {
+    if (available && !available.has(name)) return;
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const args = (parsed.arguments ?? parsed.parameters ?? parsed) as Record<string, unknown>;
+      if (args && typeof args === "object" && !Array.isArray(args)) {
+        const key = `${name}:${JSON.stringify(args)}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          calls.push({ name, arguments: args });
+        }
+      }
+    } catch {
+      // Ignore malformed inline calls and let the model response pass through as text.
+    }
+  };
+
+  const extractJson = (text: string, start: number): string | null => {
+    let depth = 0;
+    let quoted = false;
+    let escaped = false;
+    for (let i = start; i < text.length; i++) {
+      const char = text[i];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') quoted = true;
+      else if (char === "{") depth++;
+      else if (char === "}" && --depth === 0) return text.slice(start, i + 1);
+    }
+    return null;
+  };
+
+  const xmlPattern = /<function=([A-Za-z0-9_-]+)\s*/g;
+  for (const match of content.matchAll(xmlPattern)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const jsonStart = content.indexOf("{", start);
+    const raw = jsonStart >= 0 ? extractJson(content, jsonStart) : null;
+    if (raw) add(match[1], raw);
+  }
+
+  const jsonCandidates = [
+    ...Array.from(content.matchAll(/```json\s*([\s\S]*?)```/gi), (match) => match[1]),
+  ];
+  for (const candidate of jsonCandidates) {
+    try {
+      const parsed = JSON.parse(candidate) as { name?: string; arguments?: Record<string, unknown>; parameters?: Record<string, unknown> };
+      if (parsed.name) add(parsed.name, JSON.stringify(parsed.arguments ?? parsed.parameters ?? {}));
+    } catch {
+      // Ignore malformed candidates.
+    }
+  }
+  for (let index = content.indexOf("{"); index >= 0; index = content.indexOf("{", index + 1)) {
+    const raw = extractJson(content, index);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as { name?: string; arguments?: Record<string, unknown>; parameters?: Record<string, unknown> };
+      if (parsed.name) add(parsed.name, JSON.stringify(parsed.arguments ?? parsed.parameters ?? {}));
+    } catch {
+      // Ignore non-tool JSON objects in ordinary prose.
+    }
+  }
+  return calls;
+}
+
 async function callOpenAICompatibleWithTools(
   endpoint: string,
   model: string,
@@ -244,8 +319,40 @@ async function callOpenAICompatibleWithTools(
 
     const msg = choice.message;
 
-    // No tool calls → return text
+    // Groq/Llama occasionally emits function calls as text rather than tool_calls.
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      const inlineCalls = msg.content ? parseInlineToolCalls(msg.content, tools) : [];
+      if (inlineCalls.length > 0) {
+        const synthesizedCalls = inlineCalls.map((call, index) => ({
+          id: `inline_${Date.now()}_${index}`,
+          type: "function" as const,
+          function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+        }));
+        conversationMessages.push({
+          role: "assistant",
+          content: msg.content ?? null,
+          tool_calls: synthesizedCalls,
+        });
+        for (const tc of synthesizedCalls) {
+          const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+          const tool = tools.find((t) => t.name === tc.function.name);
+          const info: ToolCallInfo = {
+            id: tc.id,
+            toolName: tc.function.name,
+            integrationId: tool?.integrationId ?? "unknown",
+            args,
+            status: "executing",
+          };
+          allToolCalls.push(info);
+          onToolCall?.(info);
+          const result = await executeTool(tc.function.name, args);
+          info.status = result.success ? "success" : "error";
+          info.result = result.success ? JSON.stringify(result.data) : (result.error ?? "Unknown error");
+          onToolCall?.(info);
+          conversationMessages.push({ role: "tool", tool_call_id: tc.id, content: info.result });
+        }
+        continue;
+      }
       return {
         content: msg.content || "I couldn't generate a response. Please try again.",
         toolCalls: allToolCalls,
@@ -633,10 +740,10 @@ export async function generateChatResponse(
   enabledProviderIds?: string[],
   onToolCall?: (info: ToolCallInfo) => void,
   onStageAdvance?: (newStage: StageId) => void
-): Promise<string> {
+): Promise<ChatResponseWithTools> {
   const active = getActiveProvider(project.id, enabledProviderIds);
   if (!active) {
-    return "No API key configured. Please add an API key in Settings to enable AI-powered chat.";
+    return { content: "No API key configured. Please add an API key in Settings to enable AI-powered chat.", toolCalls: [] };
   }
 
   // Set tool context for system tools (memories, stage advancement)
@@ -680,9 +787,8 @@ export async function generateChatResponse(
       );
     }
 
-    return result.content;
+    return result;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return `Error calling ${provider.id}: ${msg}\n\nPlease check your API key and try again.`;
+    throw error;
   }
 }

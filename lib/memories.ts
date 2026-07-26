@@ -25,6 +25,13 @@ export function addMemory(
   stage: StageId,
   source: "user" | "ai" = "ai"
 ): ProjectMemory {
+  const existing = memoryCache.get(projectId) || [];
+  const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  const duplicate = existing.find(
+    (memory) => memory.type === type && normalize(memory.content) === normalize(content)
+  );
+  if (duplicate) return duplicate;
+
   const memory: ProjectMemory = {
     id: generateId(),
     type,
@@ -34,7 +41,6 @@ export function addMemory(
     source,
   };
 
-  const existing = memoryCache.get(projectId) || [];
   const updated = [...existing, memory];
   memoryCache.set(projectId, updated);
 

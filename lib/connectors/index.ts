@@ -5,6 +5,7 @@ import { FigmaConnector } from "./figma";
 import { SlackConnector } from "./slack";
 import { DiscordConnector } from "./discord";
 import { VercelConnector } from "./vercel";
+import { GitHubConnector } from "./github";
 import { DevinConnector } from "./devin-connector";
 import { LovableConnector } from "./lovable";
 import { CursorConnector } from "./cursor";
@@ -19,6 +20,7 @@ export { FigmaConnector } from "./figma";
 export { SlackConnector } from "./slack";
 export { DiscordConnector } from "./discord";
 export { VercelConnector } from "./vercel";
+export { GitHubConnector } from "./github";
 export { DevinConnector } from "./devin-connector";
 export { LovableConnector } from "./lovable";
 export { CursorConnector } from "./cursor";
@@ -35,6 +37,7 @@ export function createDefaultConnectors(): IntegrationConnector[] {
     new SlackConnector(),
     new DiscordConnector(),
     new VercelConnector(),
+    new GitHubConnector(),
     new DevinConnector(),
     new LovableConnector(),
     new CursorConnector(),

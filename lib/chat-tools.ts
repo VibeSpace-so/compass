@@ -127,10 +127,16 @@ function executeSystemTool(
       if (!VALID_MEMORY_TYPES.includes(memType as MemoryType)) {
         return { success: false, error: `Invalid memory type "${memType}". Must be one of: ${VALID_MEMORY_TYPES.join(", ")}` };
       }
+      const normalizedContent = content.trim().replace(/\s+/g, " ").toLowerCase();
+      const duplicate = getCachedMemories(_activeProjectId).find(
+        (existing) =>
+          existing.type === memType &&
+          existing.content.trim().replace(/\s+/g, " ").toLowerCase() === normalizedContent
+      );
       const memory = addMemory(_activeProjectId, memType as MemoryType, content, _activeStage, "ai");
       return {
         success: true,
-        data: { id: memory.id, type: memory.type, content: memory.content },
+        data: { id: memory.id, type: memory.type, content: memory.content, ...(duplicate ? { deduped: true } : {}) },
       };
     }
 

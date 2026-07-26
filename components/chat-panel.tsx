@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChatMessage, Integration, Project, StageId } from "@/lib/types";
+import { ChatMessage, Integration, PersistedToolCall, Project, StageId } from "@/lib/types";
 import { getStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 
@@ -54,6 +54,7 @@ const INTEGRATION_LABELS: Record<string, string> = {
   devin: "Devin",
   base44: "Base44",
   _system: "Compass",
+  github: "GitHub",
 };
 
 function getToolActionLabel(toolName: string, integrationId: string): string {
@@ -275,6 +276,7 @@ export default function ChatPanel({
   const [isTyping, setIsTyping] = useState(false);
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallDisplay[]>([]);
   const [typingLabel, setTypingLabel] = useState("Thinking...");
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -313,6 +315,7 @@ export default function ChatPanel({
   async function handleSend(overrideInput?: string) {
     const text = overrideInput || input.trim();
     if (!text || !isEnabled || isTyping) return;
+    setError(null);
 
     // Handle slash commands
     if (text.startsWith("/")) {
@@ -361,19 +364,21 @@ export default function ChatPanel({
       const assistantMessage: ChatMessage = {
         id: generateId(),
         role: "assistant",
-        content: response,
+        content: response.content,
         timestamp: new Date().toISOString(),
+        toolCalls: response.toolCalls
+          .filter((call): call is ToolCallInfo & { status: "success" | "error" } => call.status !== "executing")
+          .map(({ toolName, integrationId, status, result }): PersistedToolCall => ({
+            toolName,
+            integrationId,
+            status,
+            result,
+          })),
       };
       onSendMessage(assistantMessage);
       onMemoriesChange?.();
-    } catch {
-      const errorMessage: ChatMessage = {
-        id: generateId(),
-        role: "assistant",
-        content: "Something went wrong. Please try again.",
-        timestamp: new Date().toISOString(),
-      };
-      onSendMessage(errorMessage);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
     } finally {
       setIsTyping(false);
       setActiveToolCalls([]);
@@ -491,6 +496,13 @@ export default function ChatPanel({
                 </div>
               ) : (
                 <div className="text-sm leading-relaxed text-[var(--accent-cc)] prose-chat">
+                  {msg.toolCalls?.length ? (
+                    <div className="mb-2">
+                      {msg.toolCalls.map((call, index) => (
+                        <ToolCallCard key={`${call.toolName}-${index}`} call={call} />
+                      ))}
+                    </div>
+                  ) : null}
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {msg.content}
                   </ReactMarkdown>
@@ -543,6 +555,14 @@ export default function ChatPanel({
 
       {/* Input */}
       <div className="border-t border-[var(--accent-26)] pt-3">
+        {error && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded border border-red-500/40 px-3 py-2 text-xs text-red-400">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} aria-label="Dismiss error" className="text-red-400/70 hover:text-red-400">
+              ×
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             ref={inputRef}
