@@ -58,13 +58,13 @@ export class GitHubConnector implements IntegrationConnector, ToolCapableConnect
         : "\n## Features\n\n- Add your first feature here\n";
       return {
         success: true,
-        data: `# ${params.projectName as string}\n\n${params.description as string}\n${featureSection}${stack}\n## Getting Started\n\n### Prerequisites\n\n- Node.js 20+\n- npm\n\n### Installation\n\n\`\`\`bash\n git clone https://github.com/YOUR_USERNAME/${params.projectName as string}.git\n cd ${params.projectName as string}\n npm install\n npm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000) in your browser.\n\n## License\n\nThis project is licensed under the MIT License.`,
+        data: `# ${params.projectName as string}\n\n${params.description as string}\n${featureSection}${stack}\n## Getting Started\n\n### Prerequisites\n\n- Node.js 20+\n- npm\n\n### Installation\n\n\`\`\`bash\ngit clone https://github.com/YOUR_USERNAME/${params.projectName as string}.git\ncd ${params.projectName as string}\nnpm install\nnpm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000) in your browser.\n\n## License\n\nThis project is licensed under the MIT License.`,
       };
     }
     if (toolName === "github_setup_commands") {
       return {
         success: true,
-        data: `# ${params.projectName as string}\n\n${params.description as string}\n\n\`\`\`bash\ngit init\ngit add .\ngit commit -m "Initial commit"\ngit branch -M main\n# Create a new repository at https://github.com/new, then run:\ngit remote add origin https://github.com/YOUR_USERNAME/${params.projectName as string}.git\ngit push -u origin main\n\`\`\`\n\nSuggested .gitignore for a Node/Next.js project:\n\n\`\`\ngitignore\nnode_modules/\n.next/\nout/\n.env\n.env.local\n.vercel/\n*.log\n\`\`\``,
+        data: `# ${params.projectName as string}\n\n${params.description as string}\n\n\`\`\`bash\ngit init\ngit add .\ngit commit -m "Initial commit"\ngit branch -M main\n# Create a new repository at https://github.com/new, then run:\ngit remote add origin https://github.com/YOUR_USERNAME/${params.projectName as string}.git\ngit push -u origin main\n\`\`\`\n\nSuggested .gitignore for a Node/Next.js project:\n\n\`\`\`gitignore\nnode_modules/\n.next/\nout/\n.env\n.env.local\n.vercel/\n*.log\n\`\`\``,
       };
     }
     return { success: false, error: `Unknown tool: ${toolName}` };
