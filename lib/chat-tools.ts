@@ -1,21 +1,39 @@
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "./tool-types";
 import { getIntegrationRegistry } from "./integration-service";
-import { addMemory, updateMemory, getCachedMemories } from "./memories";
-import { MemoryType, StageId } from "./types";
+import {
+  addMemory,
+  updateMemory,
+  getCachedMemories,
+  removeMemory,
+  setMemoryFields,
+  wordSimilarity,
+  NEAR_DUP_THRESHOLD,
+} from "./memories";
+import { MemoryType, ProjectDocSectionId, StageId } from "./types";
+import {
+  appendMilestone,
+  docToMarkdown,
+  ensureProjectDoc,
+  seedDocFromMemories,
+  updateDocSection,
+} from "./project-doc";
 
 // Context holders set by chat-service before each turn
 let _activeProjectId: string | null = null;
 let _activeStage: StageId | null = null;
+let _activeProjectName = "Project";
 let _onStageAdvance: ((newStage: StageId) => void) | null = null;
 
 export function setToolContext(
   projectId: string,
   stage: StageId,
-  onStageAdvance?: (newStage: StageId) => void
+  onStageAdvance?: (newStage: StageId) => void,
+  projectName?: string
 ): void {
   _activeProjectId = projectId;
   _activeStage = stage;
   _onStageAdvance = onStageAdvance || null;
+  _activeProjectName = projectName || "Project";
 }
 
 /**
@@ -39,8 +57,67 @@ function getSystemTools(): ChatTool[] {
             type: "string",
             description: "The information to remember (concise, factual).",
           },
+          tags: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional tags for organizing this memory.",
+          },
+          pinned: {
+            type: "boolean",
+            description: "Whether to prioritize this memory in Compass context.",
+          },
         },
         required: ["type", "content"],
+      },
+      integrationId: "_system",
+    },
+    {
+      name: "list_memories",
+      description: "Search the project's memories and discover IDs for targeted memory operations.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Optional text to search for." },
+          type: { type: "string", enum: ["preference", "decision", "constraint", "context", "learning", "artifact"] },
+        },
+        required: [],
+      },
+      integrationId: "_system",
+    },
+    {
+      name: "delete_memory",
+      description: "Delete a memory by ID when it is obsolete or incorrect.",
+      parameters: {
+        type: "object",
+        properties: { memory_id: { type: "string" } },
+        required: ["memory_id"],
+      },
+      integrationId: "_system",
+    },
+    {
+      name: "supersede_memory",
+      description: "Replace an old memory with a new memory and a fresh ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          old_memory_id: { type: "string" },
+          content: { type: "string" },
+          type: { type: "string", enum: ["preference", "decision", "constraint", "context", "learning", "artifact"] },
+        },
+        required: ["old_memory_id", "content"],
+      },
+      integrationId: "_system",
+    },
+    {
+      name: "pin_memory",
+      description: "Pin or unpin a memory so it is prioritized in Compass context.",
+      parameters: {
+        type: "object",
+        properties: {
+          memory_id: { type: "string" },
+          pinned: { type: "boolean" },
+        },
+        required: ["memory_id", "pinned"],
       },
       integrationId: "_system",
     },
@@ -91,11 +168,27 @@ function getSystemTools(): ChatTool[] {
     {
       name: "generate_project_brief",
       description:
-        "Generate or update the project brief document based on current memories and context. Returns a structured brief with project summary, target user, features, constraints, and decisions.",
+        "Generate the living project brief from current memories, then refine its summary, problem, target user, tech stack, features, and open questions with update_project_doc.",
       parameters: {
         type: "object",
         properties: {},
         required: [],
+      },
+      integrationId: "_system",
+    },
+    {
+      name: "update_project_doc",
+      description: "Update one section of the living project document with a clear narrative.",
+      parameters: {
+        type: "object",
+        properties: {
+          section: {
+            type: "string",
+            enum: ["summary", "problem", "targetUser", "techStack", "features", "decisions", "constraints", "openQuestions", "milestones"],
+          },
+          content: { type: "string" },
+        },
+        required: ["section", "content"],
       },
       integrationId: "_system",
     },
@@ -121,6 +214,8 @@ function executeSystemTool(
     case "save_memory": {
       const memType = params.type as string;
       const content = params.content as string;
+      const tags = Array.isArray(params.tags) ? params.tags.filter((tag): tag is string => typeof tag === "string") : undefined;
+      const pinned = typeof params.pinned === "boolean" ? params.pinned : undefined;
       if (!memType || !content) {
         return { success: false, error: "Missing type or content." };
       }
@@ -131,13 +226,66 @@ function executeSystemTool(
       const duplicate = getCachedMemories(_activeProjectId).find(
         (existing) =>
           existing.type === memType &&
-          existing.content.trim().replace(/\s+/g, " ").toLowerCase() === normalizedContent
+          (existing.content.trim().replace(/\s+/g, " ").toLowerCase() === normalizedContent ||
+            wordSimilarity(existing.content, content) >= NEAR_DUP_THRESHOLD ||
+            existing.content.trim().replace(/\s+/g, " ").toLowerCase().includes(normalizedContent) ||
+            normalizedContent.includes(existing.content.trim().replace(/\s+/g, " ").toLowerCase()))
       );
-      const memory = addMemory(_activeProjectId, memType as MemoryType, content, _activeStage, "ai");
+      const memory = addMemory(_activeProjectId, memType as MemoryType, content, _activeStage, "ai", { tags, pinned });
       return {
         success: true,
         data: { id: memory.id, type: memory.type, content: memory.content, ...(duplicate ? { deduped: true } : {}) },
       };
+    }
+
+    case "list_memories": {
+      const query = typeof params.query === "string" ? params.query : "";
+      const type = typeof params.type === "string" ? params.type : undefined;
+      const memories = getCachedMemories(_activeProjectId)
+        .filter((memory) => !type || memory.type === type)
+        .filter((memory) => !query || memory.content.toLowerCase().includes(query.toLowerCase()));
+      return {
+        success: true,
+        data: { memories: memories.map(({ id, type: memoryType, content: memoryContent, pinned }) => ({ id, type: memoryType, content: memoryContent, pinned: Boolean(pinned) })) },
+      };
+    }
+
+    case "delete_memory": {
+      const memoryId = params.memory_id as string;
+      if (!memoryId) return { success: false, error: "Missing memory_id." };
+      const removed = removeMemory(_activeProjectId, memoryId);
+      return removed
+        ? { success: true, data: { removed: true, id: memoryId } }
+        : { success: false, error: `Memory '${memoryId}' not found.` };
+    }
+
+    case "supersede_memory": {
+      const oldId = params.old_memory_id as string;
+      const oldMemory = getCachedMemories(_activeProjectId).find((memory) => memory.id === oldId);
+      const content = params.content as string;
+      if (!oldId || !content) return { success: false, error: "Missing old_memory_id or content." };
+      if (!oldMemory) return { success: false, error: `Memory '${oldId}' not found.` };
+      if (params.type && !VALID_MEMORY_TYPES.includes(params.type as MemoryType)) {
+        return { success: false, error: `Invalid memory type "${params.type}".` };
+      }
+      removeMemory(_activeProjectId, oldId);
+      const created = addMemory(
+        _activeProjectId,
+        (params.type as MemoryType) || oldMemory.type,
+        content,
+        _activeStage,
+        "ai"
+      );
+      return { success: true, data: { removed: oldId, created: { id: created.id, type: created.type, content: created.content } } };
+    }
+
+    case "pin_memory": {
+      const memoryId = params.memory_id as string;
+      const pinned = params.pinned as boolean;
+      const updated = setMemoryFields(_activeProjectId, memoryId, { pinned });
+      return updated
+        ? { success: true, data: { id: updated.id, pinned: Boolean(updated.pinned) } }
+        : { success: false, error: `Memory '${memoryId}' not found.` };
     }
 
     case "update_memory": {
@@ -170,6 +318,10 @@ function executeSystemTool(
         _activeStage,
         "ai"
       );
+      appendMilestone(
+        _activeProjectId,
+        `Reached ${nextStage}: ${reason} (${new Date().toLocaleDateString()})`
+      );
       return {
         success: true,
         data: { previousStage: _activeStage, newStage: nextStage, reason },
@@ -177,32 +329,20 @@ function executeSystemTool(
     }
 
     case "generate_project_brief": {
-      const memories = getCachedMemories(_activeProjectId);
-      const decisions = memories.filter((m) => m.type === "decision");
-      const constraints = memories.filter((m) => m.type === "constraint");
-      const preferences = memories.filter((m) => m.type === "preference");
-      const context = memories.filter((m) => m.type === "context");
+      ensureProjectDoc(_activeProjectId);
+      const doc = seedDocFromMemories(_activeProjectId);
+      return { success: true, data: { doc: docToMarkdown(doc, _activeProjectName) } };
+    }
 
-      const brief = [
-        "## Project Brief",
-        "",
-        `**Decisions:** ${decisions.length > 0 ? decisions.map((d) => d.content).join("; ") : "None yet"}`,
-        `**Constraints:** ${constraints.length > 0 ? constraints.map((c) => c.content).join("; ") : "None yet"}`,
-        `**Preferences:** ${preferences.length > 0 ? preferences.map((p) => p.content).join("; ") : "None yet"}`,
-        `**Context:** ${context.length > 0 ? context.map((c) => c.content).join("; ") : "None yet"}`,
-      ].join("\n");
-
-      // Save as artifact memory
-      const existingBrief = memories.find(
-        (m) => m.type === "artifact" && m.content.startsWith("## Project Brief")
-      );
-      if (existingBrief) {
-        updateMemory(_activeProjectId, existingBrief.id, brief);
-      } else {
-        addMemory(_activeProjectId, "artifact", brief, _activeStage, "ai");
+    case "update_project_doc": {
+      const section = params.section as ProjectDocSectionId;
+      const content = params.content as string;
+      if (!section || !content) return { success: false, error: "Missing section or content." };
+      if (!ensureProjectDoc(_activeProjectId).sections.some((item) => item.id === section)) {
+        return { success: false, error: `Invalid project document section "${section}".` };
       }
-
-      return { success: true, data: { brief } };
+      const updated = updateDocSection(_activeProjectId, section, content, "ai");
+      return { success: true, data: { section, updatedAt: updated.updatedAt } };
     }
 
     default:
@@ -211,7 +351,9 @@ function executeSystemTool(
 }
 
 const SYSTEM_TOOL_NAMES = new Set([
-  "save_memory", "update_memory", "advance_stage", "generate_project_brief",
+  "save_memory", "list_memories", "update_memory", "delete_memory",
+  "supersede_memory", "pin_memory", "advance_stage", "generate_project_brief",
+  "update_project_doc",
 ]);
 
 /**

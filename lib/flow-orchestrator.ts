@@ -70,7 +70,7 @@ export function getFlowContext(
   // Always show system tools
   const systemTools = byIntegration.get("_system");
   if (systemTools) {
-    lines.push(`- System: save memories, update memories, advance stage, generate project brief (tools: ${systemTools.map((t) => t.name).join(", ")})`);
+    lines.push(`- System: manage memories and the project document, advance stage, generate project brief (tools: ${systemTools.map((t) => t.name).join(", ")})`);
   }
   for (const [integrationId, intTools] of byIntegration) {
     if (integrationId === "_system") continue;

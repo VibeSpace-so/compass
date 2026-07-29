@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Terminal } from "lucide-react";
-import { AppState, Project, ChatMessage, StageId } from "@/lib/types";
+import { AppState, Project, ChatMessage, ProjectDocSectionId, StageId } from "@/lib/types";
 import {
   loadState,
   loadStateForProject,
@@ -29,7 +29,14 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
-import { getCachedMemories, removeMemory, updateMemory, loadEncryptedMemories } from "@/lib/memories";
+import { getCachedMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
+import {
+  getCachedProjectDoc,
+  ensureProjectDoc,
+  loadEncryptedProjectDoc,
+  migrateLegacyBrief,
+  updateDocSection,
+} from "@/lib/project-doc";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -67,6 +74,7 @@ export default function CompassPage() {
 
       // Reload fresh per-project state so stale keySet flags from a
       // previously opened project don't trigger a false encrypt reminder.
+      ensureProjectDoc(newProject.id);
       setState(loadStateForProject(newProject.id));
       setShowCreateModal(false);
       setView("project");
@@ -91,6 +99,8 @@ export default function CompassPage() {
       await loadAllProjectKeys(id);
       await loadEncryptedChat(id);
       await loadEncryptedMemories(id);
+      await loadEncryptedProjectDoc(id);
+      await migrateLegacyBrief(id);
       setActiveProjectForConnectors(id);
       setState(loadStateForProject(id));
       setView("project");
@@ -125,6 +135,8 @@ export default function CompassPage() {
       await loadAllProjectKeys(projectId);
       await loadEncryptedChat(projectId);
       await loadEncryptedMemories(projectId);
+      await loadEncryptedProjectDoc(projectId);
+      await migrateLegacyBrief(projectId);
       setActiveProjectForConnectors(projectId);
 
       // Reload state with decrypted keys, chat, and memories
@@ -254,7 +266,14 @@ export default function CompassPage() {
     const updated = getCachedMemories(state.selectedProjectId);
     setState((prev) => {
       if (!prev || !prev.selectedProjectId) return prev;
-      return { ...prev, memories: { ...prev.memories, [prev.selectedProjectId!]: updated } };
+      const doc = getCachedProjectDoc(prev.selectedProjectId!);
+      return {
+        ...prev,
+        memories: { ...prev.memories, [prev.selectedProjectId!]: updated },
+        projectDocs: doc
+          ? { ...prev.projectDocs, [prev.selectedProjectId!]: doc }
+          : prev.projectDocs,
+      };
     });
   }, [state]);
 
@@ -269,6 +288,36 @@ export default function CompassPage() {
       });
     },
     [state]
+  );
+
+  const handleUpdateDocSection = useCallback(
+    (sectionId: ProjectDocSectionId, content: string) => {
+      if (!state?.selectedProjectId) return;
+      const updated = updateDocSection(state.selectedProjectId, sectionId, content, "user");
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return { ...prev, projectDocs: { ...prev.projectDocs, [prev.selectedProjectId]: updated } };
+      });
+    },
+    [state]
+  );
+
+  const handlePinMemory = useCallback(
+    (memoryId: string, pinned: boolean) => {
+      if (!state?.selectedProjectId) return;
+      setMemoryFields(state.selectedProjectId, memoryId, { pinned });
+      handleMemoriesRefresh();
+    },
+    [state, handleMemoriesRefresh]
+  );
+
+  const handleUpdateMemoryTags = useCallback(
+    (memoryId: string, tags: string[]) => {
+      if (!state?.selectedProjectId) return;
+      setMemoryFields(state.selectedProjectId, memoryId, { tags });
+      handleMemoriesRefresh();
+    },
+    [state, handleMemoriesRefresh]
   );
 
   if (!state) {
@@ -337,6 +386,10 @@ export default function CompassPage() {
             memories={state.memories[selectedProject.id] || []}
             onRemoveMemory={handleRemoveMemory}
             onUpdateMemory={handleUpdateMemory}
+            doc={state.projectDocs[selectedProject.id]}
+            onUpdateDocSection={handleUpdateDocSection}
+            onPinMemory={handlePinMemory}
+            onUpdateMemoryTags={handleUpdateMemoryTags}
             showEncryptReminder={!selectedEncrypted && hasStoredKeys}
             onEncryptClick={() => setShowBYOK(true)}
           />

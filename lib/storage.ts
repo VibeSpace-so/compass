@@ -1,4 +1,4 @@
-import { AppState, Project, BYOKProvider, ChatMessage, Integration, ProjectMemory } from "./types";
+import { AppState, Project, BYOKProvider, ChatMessage } from "./types";
 import { DEFAULT_INTEGRATIONS } from "./integrations";
 import {
   saveEncryptedKey,
@@ -15,6 +15,11 @@ import {
   clearProjectMemories,
   rewriteProjectMemories,
 } from "./memories";
+import {
+  getCachedProjectDoc,
+  clearProjectDoc,
+  rewriteProjectDoc,
+} from "./project-doc";
 import {
   setupProjectEncryption,
   removeProjectVerifyToken,
@@ -38,6 +43,7 @@ function defaultState(): AppState {
     integrations: DEFAULT_INTEGRATIONS,
     chatHistory: {},
     memories: {},
+    projectDocs: {},
   };
 }
 
@@ -58,6 +64,9 @@ export function loadState(): AppState {
     }
     if (!parsed.memories) {
       parsed.memories = {};
+    }
+    if (!parsed.projectDocs) {
+      parsed.projectDocs = {};
     }
     parsed.projects = parsed.projects.map((p) => {
       if ((p.currentStage as string) === "build") {
@@ -91,6 +100,10 @@ export function loadStateForProject(projectId: string): AppState {
   if (cachedMem.length > 0) {
     state.memories = { ...state.memories, [projectId]: cachedMem };
   }
+  const cachedDoc = getCachedProjectDoc(projectId);
+  if (cachedDoc) {
+    state.projectDocs = { ...state.projectDocs, [projectId]: cachedDoc };
+  }
   return state;
 }
 
@@ -109,6 +122,7 @@ export function saveState(state: AppState): void {
     },
     chatHistory: {}, // Chat is encrypted per-project, not in global state
     memories: {},    // Memories are encrypted per-project
+    projectDocs: {}, // Project docs are encrypted per-project
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 }
@@ -126,6 +140,7 @@ export async function encryptProject(
   setProjectPassword(projectId, password);
   await rewriteProjectKeysAndChat(projectId);
   await rewriteProjectMemories(projectId);
+  await rewriteProjectDoc(projectId);
 }
 
 /**
@@ -142,6 +157,7 @@ export async function disableProjectEncryption(
   removeProjectVerifyToken(projectId);
   await rewriteProjectKeysAndChat(projectId);
   await rewriteProjectMemories(projectId);
+  await rewriteProjectDoc(projectId);
   removeProjectSalt(projectId);
 }
 
@@ -196,6 +212,7 @@ export function deleteProject(state: AppState, id: string): AppState {
   const { [id]: _removed, ...remainingChat } = state.chatHistory;
   const { [id]: _removedMem, ...remainingMemories } = state.memories;
   clearProjectMemories(id);
+  clearProjectDoc(id);
   const newState: AppState = {
     ...state,
     projects: state.projects.filter((p) => p.id !== id),
@@ -203,6 +220,9 @@ export function deleteProject(state: AppState, id: string): AppState {
       state.selectedProjectId === id ? null : state.selectedProjectId,
     chatHistory: remainingChat,
     memories: remainingMemories,
+    projectDocs: Object.fromEntries(
+      Object.entries(state.projectDocs).filter(([projectId]) => projectId !== id)
+    ),
   };
   saveState(newState);
   return newState;
