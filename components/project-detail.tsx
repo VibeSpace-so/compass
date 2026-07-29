@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Project, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
+import { Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, getStageIndex, STAGES } from "@/lib/stages";
 import {
   ArrowLeft,
@@ -32,6 +32,10 @@ interface ProjectDetailProps {
   memories: ProjectMemory[];
   onRemoveMemory?: (memoryId: string) => void;
   onUpdateMemory?: (memoryId: string, content: string) => void;
+  doc?: ProjectDoc;
+  onUpdateDocSection?: (sectionId: ProjectDocSectionId, content: string) => void;
+  onPinMemory?: (memoryId: string, pinned: boolean) => void;
+  onUpdateMemoryTags?: (memoryId: string, tags: string[]) => void;
   showEncryptReminder?: boolean;
   onEncryptClick?: () => void;
 }
@@ -115,6 +119,10 @@ export default function ProjectDetail({
   memories,
   onRemoveMemory,
   onUpdateMemory,
+  doc,
+  onUpdateDocSection,
+  onPinMemory,
+  onUpdateMemoryTags,
   showEncryptReminder = false,
   onEncryptClick,
 }: ProjectDetailProps) {
@@ -437,7 +445,16 @@ export default function ProjectDetail({
               )}
 
               {sidebarTab === "brief" && (
-                <ProjectBrief memories={memories} onRemoveMemory={onRemoveMemory} onUpdateMemory={onUpdateMemory} projectName={project.name} />
+                <ProjectBrief
+                  memories={memories}
+                  onRemoveMemory={onRemoveMemory}
+                  onUpdateMemory={onUpdateMemory}
+                  projectName={project.name}
+                  doc={doc}
+                  onUpdateDocSection={onUpdateDocSection}
+                  onPinMemory={onPinMemory}
+                  onUpdateMemoryTags={onUpdateMemoryTags}
+                />
               )}
 
               {sidebarTab === "settings" && (
