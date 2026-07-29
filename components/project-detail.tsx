@@ -31,6 +31,7 @@ interface ProjectDetailProps {
   onToggleIntegration: (id: string) => void;
   memories: ProjectMemory[];
   onRemoveMemory?: (memoryId: string) => void;
+  onUpdateMemory?: (memoryId: string, content: string) => void;
   showEncryptReminder?: boolean;
   onEncryptClick?: () => void;
 }
@@ -113,6 +114,7 @@ export default function ProjectDetail({
   onToggleIntegration,
   memories,
   onRemoveMemory,
+  onUpdateMemory,
   showEncryptReminder = false,
   onEncryptClick,
 }: ProjectDetailProps) {
@@ -435,7 +437,7 @@ export default function ProjectDetail({
               )}
 
               {sidebarTab === "brief" && (
-                <ProjectBrief memories={memories} onRemoveMemory={onRemoveMemory} />
+                <ProjectBrief memories={memories} onRemoveMemory={onRemoveMemory} onUpdateMemory={onUpdateMemory} projectName={project.name} />
               )}
 
               {sidebarTab === "settings" && (

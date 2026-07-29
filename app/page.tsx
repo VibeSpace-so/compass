@@ -29,7 +29,7 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
-import { getCachedMemories, removeMemory, loadEncryptedMemories } from "@/lib/memories";
+import { getCachedMemories, removeMemory, updateMemory, loadEncryptedMemories } from "@/lib/memories";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -258,6 +258,19 @@ export default function CompassPage() {
     });
   }, [state]);
 
+  const handleUpdateMemory = useCallback(
+    (memoryId: string, content: string) => {
+      if (!state?.selectedProjectId) return;
+      updateMemory(state.selectedProjectId, memoryId, content);
+      const updated = getCachedMemories(state.selectedProjectId);
+      setState((prev) => {
+        if (!prev || !prev.selectedProjectId) return prev;
+        return { ...prev, memories: { ...prev.memories, [prev.selectedProjectId]: updated } };
+      });
+    },
+    [state]
+  );
+
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -323,6 +336,7 @@ export default function CompassPage() {
             onToggleIntegration={handleToggleIntegration}
             memories={state.memories[selectedProject.id] || []}
             onRemoveMemory={handleRemoveMemory}
+            onUpdateMemory={handleUpdateMemory}
             showEncryptReminder={!selectedEncrypted && hasStoredKeys}
             onEncryptClick={() => setShowBYOK(true)}
           />

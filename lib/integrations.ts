@@ -67,6 +67,14 @@ export const DEFAULT_INTEGRATIONS: Integration[] = [
     url: "https://vercel.com",
   },
   {
+    id: "github",
+    name: "GitHub",
+    category: "build",
+    description: "Version control — generate README and push-to-repo commands.",
+    connected: false,
+    url: "https://github.com",
+  },
+  {
     id: "lovable",
     name: "Lovable",
     category: "build",
@@ -202,6 +210,11 @@ export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
     },
   ],
   github: [
+    {
+      integrationId: "github",
+      purpose: "Generate a README and the exact commands to push your project to a new GitHub repo.",
+      outcome: "Your code is in version control with clean docs from day one.",
+    },
     {
       integrationId: "cursor",
       purpose: "Push code to GitHub directly from your editor.",

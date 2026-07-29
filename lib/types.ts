@@ -52,6 +52,14 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  toolCalls?: PersistedToolCall[];
+}
+
+export interface PersistedToolCall {
+  toolName: string;
+  integrationId: string;
+  status: "success" | "error";
+  result?: string;
 }
 
 export type IntegrationCategory = "context" | "communication" | "design" | "build";
