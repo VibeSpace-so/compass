@@ -747,7 +747,7 @@ export async function generateChatResponse(
   }
 
   // Set tool context for system tools (memories, stage advancement)
-  setToolContext(project.id, project.currentStage, onStageAdvance);
+  setToolContext(project.id, project.currentStage, onStageAdvance, project.name);
 
   const { provider, apiKey } = active;
   const systemPrompt = buildSystemPrompt(project, integrations);
