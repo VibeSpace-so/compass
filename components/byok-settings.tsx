@@ -85,13 +85,13 @@ function EncryptionSection({
           <div className="text-[11px] text-[var(--accent)] font-medium">
             Encryption is on
           </div>
-          <div className="text-[10px] text-[var(--accent-88)] leading-relaxed mt-0.5">
+          <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed mt-0.5">
             Keys, tokens, chat, and memories are encrypted with your password.
           </div>
           <button
             onClick={handleDisable}
             disabled={busy}
-            className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+            className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
           >
             <LockOpen className="w-3 h-3" />
             {busy ? "working…" : "Disable encryption"}
@@ -110,7 +110,7 @@ function EncryptionSection({
             Encrypt this project
           </span>
         </div>
-        <p className="text-[10px] text-[var(--accent-66)] leading-relaxed">
+        <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
           Set a password to encrypt your keys, tokens, chat, and memories. You&apos;ll
           need it to unlock the project after a refresh. It never leaves this device.
         </p>
@@ -119,7 +119,7 @@ function EncryptionSection({
           value={password}
           onChange={(e) => { setPassword(e.target.value); setError(""); }}
           placeholder="Create password (min 4 chars)"
-          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
+          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] outline-none"
           autoFocus
         />
         <input
@@ -127,14 +127,14 @@ function EncryptionSection({
           value={confirm}
           onChange={(e) => { setConfirm(e.target.value); setError(""); }}
           placeholder="Confirm password"
-          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
+          className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] outline-none"
         />
         {error && <p className="text-[10px] text-red-400">{error}</p>}
         <div className="flex gap-2 pt-0.5">
           <button
             onClick={reset}
             disabled={busy}
-            className="flex-1 px-3 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+            className="flex-1 px-3 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
           >
             cancel
           </button>
@@ -161,17 +161,17 @@ function EncryptionSection({
       {hasKeys ? (
         <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
       ) : (
-        <LockOpen className="w-4 h-4 text-[var(--accent-66)] flex-shrink-0 mt-0.5" />
+        <LockOpen className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
       )}
       <div className="flex-1">
         <div
           className={`text-[11px] font-medium ${
-            hasKeys ? "text-yellow-500" : "text-[var(--accent-88)]"
+            hasKeys ? "text-yellow-500" : "text-[var(--text-secondary)]"
           }`}
         >
           {hasKeys ? "Reminder: encrypt your project" : "Encryption is off"}
         </div>
-        <div className="text-[10px] text-[var(--accent-88)] leading-relaxed mt-0.5">
+        <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed mt-0.5">
           {hasKeys
             ? "You've saved API keys. Encrypt this project with a password to protect them."
             : "This project is unencrypted. Add a password anytime to encrypt your data."}
@@ -227,7 +227,7 @@ function ProviderRow({
     <div className="border border-[var(--accent-26)] rounded p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <KeyRound className="w-3.5 h-3.5 text-[var(--accent-66)]" />
+          <KeyRound className="w-3.5 h-3.5 text-[var(--text-muted)]" />
           <span className="text-xs font-medium text-[var(--accent)]">
             {provider.name}
           </span>
@@ -268,7 +268,7 @@ function ProviderRow({
                 />
                 <button
                   onClick={() => setShowKey(!showKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--accent-44)] hover:text-[var(--accent)]"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--accent)]"
                 >
                   {showKey ? (
                     <EyeOff className="w-3 h-3" />
@@ -283,7 +283,7 @@ function ProviderRow({
                     setEditingKey(false);
                     setKeyValue("");
                   }}
-                  className="text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)]"
+                  className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
                 >
                   cancel
                 </button>
@@ -299,7 +299,7 @@ function ProviderRow({
             <div className="flex items-center gap-2">
               {currentKey ? (
                 <>
-                  <span className="text-[10px] text-[var(--accent-88)]">
+                  <span className="text-[10px] text-[var(--text-secondary)]">
                     ••••••••{currentKey.slice(-4)}
                   </span>
                   <button
@@ -307,7 +307,7 @@ function ProviderRow({
                       setKeyValue(currentKey);
                       setEditingKey(true);
                     }}
-                    className="text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)]"
+                    className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
                   >
                     edit
                   </button>
@@ -321,7 +321,7 @@ function ProviderRow({
               ) : (
                 <button
                   onClick={() => setEditingKey(true)}
-                  className="text-[10px] text-[var(--accent-44)] hover:text-[var(--accent)]"
+                  className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
                 >
                   + add API key
                 </button>
@@ -360,12 +360,12 @@ export default function BYOKSettings({
       <div className="relative w-full max-w-md border border-[var(--accent-44)] rounded bg-[#0a0a0a] p-5 sm:p-6 shadow-[0_0_40px_var(--accent-15)] my-auto max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-medium text-[var(--accent)]">
-            <span className="text-[var(--accent-44)]">$ </span>
+            <span className="text-[var(--text-muted)]">$ </span>
             api_keys
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            className="p-1 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -374,7 +374,7 @@ export default function BYOKSettings({
         {/* Security notice */}
         <div className="flex items-start gap-2 mb-4 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
           <Shield className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
-          <div className="text-[10px] text-[var(--accent-88)] leading-relaxed">
+          <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
             Your API keys are stored in your browser&apos;s localStorage only.
             They never leave this device. Compass does not send keys to any
             server.

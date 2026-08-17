@@ -84,15 +84,15 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
           <Loader2 className="w-3.5 h-3.5 text-[var(--accent)] animate-spin flex-shrink-0" />
         )}
         {call.status === "success" && (
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0" />
         )}
         {call.status === "error" && (
           <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
         )}
 
-        <Wrench className="w-3 h-3 text-[var(--accent-44)] flex-shrink-0" />
+        <Wrench className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
 
-        <span className="text-xs text-[var(--accent-88)] flex-1 min-w-0 truncate">
+        <span className="text-xs text-[var(--text-secondary)] flex-1 min-w-0 truncate">
           {call.status === "executing"
             ? getToolActionLabel(call.toolName, call.integrationId)
             : `${label}: ${call.toolName}`}
@@ -101,9 +101,9 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
         {call.result && (
           <span className="flex-shrink-0">
             {expanded ? (
-              <ChevronDown className="w-3 h-3 text-[var(--accent-44)]" />
+              <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
             ) : (
-              <ChevronRight className="w-3 h-3 text-[var(--accent-44)]" />
+              <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
             )}
           </span>
         )}
@@ -111,7 +111,7 @@ function ToolCallCard({ call }: { call: ToolCallDisplay }) {
 
       {expanded && call.result && (
         <div className="px-3 pb-2 border-t border-[var(--accent-26)]">
-          <pre className="text-[10px] text-[var(--accent-66,var(--accent-44))] mt-1.5 max-h-32 overflow-auto whitespace-pre-wrap break-all">
+          <pre className="text-[10px] text-[var(--text-muted)] mt-1.5 max-h-32 overflow-auto whitespace-pre-wrap break-all">
             {call.result.length > 500
               ? call.result.slice(0, 500) + "..."
               : call.result}
@@ -204,7 +204,7 @@ const markdownComponents = {
       return (
         <div className="relative my-2">
           <pre className="bg-black/60 border border-[var(--accent-26)] rounded p-3 overflow-x-auto">
-            <code className="text-xs text-[var(--accent-cc)]">{children}</code>
+            <code className="text-xs text-[var(--text-secondary)]">{children}</code>
           </pre>
         </div>
       );
@@ -237,7 +237,7 @@ const markdownComponents = {
     <h3 className="text-sm font-medium text-[var(--accent)] mb-1">{children}</h3>
   ),
   blockquote: ({ children }: { children?: React.ReactNode }) => (
-    <blockquote className="border-l-2 border-[var(--accent-44)] pl-3 my-2 text-[var(--accent-88)] italic">
+    <blockquote className="border-l-2 border-[var(--accent-44)] pl-3 my-2 text-[var(--text-secondary)] italic">
       {children}
     </blockquote>
   ),
@@ -396,7 +396,7 @@ export default function ChatPanel({
               <h3 className="text-sm font-medium text-[var(--accent)]">
                 Activate AI Guidance
               </h3>
-              <p className="text-xs text-[var(--accent-88)] leading-relaxed">
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Paste any one API key to unlock your AI guide. It stays encrypted in your browser.
               </p>
             </div>
@@ -414,19 +414,19 @@ export default function ChatPanel({
                   className="w-full flex items-center justify-between px-3 py-2.5 rounded border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-colors group"
                 >
                   <div className="flex items-center gap-2">
-                    <KeyRound className="w-3.5 h-3.5 text-[var(--accent-44)] group-hover:text-[var(--accent)]" />
-                    <span className="text-xs text-[var(--accent-88)] group-hover:text-[var(--accent)]">
+                    <KeyRound className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--accent)]" />
+                    <span className="text-xs text-[var(--text-secondary)] group-hover:text-[var(--accent)]">
                       {provider.name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[var(--accent-44)]">{provider.hint}</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">{provider.hint}</span>
                     <a
                       href={provider.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[var(--accent-44)] hover:text-[var(--accent)]"
+                      className="text-[var(--text-muted)] hover:text-[var(--accent)]"
                     >
                       <ExternalLink className="w-3 h-3" />
                     </a>
@@ -435,7 +435,7 @@ export default function ChatPanel({
               ))}
             </div>
 
-            <p className="text-[10px] text-[var(--accent-44)] text-center">
+            <p className="text-[10px] text-[var(--text-muted)] text-center">
               Keys are encrypted with your project password and never sent to our servers.
             </p>
           </div>
@@ -457,10 +457,10 @@ export default function ChatPanel({
             <span className="text-xs text-[var(--accent)]">C</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] text-[var(--accent-44)] mb-1">
+            <div className="text-[10px] text-[var(--text-muted)] mb-1">
               Compass
             </div>
-            <div className="text-sm text-[var(--accent-cc)] leading-relaxed prose-chat">
+            <div className="text-sm text-[var(--text-secondary)] leading-relaxed prose-chat">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {greeting}
               </ReactMarkdown>
@@ -487,7 +487,7 @@ export default function ChatPanel({
             <div
               className={`flex-1 min-w-0 ${msg.role === "user" ? "text-right" : ""}`}
             >
-              <div className="text-[10px] text-[var(--accent-44)] mb-1">
+              <div className="text-[10px] text-[var(--text-muted)] mb-1">
                 {msg.role === "user" ? "You" : "Compass"}
               </div>
               {msg.role === "user" ? (
@@ -495,7 +495,7 @@ export default function ChatPanel({
                   {msg.content}
                 </div>
               ) : (
-                <div className="text-sm leading-relaxed text-[var(--accent-cc)] prose-chat">
+                <div className="text-sm leading-relaxed text-[var(--text-secondary)] prose-chat">
                   {msg.toolCalls?.length ? (
                     <div className="mb-2">
                       {msg.toolCalls.map((call, index) => (
@@ -518,7 +518,7 @@ export default function ChatPanel({
               <span className="text-xs text-[var(--accent)]">C</span>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] text-[var(--accent-44)] mb-1">
+              <div className="text-[10px] text-[var(--text-muted)] mb-1">
                 Compass
               </div>
 
@@ -527,7 +527,7 @@ export default function ChatPanel({
                 <ToolCallCard key={`${tc.toolName}-${i}`} call={tc} />
               ))}
 
-              <div className="text-sm text-[var(--accent-44)] animate-pulse flex items-center gap-2">
+              <div className="text-sm text-[var(--text-muted)] animate-pulse flex items-center gap-2">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 {typingLabel}
               </div>
@@ -545,7 +545,7 @@ export default function ChatPanel({
             <button
               key={reply}
               onClick={() => handleSend(reply)}
-              className="px-2.5 py-1.5 rounded border border-[var(--accent-26)] text-[10px] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+              className="px-2.5 py-1.5 rounded border border-[var(--accent-26)] text-[10px] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             >
               {reply}
             </button>
@@ -576,7 +576,7 @@ export default function ChatPanel({
               }
             }}
             placeholder="Ask anything or type /advance..."
-            className="flex-1 bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)] outline-none"
+            className="flex-1 bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] outline-none"
           />
           <button
             onClick={() => handleSend()}

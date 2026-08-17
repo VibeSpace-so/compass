@@ -51,7 +51,7 @@ export default function CreateProjectModal({
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            className="p-1 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -59,7 +59,7 @@ export default function CreateProjectModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-[var(--accent-88)] mb-1.5">
+            <label className="block text-xs text-[var(--text-secondary)] mb-1.5">
               What are you building?
             </label>
             <input
@@ -67,13 +67,13 @@ export default function CreateProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My app name"
-              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-xs text-[var(--accent-88)] mb-1.5">
+            <label className="block text-xs text-[var(--text-secondary)] mb-1.5">
               One-liner description (optional)
             </label>
             <input
@@ -81,13 +81,13 @@ export default function CreateProjectModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A tool that helps people..."
-              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+              className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
             />
           </div>
 
           <div className="flex items-start gap-2 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
-            <Lock className="w-3.5 h-3.5 text-[var(--accent-66)] flex-shrink-0 mt-0.5" />
-            <p className="text-[10px] text-[var(--accent-66)] leading-relaxed">
+            <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
+            <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
               Your project starts unencrypted. After adding API keys you can
               encrypt it with a password from the API keys settings.
             </p>
@@ -97,7 +97,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+              className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             >
               Cancel
             </button>

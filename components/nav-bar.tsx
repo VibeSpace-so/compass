@@ -22,7 +22,7 @@ export default function NavBar({
         >
           <Compass className="w-4 h-4" />
           <span className="text-sm font-medium">compass</span>
-          <span className="hidden sm:inline text-[10px] text-[var(--accent-44)]">
+          <span className="hidden sm:inline text-[10px] text-[var(--text-muted)]">
             by vibe space
           </span>
         </button>
@@ -30,7 +30,7 @@ export default function NavBar({
         <div className="flex items-center gap-2">
           <button
             onClick={onSettingsClick}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] text-[var(--accent-88)] hover:text-[var(--accent)] border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all"
           >
             <KeyRound className="w-3 h-3" />
             <span className="hidden sm:inline">API keys</span>
