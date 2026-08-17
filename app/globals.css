@@ -13,6 +13,14 @@
   --accent-15: #15D55515;
   --accent-10: #15D55510;
   --theme-transition: 0.4s;
+
+  /* ─── Text tiers ───
+     Contrast against the black background: --accent 10.7:1, secondary 7.1:1,
+     muted 4.9:1 — all AA for body copy. faint stays below AA and is reserved
+     for placeholders, timestamps and decorative icons. */
+  --text-secondary: #15D555CC;
+  --text-muted: #15D555A8;
+  --text-faint: #15D5559C;
 }
 
 * {
@@ -44,23 +52,28 @@ body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #000; }
-::-webkit-scrollbar-thumb { background: var(--accent-44); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--accent-66); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-88); }
 
 /* Terminal prompt */
 .terminal-prompt::before {
   content: "$ ";
-  color: var(--accent-88);
+  color: var(--text-muted);
 }
 
 /* Form focus */
+:focus-visible {
+  outline: 2px solid var(--accent-cc);
+  outline-offset: 2px;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent) !important;
 }
 
 input::placeholder, textarea::placeholder {
-  color: var(--accent-44);
+  color: var(--text-faint);
 }
 
 /* ─── CRT scanline overlay ─── */
@@ -160,7 +173,7 @@ input::placeholder, textarea::placeholder {
 }
 .prose-chat th {
   background: var(--accent-10);
-  color: var(--accent-88);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 .prose-chat hr {

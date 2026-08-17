@@ -42,8 +42,8 @@ export default function ProjectList({
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="border border-dashed border-[var(--accent-26)] rounded p-8 text-center">
-          <FolderOpen className="w-8 h-8 text-[var(--accent-44)] mx-auto mb-3" />
-          <p className="text-sm text-[var(--accent-66)] mb-4">
+          <FolderOpen className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-3" />
+          <p className="text-sm text-[var(--text-muted)] mb-4">
             No projects yet. Create one to get started.
           </p>
           <button
@@ -62,12 +62,12 @@ export default function ProjectList({
     <div className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-medium text-[var(--accent)]">
-          <span className="text-[var(--accent-44)]">$ </span>
+          <span className="text-[var(--text-muted)]">$ </span>
           projects/
         </h2>
         <button
           onClick={onCreate}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border border-[var(--accent-26)] text-[var(--accent-88)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
         >
           <Plus className="w-3 h-3" />
           New
@@ -94,9 +94,9 @@ export default function ProjectList({
             >
               <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--accent-10)] flex items-center justify-center">
                 {stage ? (
-                  <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5 text-[var(--accent-66)]" />
+                  <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 ) : (
-                  <FolderOpen className="w-3.5 h-3.5 text-[var(--accent-44)]" />
+                  <FolderOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 )}
               </div>
 
@@ -105,7 +105,7 @@ export default function ProjectList({
                   {project.name}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-[var(--accent-66)]">
+                  <span className="text-[10px] text-[var(--text-muted)]">
                     {stage?.label || project.currentStage}
                   </span>
                   <MiniProgress stageId={project.currentStage} />
@@ -117,7 +117,7 @@ export default function ProjectList({
                   e.stopPropagation();
                   onDelete(project.id);
                 }}
-                className="flex-shrink-0 p-1.5 rounded text-[var(--accent-44)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                className="flex-shrink-0 p-1.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
                 title="Delete project"
               >
                 <Trash2 className="w-3.5 h-3.5" />

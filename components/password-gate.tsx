@@ -52,7 +52,7 @@ export default function ProjectUnlock({
           <h2 className="text-base font-medium text-red-400">
             Wipe project data?
           </h2>
-          <p className="text-xs text-[var(--accent-88)] leading-relaxed">
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
             This will permanently delete all API keys, integration tokens, and
             chat history for &ldquo;{projectName}&rdquo;. The project itself will remain
             but without encrypted data. This cannot be undone.
@@ -60,7 +60,7 @@ export default function ProjectUnlock({
           <div className="flex gap-3">
             <button
               onClick={() => setShowWipeConfirm(false)}
-              className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--accent-66)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+              className="flex-1 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             >
               Cancel
             </button>
@@ -84,7 +84,7 @@ export default function ProjectUnlock({
           <h1 className="text-base sm:text-lg font-medium text-[var(--accent)] break-words">
             Unlock &ldquo;{projectName}&rdquo;
           </h1>
-          <p className="text-xs text-[var(--accent-88)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             Enter your project password to decrypt your data.
           </p>
         </div>
@@ -95,7 +95,7 @@ export default function ProjectUnlock({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--accent-44)] focus:border-[var(--accent)]"
+            className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2.5 text-sm text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
             autoFocus
           />
 
@@ -115,7 +115,7 @@ export default function ProjectUnlock({
         <div className="flex flex-col items-center gap-2 pt-2">
           <button
             onClick={onBack}
-            className="text-xs text-[var(--accent-66)] hover:text-[var(--accent)] transition-colors"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
           >
             ← Back to projects
           </button>
@@ -127,7 +127,7 @@ export default function ProjectUnlock({
           </button>
         </div>
 
-        <p className="text-center text-[10px] text-[var(--accent-44)] px-4 leading-relaxed">
+        <p className="text-center text-[10px] text-[var(--text-muted)] px-4 leading-relaxed">
           Your password never leaves this device.
         </p>
       </div>

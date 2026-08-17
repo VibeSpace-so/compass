@@ -323,7 +323,7 @@ export default function CompassPage() {
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm text-[var(--accent-44)] animate-pulse">
+        <div className="text-sm text-[var(--text-muted)] animate-pulse">
           Loading compass...
         </div>
       </div>
@@ -431,7 +431,7 @@ export default function CompassPage() {
                 href="https://vibespace.so"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-[var(--accent-cc)] hover:text-[var(--accent)] transition-colors"
+                className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
               >
                 vibespace.so
               </a>
@@ -439,7 +439,7 @@ export default function CompassPage() {
                 href="https://luma.com/vibespace"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-[var(--accent-cc)] hover:text-[var(--accent)] transition-colors"
+                className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
               >
                 /luma
               </a>
@@ -447,14 +447,14 @@ export default function CompassPage() {
                 href="https://x.com/VibeSpace_SO"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-[var(--accent-cc)] hover:text-[var(--accent)] transition-colors"
+                className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
               >
                 /twitter
               </a>
             </div>
           </div>
           <div className="border-t border-[var(--accent-26)] mt-6 pt-4 text-center">
-            <span className="text-[10px] text-[var(--accent-66)]">
+            <span className="text-[10px] text-[var(--text-muted)]">
               &copy; {new Date().getFullYear()} Vibe Space. All data stays in your
               browser.
             </span>

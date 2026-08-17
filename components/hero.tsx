@@ -21,7 +21,7 @@ export default function Hero({ onStart, hasProjects }: HeroProps) {
       <div className="relative z-10 max-w-2xl mx-auto px-4 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-2 border border-[var(--accent-26)] rounded-full px-3 py-1 mb-5">
           <Compass className="w-3.5 h-3.5 text-[var(--accent)]" />
-          <span className="text-[10px] text-[var(--accent-88)] uppercase tracking-wider">
+          <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
             Compass by Vibe Space
           </span>
         </div>
@@ -31,7 +31,7 @@ export default function Hero({ onStart, hasProjects }: HeroProps) {
           <span className="text-[var(--accent)]">idea to launch.</span>
         </h1>
 
-        <p className="text-sm text-[var(--accent-88)] max-w-sm leading-relaxed mb-6">
+        <p className="text-sm text-[var(--text-secondary)] max-w-sm leading-relaxed mb-6">
           Tell Compass what you&apos;re building. It&apos;ll guide you through each step
           — research, validate, build, ship — with the right tools at every stage.
         </p>
@@ -55,7 +55,7 @@ export default function Hero({ onStart, hasProjects }: HeroProps) {
           </button>
 
           {!hasProjects && (
-            <span className="text-[10px] text-[var(--accent-44)]">
+            <span className="text-[10px] text-[var(--text-muted)]">
               No sign-up needed. Everything stays in your browser.
             </span>
           )}

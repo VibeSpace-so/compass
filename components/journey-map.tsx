@@ -12,7 +12,7 @@ interface JourneyMapProps {
 
 function DebtBadge({ level, label }: { level: DebtLevel; label: string }) {
   const colors: Record<DebtLevel, string> = {
-    low: "border-[var(--accent-26)] text-[var(--accent-88)] bg-[var(--accent-10)]",
+    low: "border-[var(--accent-26)] text-[var(--text-secondary)] bg-[var(--accent-10)]",
     medium: "border-yellow-600/40 text-yellow-500 bg-yellow-500/10",
     high: "border-red-500/40 text-red-400 bg-red-500/10",
   };
@@ -39,7 +39,7 @@ export default function JourneyMap({
             <h2 className="text-base md:text-lg font-medium text-[var(--accent)] mb-1.5">
               The Journey
             </h2>
-            <p className="text-xs text-[var(--accent-66)]">
+            <p className="text-xs text-[var(--text-muted)]">
               8 stages from idea to product.
             </p>
           </div>
@@ -53,10 +53,10 @@ export default function JourneyMap({
                 disabled={!onStageClick}
                 className="group flex flex-col items-center gap-2 p-3 rounded border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all text-center"
               >
-                <div className="w-8 h-8 rounded flex items-center justify-center bg-[var(--accent-10)] text-[var(--accent-66)] group-hover:text-[var(--accent)] transition-colors">
+                <div className="w-8 h-8 rounded flex items-center justify-center bg-[var(--accent-10)] text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors">
                   <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[10px] text-[var(--accent-88)] leading-tight">
+                <span className="text-[10px] text-[var(--text-secondary)] leading-tight">
                   {stage.label}
                 </span>
                 <div className="flex gap-0.5">
@@ -91,7 +91,7 @@ export default function JourneyMap({
             <h2 className="text-lg md:text-xl font-medium text-[var(--accent)] mb-2">
               The Vibe Coding Journey
             </h2>
-            <p className="text-xs text-[var(--accent-66)] leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               Each stage has tradeoffs. Compass helps you see them.
             </p>
           </div>
@@ -135,7 +135,7 @@ export default function JourneyMap({
                             ? "bg-[var(--accent)] text-black"
                             : isPast
                               ? "bg-[var(--accent-26)] text-[var(--accent)]"
-                              : "bg-[var(--accent-10)] text-[var(--accent-66)]"
+                              : "bg-[var(--accent-10)] text-[var(--text-muted)]"
                         }
                       `}
                     >
@@ -148,11 +148,11 @@ export default function JourneyMap({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] text-[var(--accent-44)] tabular-nums">
+                        <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
                           {String(idx + 1).padStart(2, "0")}
                         </span>
                         <h3
-                          className={`text-sm font-medium ${isActive ? "text-[var(--accent)]" : "text-[var(--accent-cc)]"}`}
+                          className={`text-sm font-medium ${isActive ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"}`}
                         >
                           {stage.label}
                         </h3>
@@ -163,7 +163,7 @@ export default function JourneyMap({
                         )}
                       </div>
 
-                      <p className="text-xs text-[var(--accent-88)] mb-2 leading-relaxed">
+                      <p className="text-xs text-[var(--text-secondary)] mb-2 leading-relaxed">
                         {stage.description}
                       </p>
 
