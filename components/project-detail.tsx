@@ -59,12 +59,12 @@ function DebtSelector({
     medium: {
       active: "bg-yellow-500 text-black border-yellow-500",
       inactive:
-        "border-yellow-600/30 text-yellow-600/50 hover:border-yellow-600/50",
+        "border-yellow-600/30 text-yellow-400/70 hover:border-yellow-600/50",
     },
     high: {
       active: "bg-red-500 text-black border-red-500",
       inactive:
-        "border-red-500/30 text-red-500/50 hover:border-red-500/50",
+        "border-red-500/30 text-red-300/70 hover:border-red-500/50",
     },
   };
 
