@@ -15,6 +15,9 @@ import { formatMemoriesForPrompt } from "./memories";
 import { ChatTool } from "./tool-types";
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
+const GOOGLE_MODEL = "gemini-flash-latest";
+const GOOGLE_GENERATE_CONTENT_ENDPOINT =
+  `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_MODEL}:generateContent`;
 
 interface LLMProvider {
   id: string;
@@ -26,7 +29,7 @@ const PROVIDERS: LLMProvider[] = [
   {
     id: "groq",
     endpoint: "https://api.groq.com/openai/v1/chat/completions",
-    model: "llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-20b",
   },
   {
     id: "openai",
@@ -40,9 +43,8 @@ const PROVIDERS: LLMProvider[] = [
   },
   {
     id: "google",
-    endpoint:
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-    model: "gemini-2.0-flash",
+    endpoint: GOOGLE_GENERATE_CONTENT_ENDPOINT,
+    model: GOOGLE_MODEL,
   },
 ];
 
@@ -581,6 +583,9 @@ interface GeminiPart {
   text?: string;
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: Record<string, unknown> };
+  toolCall?: Record<string, unknown>;
+  toolResponse?: Record<string, unknown>;
+  thoughtSignature?: string;
 }
 
 interface GeminiCandidate {
@@ -600,8 +605,6 @@ async function callGoogleWithTools(
   onToolCall?: (info: ToolCallInfo) => void
 ): Promise<ChatResponseWithTools> {
   const allToolCalls: ToolCallInfo[] = [];
-  const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
   let contents = messages
     .filter((m) => m.role !== "system")
@@ -627,12 +630,13 @@ async function callGoogleWithTools(
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents,
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+      toolConfig: { includeServerSideToolInvocations: true },
     };
     if (geminiToolsArr.length > 0) {
       body.tools = geminiToolsArr;
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(GOOGLE_GENERATE_CONTENT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify(body),
@@ -704,13 +708,14 @@ async function callGoogleWithTools(
   }
 
   // Final text response
-  const finalResponse = await fetch(url, {
+  const finalResponse = await fetch(GOOGLE_GENERATE_CONTENT_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents,
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+      toolConfig: { includeServerSideToolInvocations: true },
     }),
   });
 
