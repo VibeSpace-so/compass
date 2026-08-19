@@ -16,7 +16,9 @@ import {
   Info,
   Lock,
   X,
+  Download,
 } from "lucide-react";
+import { exportProject } from "@/lib/project-export";
 import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
 import IntegrationsPanel from "./integrations-panel";
@@ -132,10 +134,31 @@ export default function ProjectDetail({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showMap, setShowMap] = useState(false);
   const [reminderDismissed, setReminderDismissed] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
   const stageIdx = getStageIndex(project.currentStage);
+
+  function handleExport() {
+    try {
+      const data = exportProject(project.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${project.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project"}.compass.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setExportError("");
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Unable to export this project."
+      );
+    }
+  }
 
   // Keyboard shortcut for sidebar toggle
   useEffect(() => {
@@ -219,6 +242,15 @@ export default function ProjectDetail({
             </div>
           )}
 
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-[var(--accent-26)] text-[10px] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            title="Export project data"
+          >
+            <Download className="w-3 h-3" />
+            Export
+          </button>
+
           {/* Mobile sidebar toggle */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -228,6 +260,11 @@ export default function ProjectDetail({
             <Info className="w-4 h-4" />
           </button>
         </div>
+        {exportError && (
+          <p className="max-w-7xl mx-auto mt-2 text-[10px] text-red-400">
+            {exportError}
+          </p>
+        )}
       </div>
 
       {/* Two-panel layout */}
@@ -449,6 +486,7 @@ export default function ProjectDetail({
                   memories={memories}
                   onRemoveMemory={onRemoveMemory}
                   onUpdateMemory={onUpdateMemory}
+                  projectId={project.id}
                   projectName={project.name}
                   doc={doc}
                   onUpdateDocSection={onUpdateDocSection}

@@ -1,8 +1,9 @@
 "use client";
 
+import { ChangeEvent, useRef, useState } from "react";
 import { Project } from "@/lib/types";
 import { getStage, getStageIndex, STAGES } from "@/lib/stages";
-import { FolderOpen, Plus, Trash2 } from "lucide-react";
+import { FileUp, FolderOpen, Plus, Trash2 } from "lucide-react";
 import StageIcon from "./stage-icon";
 
 interface ProjectListProps {
@@ -11,6 +12,7 @@ interface ProjectListProps {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onCreate: () => void;
+  onImport: (file: File) => Promise<void>;
 }
 
 function MiniProgress({ stageId }: { stageId: string }) {
@@ -37,7 +39,36 @@ export default function ProjectList({
   onSelect,
   onDelete,
   onCreate,
+  onImport,
 }: ProjectListProps) {
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState("");
+
+  async function handleImportChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setImportError("");
+    try {
+      await onImport(file);
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : "Unable to import this project."
+      );
+    }
+  }
+
+  const importInput = (
+    <input
+      ref={importInputRef}
+      type="file"
+      accept=".json,application/json"
+      onChange={handleImportChange}
+      className="hidden"
+    />
+  );
+
   if (projects.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -46,13 +77,26 @@ export default function ProjectList({
           <p className="text-sm text-[var(--text-muted)] mb-4">
             No projects yet. Create one to get started.
           </p>
-          <button
-            onClick={onCreate}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            Create your first project
-          </button>
+          {importInput}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={onCreate}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded text-sm bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              Create your first project
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            >
+              <FileUp className="w-4 h-4" />
+              Import project
+            </button>
+          </div>
+          {importError && (
+            <p className="mt-3 text-xs text-red-400">{importError}</p>
+          )}
         </div>
       </div>
     );
@@ -65,14 +109,27 @@ export default function ProjectList({
           <span className="text-[var(--text-muted)]">$ </span>
           projects/
         </h2>
-        <button
-          onClick={onCreate}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
-        >
-          <Plus className="w-3 h-3" />
-          New
-        </button>
+        {importInput}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+          >
+            <FileUp className="w-3 h-3" />
+            Import
+          </button>
+          <button
+            onClick={onCreate}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            New
+          </button>
+        </div>
       </div>
+      {importError && (
+        <p className="mb-3 text-xs text-red-400">{importError}</p>
+      )}
 
       <div className="space-y-2">
         {projects.map((project) => {

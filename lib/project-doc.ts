@@ -329,6 +329,14 @@ export async function rewriteProjectDoc(projectId: string): Promise<void> {
   if (doc) await saveEncryptedProjectDoc(projectId, doc);
 }
 
+export async function replaceProjectDoc(
+  projectId: string,
+  doc: ProjectDoc
+): Promise<void> {
+  projectDocCache.set(projectId, doc);
+  await saveEncryptedProjectDoc(projectId, doc);
+}
+
 export function clearProjectDoc(projectId: string): void {
   projectDocCache.delete(projectId);
   migratedProjects.delete(projectId);
