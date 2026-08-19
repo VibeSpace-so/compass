@@ -63,11 +63,21 @@ npx next dev --port 3000
 - Add different API keys to each
 - Verify keys don't leak between projects
 - After refresh, each encrypted project requires its own password
+- Strongest visual proof: encrypt project A only, then refresh. Opening A shows the
+  unlock screen while opening B goes straight in.
+- Integration "Connected" badges are project-scoped (derived from `hasToken` per
+  project since the audit-fix PR). Verify real per-project tokens with:
+  ```js
+  Object.keys(localStorage).filter(k => k.includes('integration-'));  // per-project tokens
+  ```
 
-### 7. Disable Encryption
+### 7. Disable Encryption (password-confirmed)
 - In an unlocked encrypted project, open API keys → "Disable encryption"
-- localStorage values revert to plaintext; after refresh the project opens
-  without an unlock prompt
+- An **inline password confirmation form** opens (it must NOT disable on first click)
+- Wrong password → "Incorrect password." and encryption stays on: `mem`/`chat`/`doc`
+  values remain `{iv,data}` envelopes, salt + verify token still present
+- Correct password → localStorage values revert to plaintext; after refresh the
+  project opens without an unlock prompt
 
 ### 8. Wipe Flow
 - On unlock screen, click "Forgot password? Wipe project data"
@@ -75,11 +85,38 @@ npx next dev --port 3000
 - After wipe: project remains in list but opens without lock (encryption data cleared)
 - Other projects' encrypted data is unaffected
 
+## Verifying disable + wipe in storage
+After "Disable encryption", all project values should be plaintext again AND the
+crypto material should be gone:
+```js
+const id = 'YOUR_PROJECT_ID';
+Object.keys(localStorage).filter(k => k.includes(id))
+  .forEach(k => console.log(k, '=>', localStorage.getItem(k).slice(0, 45)));
+console.log('salt gone:',   !localStorage.getItem(`vibe-compass-project-salt-${id}`));
+console.log('verify gone:', !localStorage.getItem(`vibe-compass-project-verify-${id}`));
+```
+After "Wipe project data", the project's `project-*` entries should be empty (`[]`)
+while the project itself still appears in `vibe-compass-state.projects` with its
+name/stage/description intact, and the other project's entries are untouched.
+
+## Deterministic provider-failure injection
+To test error paths (friendly errors, Retry button) without waiting for Groq TPM
+exhaustion: save a syntactically valid but bogus key (e.g.
+`gsk_invalidkeyfortesting000...`), enable ONLY that provider and disable the rest.
+`chat-service.ts` picks the first enabled provider with a key, so every turn fails
+on demand.
+**Caveat:** this fails at *auth*, before any tool executes, so it CANNOT reach
+failure-after-successful-tool-call paths (e.g. the tool-call-card Retry variant) —
+those need a mid-turn failure such as a rate-limited-but-valid key.
+
 ## localStorage Key Patterns
 - `vibe-compass-project-salt-{projectId}` — per-project PBKDF2 salt
 - `vibe-compass-project-verify-{projectId}` — password verification token
-- `vibe-compass-project-enc-{projectId}-{key}` — encrypted BYOK/integration keys
-- `vibe-compass-project-chat-{projectId}` — encrypted chat history
+- `vibe-compass-project-enc-{projectId}-byok-{provider}` — encrypted BYOK keys
+- `vibe-compass-project-enc-{projectId}-{key}` — other encrypted per-project keys
+- `vibe-compass-project-chat-{projectId}` — chat history
+- `vibe-compass-project-mem-{projectId}` — memories
+- `vibe-compass-project-doc-{projectId}` — project document
 
 ## Common Issues
 - If the app shows a global password gate instead of loading directly, the old `PasswordGate` wrapper might not have been removed from `app/page.tsx`
@@ -89,4 +126,4 @@ npx next dev --port 3000
 - If unlock always fails, verify the salt stored in `vibe-compass-project-salt-{id}` matches what was used during encryption setup
 
 ## Devin Secrets Needed
-None required for basic encryption testing. For LLM chat testing, a valid Groq/OpenAI API key is needed (stored per-project via BYOK settings).
+None required for basic encryption testing. For LLM chat testing, a valid Groq/OpenAI/Gemini API key is needed (stored per-project via BYOK settings).
