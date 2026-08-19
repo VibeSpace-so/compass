@@ -12,6 +12,7 @@ import {
   LockOpen,
 } from "lucide-react";
 import { BYOKProvider } from "@/lib/types";
+import { verifyProjectPassword } from "@/lib/crypto";
 import { saveBYOKKey, removeBYOKKey, getBYOKKey } from "@/lib/storage";
 
 interface BYOKSettingsProps {
@@ -27,18 +28,22 @@ interface BYOKSettingsProps {
 }
 
 function EncryptionSection({
+  projectId,
   isEncrypted,
   hasKeys,
   onEncrypt,
   onDisableEncryption,
 }: {
+  projectId: string;
   isEncrypted: boolean;
   hasKeys: boolean;
   onEncrypt: (password: string) => Promise<void>;
   onDisableEncryption: () => Promise<void>;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [showDisableForm, setShowDisableForm] = useState(false);
   const [password, setPassword] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,6 +52,12 @@ function EncryptionSection({
     setShowForm(false);
     setPassword("");
     setConfirm("");
+    setError("");
+  }
+
+  function resetDisableForm() {
+    setShowDisableForm(false);
+    setDisablePassword("");
     setError("");
   }
 
@@ -71,7 +82,13 @@ function EncryptionSection({
   async function handleDisable() {
     setBusy(true);
     try {
+      const valid = await verifyProjectPassword(projectId, disablePassword);
+      if (!valid) {
+        setError("Incorrect password.");
+        return;
+      }
       await onDisableEncryption();
+      resetDisableForm();
     } finally {
       setBusy(false);
     }
@@ -88,14 +105,50 @@ function EncryptionSection({
           <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed mt-0.5">
             Keys, tokens, chat, and memories are encrypted with your password.
           </div>
-          <button
-            onClick={handleDisable}
-            disabled={busy}
-            className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
-          >
-            <LockOpen className="w-3 h-3" />
-            {busy ? "working…" : "Disable encryption"}
-          </button>
+          {showDisableForm ? (
+            <div className="mt-2 space-y-2">
+              <input
+                type="password"
+                value={disablePassword}
+                onChange={(e) => {
+                  setDisablePassword(e.target.value);
+                  setError("");
+                }}
+                placeholder="Enter project password"
+                className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] outline-none"
+                autoFocus
+              />
+              {error && <p className="text-[10px] text-red-400">{error}</p>}
+              <div className="flex gap-2 pt-0.5">
+                <button
+                  onClick={resetDisableForm}
+                  disabled={busy}
+                  className="flex-1 px-3 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+                >
+                  cancel
+                </button>
+                <button
+                  onClick={handleDisable}
+                  disabled={busy || !disablePassword}
+                  className="flex-1 px-3 py-1.5 rounded text-[10px] bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40"
+                >
+                  {busy ? "disabling…" : "Disable encryption"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setShowDisableForm(true);
+                setError("");
+              }}
+              disabled={busy}
+              className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+            >
+              <LockOpen className="w-3 h-3" />
+              Disable encryption
+            </button>
+          )}
         </div>
       </div>
     );
@@ -383,6 +436,7 @@ export default function BYOKSettings({
 
         {/* Encryption status / reminder */}
         <EncryptionSection
+          projectId={projectId}
           isEncrypted={isEncrypted}
           hasKeys={hasKeys}
           onEncrypt={onEncrypt}
