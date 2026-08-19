@@ -116,18 +116,7 @@ export function getStageTransitionAdvice(
     return `You're in the ${stage.label} stage. Focus on: ${stage.nextAction}`;
   }
 
-  const thresholds: Record<StageId, number> = {
-    ideation: 2,
-    context: 3,
-    "landing-page": 2,
-    github: 1,
-    hosting: 1,
-    domain: 1,
-    "build-prototype": 5,
-    "next-features": 3,
-  };
-
-  const threshold = thresholds[currentStage] ?? 2;
+  const threshold = getStageThreshold(currentStage);
   if (completedActions.length >= threshold) {
     return (
       `You've completed ${completedActions.length} action(s) in ${stage.label}. ` +
@@ -136,4 +125,19 @@ export function getStageTransitionAdvice(
   }
 
   return `Progress in ${stage.label}: ${completedActions.length} action(s) completed. ${stage.nextAction}`;
+}
+
+export const STAGE_THRESHOLDS: Record<StageId, number> = {
+  ideation: 2,
+  context: 3,
+  "landing-page": 2,
+  github: 1,
+  hosting: 1,
+  domain: 1,
+  "build-prototype": 5,
+  "next-features": 3,
+};
+
+export function getStageThreshold(stageId: StageId): number {
+  return STAGE_THRESHOLDS[stageId] ?? 2;
 }

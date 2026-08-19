@@ -10,8 +10,11 @@ import {
   toolsToGeminiFormat,
   setToolContext,
 } from "./chat-tools";
-import { getFlowContext } from "./flow-orchestrator";
-import { formatMemoriesForPrompt } from "./memories";
+import {
+  getFlowContext,
+  getStageTransitionAdvice,
+} from "./flow-orchestrator";
+import { formatMemoriesForPrompt, getCachedMemories } from "./memories";
 import { ChatTool } from "./tool-types";
 import { IntegrationAuth } from "./integration-service";
 
@@ -101,6 +104,13 @@ export function buildSystemPrompt(
   const connectedIds = connected.map((i) => i.id);
   const flowContext = getFlowContext(project.currentStage, connectedIds);
   const memoriesContext = formatMemoriesForPrompt(project.id);
+  const completedActions = getCachedMemories(project.id)
+    .filter((memory) => memory.stage === project.currentStage)
+    .map((memory) => memory.content);
+  const stageProgress = getStageTransitionAdvice(
+    project.currentStage,
+    completedActions
+  );
 
   return `You are Compass, an opinionated AI guide for vibe coders built by Vibe Space. You LEAD the user through the vibe coding journey — from ideation to launch. You don't just answer questions; you proactively guide, suggest next steps, and drive progress.
 
@@ -113,6 +123,7 @@ RISK: ${stage.risk} | COMPLEXITY: ${stage.complexity}
 TECHNICAL DEBT: ${project.technicalDebt} | COGNITIVE DEBT: ${project.cognitiveDebt}
 
 STAGE CONTEXT: ${stage.debtNote}
+STAGE PROGRESS: ${stageProgress}
 
 ${memoriesContext}
 

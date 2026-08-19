@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, getStageIndex, STAGES } from "@/lib/stages";
+import { getStageThreshold } from "@/lib/flow-orchestrator";
 import {
   ArrowLeft,
   ArrowRight,
@@ -139,6 +140,10 @@ export default function ProjectDetail({
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
   const stageIdx = getStageIndex(project.currentStage);
+  const completedActions = memories.filter(
+    (memory) => memory.stage === project.currentStage
+  );
+  const stageThreshold = getStageThreshold(project.currentStage);
 
   function handleExport() {
     try {
@@ -381,6 +386,20 @@ export default function ProjectDetail({
                       </div>
                     </div>
                   )}
+
+                  <div className="border border-[var(--accent-26)] rounded p-3">
+                    <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
+                      Stage progress
+                    </div>
+                    <div className="mt-1 text-[10px] text-[var(--text-muted)]">
+                      {completedActions.length} action{completedActions.length === 1 ? "" : "s"} captured · threshold {stageThreshold} to advance
+                    </div>
+                    {nextStage && completedActions.length >= stageThreshold && (
+                      <div className="mt-1 text-[10px] text-[var(--accent)]">
+                        Ready to advance →
+                      </div>
+                    )}
+                  </div>
 
                   {/* Stage readiness indicator */}
                   {nextStage && (
