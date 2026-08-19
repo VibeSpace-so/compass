@@ -77,16 +77,116 @@ export function appendMilestone(projectId: string, text: string): ProjectDoc {
 export function seedDocFromMemories(projectId: string): ProjectDoc {
   const doc = ensureProjectDoc(projectId);
   const memories = getCachedMemories(projectId);
-  const sectionContent = (type: "decision" | "constraint") =>
-    memories.filter((memory) => memory.type === type).map((memory) => `- ${memory.content}`).join("\n");
+  const sectionIds = SECTION_DEFINITIONS.map(({ id }) => id);
+  const sectionMatches = new Map<ProjectDocSectionId, string[]>();
+
+  for (const memory of memories) {
+    const content = memory.content.trim();
+    if (!content) continue;
+
+    // A structured brief is the most reliable source for the document. Keep
+    // its headings intact instead of trying to infer sections from keywords.
+    if (memory.type === "artifact") {
+      const headingPattern = /^#{2,3}\s+(.+?)\s*$/gm;
+      const headings = [...content.matchAll(headingPattern)];
+      for (let index = 0; index < headings.length; index++) {
+        const heading = headings[index][1].toLowerCase().replace(/[^a-z]/g, "");
+        const sectionId = ({
+          summary: "summary",
+          problem: "problem",
+          targetuser: "targetUser",
+          techstack: "techStack",
+          features: "features",
+          decisions: "decisions",
+          constraints: "constraints",
+          openquestions: "openQuestions",
+          milestones: "milestones",
+        } as Record<string, ProjectDocSectionId | undefined>)[heading];
+        if (!sectionId) continue;
+        const start = (headings[index].index ?? 0) + headings[index][0].length;
+        const end = headings[index + 1]?.index ?? content.length;
+        const sectionText = content.slice(start, end).trim();
+        if (sectionText) {
+          sectionMatches.set(sectionId, [
+            ...(sectionMatches.get(sectionId) ?? []),
+            sectionText,
+          ]);
+        }
+      }
+      continue;
+    }
+
+    const lower = content.toLowerCase();
+    const matches: ProjectDocSectionId[] = [];
+    if (
+      memory.type === "decision" &&
+      /\b(next\.?js|react|typescript|javascript|supabase|postgres|database|api|framework|library|stack|tool|host|vercel)\b/i.test(
+        content
+      )
+    ) {
+      matches.push("techStack");
+    } else if (memory.type === "decision") {
+      matches.push("decisions");
+    }
+    if (memory.type === "constraint") matches.push("constraints");
+    if (
+      /\b(target user|users?|audience|customer|customers|indie hackers?|developers?|founders?)\b/i.test(
+        content
+      )
+    ) {
+      matches.push("targetUser");
+    }
+    if (
+      /\b(feature|features|functionality|capability|capabilities|should support|must support)\b/i.test(
+        content
+      )
+    ) {
+      matches.push("features");
+    }
+    if (
+      memory.type === "context" &&
+      /\b(problem|pain point|need|challenge|solve|solves)\b/i.test(content)
+    ) {
+      matches.push("problem");
+    } else if (memory.type === "context") {
+      matches.push("summary");
+    }
+    if (
+      memory.type === "learning" &&
+      /\?|open question|unknown|research|investigate|decide\b/i.test(lower)
+    ) {
+      matches.push("openQuestions");
+    }
+
+    for (const sectionId of matches) {
+      if (!sectionIds.includes(sectionId)) continue;
+      sectionMatches.set(sectionId, [
+        ...(sectionMatches.get(sectionId) ?? []),
+        `- ${content}`,
+      ]);
+    }
+  }
+
   const updatedAt = new Date().toISOString();
   const next: ProjectDoc = {
     ...doc,
-    sections: doc.sections.map((section) =>
-      section.id === "decisions" || section.id === "constraints"
-        ? { ...section, content: sectionContent(section.id === "decisions" ? "decision" : "constraint"), updatedAt }
-        : section
-    ),
+    sections: doc.sections.map((section) => {
+      const matches = sectionMatches.get(section.id);
+      const isSeededContent =
+        section.source === "ai" &&
+        section.content.trim().split("\n").every((line) => line.trim().startsWith("- "));
+      if (
+        !matches?.length ||
+        (section.content.trim() && !isSeededContent)
+      ) {
+        return section;
+      }
+      return {
+        ...section,
+        content: [...new Set(matches)].join("\n\n"),
+        updatedAt,
+      };
+    }),
     updatedAt,
   };
   projectDocCache.set(projectId, next);

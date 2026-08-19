@@ -19,7 +19,7 @@ import { ChatMessage, Integration, PersistedToolCall, Project, StageId } from "@
 import { getStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 
-import { generateChatResponse, ToolCallInfo } from "@/lib/chat-service";
+import { formatChatError, generateChatResponse, ToolCallInfo } from "@/lib/chat-service";
 
 interface ChatPanelProps {
   project: Project;
@@ -31,6 +31,7 @@ interface ChatPanelProps {
   enabledProviderIds?: string[];
   onStageAdvance?: (newStage: StageId) => void;
   onMemoriesChange?: () => void;
+  isEncrypted: boolean;
 }
 
 interface ToolCallDisplay {
@@ -271,12 +272,14 @@ export default function ChatPanel({
   enabledProviderIds,
   onStageAdvance,
   onMemoriesChange,
+  isEncrypted,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallDisplay[]>([]);
   const [typingLabel, setTypingLabel] = useState("Thinking...");
   const [error, setError] = useState<string | null>(null);
+  const toolCallsRef = useRef<ToolCallDisplay[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -285,25 +288,22 @@ export default function ChatPanel({
   }, [messages, activeToolCalls]);
 
   const handleToolCall = useCallback((info: ToolCallInfo) => {
-    setActiveToolCalls((prev) => {
-      const idx = prev.findIndex(
-        (tc) => tc.toolName === info.toolName && tc.status === "executing"
-      );
-      const display: ToolCallDisplay = {
-        toolName: info.toolName,
-        integrationId: info.integrationId,
-        status: info.status,
-        result: info.result,
-      };
+    const display: ToolCallDisplay = {
+      toolName: info.toolName,
+      integrationId: info.integrationId,
+      status: info.status,
+      result: info.result,
+    };
+    const previous = toolCallsRef.current;
+    const idx = previous.findIndex(
+      (tc) => tc.toolName === info.toolName && tc.status === "executing"
+    );
+    const next = [...previous];
 
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = display;
-        return next;
-      }
-
-      return [...prev, display];
-    });
+    if (idx >= 0) next[idx] = display;
+    else next.push(display);
+    toolCallsRef.current = next;
+    setActiveToolCalls(next);
 
     if (info.status === "executing") {
       setTypingLabel(getToolActionLabel(info.toolName, info.integrationId));
@@ -349,6 +349,7 @@ export default function ChatPanel({
     setInput("");
     setIsTyping(true);
     setActiveToolCalls([]);
+    toolCallsRef.current = [];
     setTypingLabel("Thinking...");
 
     try {
@@ -378,7 +379,29 @@ export default function ChatPanel({
       onSendMessage(assistantMessage);
       onMemoriesChange?.();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
+      const friendlyError = formatChatError(caught);
+      const completedToolCalls = toolCallsRef.current.filter(
+        (call) => call.status !== "executing"
+      );
+      if (completedToolCalls.some((call) => call.status === "success")) {
+        onSendMessage({
+          id: generateId(),
+          role: "assistant",
+          content: `I couldn't complete the whole turn. ${friendlyError}`,
+          timestamp: new Date().toISOString(),
+          toolCalls: completedToolCalls.map(
+            ({ toolName, integrationId, status, result }): PersistedToolCall => ({
+              toolName,
+              integrationId,
+              status: status as "success" | "error",
+              result,
+            })
+          ),
+        });
+        onMemoriesChange?.();
+      } else {
+        setError(friendlyError);
+      }
     } finally {
       setIsTyping(false);
       setActiveToolCalls([]);
@@ -397,7 +420,10 @@ export default function ChatPanel({
                 Activate AI Guidance
               </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Paste any one API key to unlock your AI guide. It stays encrypted in your browser.
+                Paste any one API key to unlock your AI guide.{" "}
+                {isEncrypted
+                  ? "It stays encrypted in your browser."
+                  : "It is stored locally in your browser. Enable encryption in Settings to protect it with a password."}
               </p>
             </div>
 
@@ -436,7 +462,9 @@ export default function ChatPanel({
             </div>
 
             <p className="text-[10px] text-[var(--text-muted)] text-center">
-              Keys are encrypted with your project password and never sent to our servers.
+              {isEncrypted
+                ? "Keys are encrypted with your project password and never sent to our servers."
+                : "Keys are stored locally in your browser and never sent to our servers. Enable encryption in Settings to protect them with a password."}
             </p>
           </div>
         </div>

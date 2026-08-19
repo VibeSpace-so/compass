@@ -379,6 +379,7 @@ export default function CompassPage() {
                 }
                 onStageAdvance={handleStageAdvance}
                 onMemoriesChange={handleMemoriesRefresh}
+                isEncrypted={selectedEncrypted}
               />
             }
             integrations={state.integrations}

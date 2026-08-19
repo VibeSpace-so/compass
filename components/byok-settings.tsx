@@ -375,9 +375,9 @@ export default function BYOKSettings({
         <div className="flex items-start gap-2 mb-4 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
           <Shield className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
           <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-            Your API keys are stored in your browser&apos;s localStorage only.
-            They never leave this device. Compass does not send keys to any
-            server.
+            {isEncrypted
+              ? "Your API keys are encrypted in your browser and never leave this device. Compass does not send keys to any server."
+              : "Your API keys are stored locally in your browser. They never leave this device. Enable encryption below to protect them with a password."}
           </div>
         </div>
 
