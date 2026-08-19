@@ -85,6 +85,39 @@ function collectSectionMatches(
 ): Map<ProjectDocSectionId, string[]> {
   const sectionIds = SECTION_DEFINITIONS.map(({ id }) => id);
   const sectionMatches = new Map<ProjectDocSectionId, string[]>();
+  const narrativeArtifactSections = new Set<ProjectDocSectionId>();
+
+  const addMatch = (
+    sectionId: ProjectDocSectionId,
+    value: string,
+    narrativeArtifact = false
+  ) => {
+    const content = value.trim();
+    if (!content) return;
+
+    if (narrativeArtifact) {
+      narrativeArtifactSections.add(sectionId);
+      sectionMatches.set(sectionId, [content]);
+      return;
+    }
+    if (narrativeArtifactSections.has(sectionId)) return;
+
+    const normalizedLines = content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) =>
+        line.startsWith("- ") ? `- ${line.slice(2).trim()}` : `- ${line}`
+      );
+    if (!normalizedLines.length) return;
+
+    sectionMatches.set(sectionId, [
+      ...new Set([
+        ...(sectionMatches.get(sectionId) ?? []),
+        ...normalizedLines,
+      ]),
+    ]);
+  };
 
   for (const memory of memories) {
     const content = memory.content.trim();
@@ -113,10 +146,17 @@ function collectSectionMatches(
         const end = headings[index + 1]?.index ?? content.length;
         const sectionText = content.slice(start, end).trim();
         if (sectionText) {
-          sectionMatches.set(sectionId, [
-            ...(sectionMatches.get(sectionId) ?? []),
-            sectionText,
-          ]);
+          const lines = sectionText
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+          const isBulletSection =
+            lines.length > 0 && lines.every((line) => line.startsWith("- "));
+          if (isBulletSection) {
+            lines.forEach((line) => addMatch(sectionId, line));
+          } else {
+            addMatch(sectionId, sectionText, true);
+          }
         }
       }
       continue;
@@ -172,10 +212,7 @@ function collectSectionMatches(
 
     for (const sectionId of matches) {
       if (!sectionIds.includes(sectionId)) continue;
-      sectionMatches.set(sectionId, [
-        ...(sectionMatches.get(sectionId) ?? []),
-        `- ${content}`,
-      ]);
+      addMatch(sectionId, content);
     }
   }
 
@@ -210,7 +247,10 @@ function applySectionMatches(
       const matches = sectionMatches.get(section.id);
       const isSeededContent =
         section.source === "ai" &&
-        section.content.trim().split("\n").every((line) => line.trim().startsWith("- "));
+        section.content
+          .trim()
+          .split("\n")
+          .every((line) => !line.trim() || line.trim().startsWith("- "));
       if (
         !matches?.length ||
         (section.content.trim() && !isSeededContent)
@@ -219,7 +259,7 @@ function applySectionMatches(
       }
       return {
         ...section,
-        content: [...new Set(matches)].join("\n\n"),
+        content: [...new Set(matches)].join("\n"),
         updatedAt,
       };
     }),
