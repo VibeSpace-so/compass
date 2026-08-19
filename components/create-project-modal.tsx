@@ -88,8 +88,9 @@ export default function CreateProjectModal({
           <div className="flex items-start gap-2 p-3 rounded border border-[var(--accent-26)] bg-[var(--accent-10)]">
             <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
             <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-              Your project starts unencrypted. After adding API keys you can
-              encrypt it with a password from the API keys settings.
+              Your project starts unencrypted, so data is stored locally in your
+              browser. After adding API keys, enable encryption in the API keys
+              settings to protect the project with a password.
             </p>
           </div>
 

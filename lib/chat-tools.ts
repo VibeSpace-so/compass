@@ -14,6 +14,7 @@ import {
   appendMilestone,
   docToMarkdown,
   ensureProjectDoc,
+  getSeededProjectDoc,
   seedDocFromMemories,
   updateDocSection,
 } from "./project-doc";
@@ -330,6 +331,26 @@ function executeSystemTool(
 
     case "generate_project_brief": {
       ensureProjectDoc(_activeProjectId);
+      const generatedBrief = docToMarkdown(
+        getSeededProjectDoc(_activeProjectId),
+        _activeProjectName
+      );
+      const existingBrief = getCachedMemories(_activeProjectId).find(
+        (memory) =>
+          memory.type === "artifact" &&
+          /^#.*project brief/im.test(memory.content.slice(0, 120))
+      );
+      if (existingBrief) {
+        updateMemory(_activeProjectId, existingBrief.id, generatedBrief);
+      } else {
+        addMemory(
+          _activeProjectId,
+          "artifact",
+          generatedBrief,
+          _activeStage,
+          "ai"
+        );
+      }
       const doc = seedDocFromMemories(_activeProjectId);
       return { success: true, data: { doc: docToMarkdown(doc, _activeProjectName) } };
     }

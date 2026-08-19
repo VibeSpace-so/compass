@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ExternalLink,
   Plug,
@@ -86,14 +86,21 @@ function SuggestionCard({
     success: boolean;
     message: string;
   } | null>(null);
+  const projectConnected =
+    tokenSaved && (testResult === null || testResult.success);
+
+  useEffect(() => {
+    setTokenSaved(hasToken(integration.id));
+    setTestResult(null);
+  }, [hasToken, integration.id, projectId]);
 
   function handleConnect() {
-    if (integration.connected) {
+    if (projectConnected) {
       removeToken(integration.id);
       setTokenSaved(false);
       setShowTokenForm(false);
       setTestResult(null);
-      onToggle(integration.id);
+      if (integration.connected) onToggle(integration.id);
       return;
     }
     setShowTokenForm(true);
@@ -104,7 +111,8 @@ function SuggestionCard({
     saveToken(integration.id, tokenValue.trim());
     setTokenValue("");
     setTokenSaved(true);
-    onToggle(integration.id);
+    setTestResult(null);
+    if (!integration.connected) onToggle(integration.id);
   }
 
   function handleCancelToken() {
@@ -138,8 +146,10 @@ function SuggestionCard({
       className={`
         rounded p-3 transition-all
         ${
-          integration.connected
+          projectConnected
             ? "bg-[var(--accent-10)] border border-[var(--accent-44)]"
+            : testResult && !testResult.success
+              ? "bg-red-500/5 border border-red-500/40"
             : "bg-black/30 border border-[var(--accent-26)] hover:border-[var(--accent-44)]"
         }
       `}
@@ -150,7 +160,7 @@ function SuggestionCard({
             <span className="text-xs font-medium text-[var(--accent)]">
               {integration.name}
             </span>
-            {integration.connected && (
+            {projectConnected && (
               <Check className="w-3 h-3 text-[var(--accent)]" />
             )}
           </div>
@@ -169,13 +179,17 @@ function SuggestionCard({
             className={`
               flex-shrink-0 px-3 py-1.5 sm:px-2.5 sm:py-1 rounded text-[11px] sm:text-[10px] font-medium border transition-colors
               ${
-                integration.connected
+                projectConnected
                   ? "border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black"
                   : "border-[var(--accent-44)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
               }
             `}
           >
-            {integration.connected ? "Connected" : "Connect"}
+            {projectConnected
+              ? "Connected"
+              : testResult && !testResult.success
+                ? "Error"
+                : "Connect"}
           </button>
           {integration.url && (
             <a
@@ -190,7 +204,7 @@ function SuggestionCard({
         </div>
       </div>
 
-      {showTokenForm && !integration.connected && (
+      {showTokenForm && !projectConnected && (
         <div className="mt-2.5 pt-2.5 border-t border-[var(--accent-26)]">
           <div className="flex items-center gap-1.5 mb-1.5">
             <KeyRound className="w-3 h-3 text-[var(--text-muted)]" />
@@ -224,7 +238,7 @@ function SuggestionCard({
         </div>
       )}
 
-      {tokenSaved && integration.connected && (
+      {tokenSaved && (
         <div className="mt-2.5 pt-2.5 border-t border-[var(--accent-26)]">
           <div className="flex items-center gap-2">
             <button

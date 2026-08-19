@@ -13,6 +13,7 @@ import {
 import { getFlowContext } from "./flow-orchestrator";
 import { formatMemoriesForPrompt } from "./memories";
 import { ChatTool } from "./tool-types";
+import { IntegrationAuth } from "./integration-service";
 
 const MAX_TOOL_CALLS_PER_TURN = 3;
 const GOOGLE_MODEL = "gemini-flash-latest";
@@ -74,11 +75,12 @@ export function buildSystemPrompt(
   const stage = getStage(project.currentStage);
   if (!stage) return "You are Compass, a helpful assistant for vibe coders.";
 
-  const connected = integrations.filter((i) => i.connected);
+  const connected = integrations.filter((i) =>
+    IntegrationAuth.hasIntegrationToken(project.id, i.id)
+  );
   const suggestions = getSuggestionsForStage(project.currentStage);
   const unconnected = suggestions.filter((s) => {
-    const integ = integrations.find((i) => i.id === s.integrationId);
-    return integ && !integ.connected;
+    return !connected.some((i) => i.id === s.integrationId);
   });
 
   const connectedList =
@@ -175,6 +177,35 @@ export interface ToolCallInfo {
 export interface ChatResponseWithTools {
   content: string;
   toolCalls: ToolCallInfo[];
+}
+
+export function formatChatError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const providerMatch = raw.match(
+    /\b(Groq|OpenAI|Anthropic|Google)(?: API)? error\s*\((\d{3})\)/i
+  );
+  const provider = providerMatch?.[1] ?? "Provider";
+  const status = providerMatch?.[2];
+  const lower = raw.toLowerCase();
+  const detail = status ? `${provider} response ${status}` : "Provider request failed";
+
+  if (
+    status === "429" ||
+    /\b(rate limit|rate_limit|quota|too many requests|tpm limit)\b/i.test(lower)
+  ) {
+    return `Provider rate limit reached, try again shortly or switch provider. (${detail})`;
+  }
+
+  if (
+    /\b(invalid|malformed|attempted to call|tool.?call|function.?call)\b/i.test(
+      lower
+    ) &&
+    /\b(tool|function)\b/i.test(lower)
+  ) {
+    return `The model produced an invalid tool call, please retry. (Tool-call format was rejected)`;
+  }
+
+  return `The AI provider couldn't complete the request. (${detail})`;
 }
 
 // ---------------------------------------------------------------------------
