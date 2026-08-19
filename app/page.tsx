@@ -37,6 +37,7 @@ import {
   migrateLegacyBrief,
   updateDocSection,
 } from "@/lib/project-doc";
+import { importProject } from "@/lib/project-export";
 import NavBar from "@/components/nav-bar";
 import Hero from "@/components/hero";
 import JourneyMap from "@/components/journey-map";
@@ -80,6 +81,19 @@ export default function CompassPage() {
       setView("project");
     },
     [state]
+  );
+
+  const handleImportProject = useCallback(
+    async (file: File) => {
+      const imported = await importProject(await file.text());
+      await loadEncryptedChat(imported.id);
+      await loadEncryptedMemories(imported.id);
+      await loadEncryptedProjectDoc(imported.id);
+      setActiveProjectForConnectors(imported.id);
+      setState(loadStateForProject(imported.id));
+      setView("project");
+    },
+    []
   );
 
   const handleSelectProject = useCallback(
@@ -412,6 +426,7 @@ export default function CompassPage() {
                 onSelect={handleSelectProject}
                 onDelete={handleDeleteProject}
                 onCreate={() => setShowCreateModal(true)}
+                onImport={handleImportProject}
               />
             </div>
           </>

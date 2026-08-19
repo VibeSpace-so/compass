@@ -222,6 +222,14 @@ export async function rewriteProjectMemories(projectId: string): Promise<void> {
   }
 }
 
+export async function replaceProjectMemories(
+  projectId: string,
+  memories: ProjectMemory[]
+): Promise<void> {
+  memoryCache.set(projectId, memories);
+  await saveEncryptedMemories(projectId, memories);
+}
+
 export async function loadEncryptedMemories(
   projectId: string
 ): Promise<ProjectMemory[]> {

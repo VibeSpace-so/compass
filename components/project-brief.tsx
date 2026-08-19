@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ProjectDoc, ProjectDocSectionId, ProjectMemory, MemoryType } from "@/lib/types";
 import { docToMarkdown } from "@/lib/project-doc";
+import { downloadProjectDocMarkdown } from "@/lib/project-export";
 import {
   Brain,
   Target,
@@ -20,6 +21,7 @@ import {
 
 interface ProjectBriefProps {
   memories: ProjectMemory[];
+  projectId: string;
   onRemoveMemory?: (memoryId: string) => void;
   onUpdateMemory?: (memoryId: string, content: string) => void;
   projectName?: string;
@@ -48,6 +50,7 @@ function memoryMarkdown(memories: ProjectMemory[]): string {
 
 export function ProjectBrief({
   memories,
+  projectId,
   onRemoveMemory,
   onUpdateMemory,
   projectName = "Project",
@@ -130,6 +133,16 @@ export function ProjectBrief({
 
       {view === "document" ? (
         <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              onClick={() => downloadProjectDocMarkdown(projectId, projectName)}
+              className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+              title="Download document as Markdown"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download .md
+            </button>
+          </div>
           {(doc?.sections ?? []).map((section) => (
             <div key={section.id} className="rounded border border-[var(--accent-26)] p-3">
               <div className="flex items-center gap-2 mb-1">

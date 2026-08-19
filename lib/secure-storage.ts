@@ -124,6 +124,13 @@ export async function saveEncryptedChat(projectId: string, messages: ChatMessage
   }
 }
 
+export async function replaceProjectChat(
+  projectId: string,
+  messages: ChatMessage[]
+): Promise<void> {
+  await saveEncryptedChat(projectId, messages);
+}
+
 export async function loadEncryptedChat(projectId: string): Promise<ChatMessage[]> {
   const encrypted = isProjectEncrypted(projectId);
   const password = projectPasswords.get(projectId);
