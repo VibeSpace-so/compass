@@ -12,6 +12,9 @@ import {
   ChevronRight,
   ExternalLink,
   Zap,
+  Copy,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -39,6 +42,11 @@ interface ToolCallDisplay {
   integrationId: string;
   status: "executing" | "success" | "error";
   result?: string;
+}
+
+interface RetryTurn {
+  id: string;
+  content: string;
 }
 
 const INTEGRATION_LABELS: Record<string, string> = {
@@ -279,13 +287,25 @@ export default function ChatPanel({
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallDisplay[]>([]);
   const [typingLabel, setTypingLabel] = useState("Thinking...");
   const [error, setError] = useState<string | null>(null);
+  const [retryTurn, setRetryTurn] = useState<RetryTurn | null>(null);
+  const [retryAssistantId, setRetryAssistantId] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const toolCallsRef = useRef<ToolCallDisplay[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const copyTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeToolCalls]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleToolCall = useCallback((info: ToolCallInfo) => {
     const display: ToolCallDisplay = {
@@ -312,10 +332,17 @@ export default function ChatPanel({
     }
   }, []);
 
-  async function handleSend(overrideInput?: string) {
-    const text = overrideInput || input.trim();
+  async function handleSend(
+    overrideInput?: string,
+    retry?: RetryTurn
+  ) {
+    const text = overrideInput ?? input.trim();
     if (!text || !isEnabled || isTyping) return;
     setError(null);
+    setRetryTurn(null);
+    if (!retry) {
+      setRetryAssistantId(null);
+    }
 
     // Handle slash commands
     if (text.startsWith("/")) {
@@ -338,26 +365,46 @@ export default function ChatPanel({
       }
     }
 
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: "user",
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
+    const userMessage: ChatMessage = retry
+      ? {
+          id: retry.id,
+          role: "user",
+          content: retry.content,
+          timestamp: new Date().toISOString(),
+        }
+      : {
+          id: generateId(),
+          role: "user",
+          content: text,
+          timestamp: new Date().toISOString(),
+        };
 
-    onSendMessage(userMessage);
+    if (!retry) {
+      onSendMessage(userMessage);
+    }
     setInput("");
     setIsTyping(true);
     setActiveToolCalls([]);
     toolCallsRef.current = [];
     setTypingLabel("Thinking...");
 
+    const history = retry
+      ? (() => {
+          const failedTurnIndex = messages.findIndex(
+            (message) => message.id === retry.id
+          );
+          return failedTurnIndex >= 0
+            ? messages.slice(0, failedTurnIndex)
+            : messages.filter((message) => message.id !== retry.id);
+        })()
+      : messages;
+
     try {
       const response = await generateChatResponse(
         userMessage.content,
         project,
         integrations,
-        messages,
+        history,
         enabledProviderIds,
         handleToolCall,
         onStageAdvance
@@ -378,14 +425,17 @@ export default function ChatPanel({
       };
       onSendMessage(assistantMessage);
       onMemoriesChange?.();
+      setRetryAssistantId(null);
     } catch (caught) {
       const friendlyError = formatChatError(caught);
+      setRetryTurn({ id: userMessage.id, content: userMessage.content });
       const completedToolCalls = toolCallsRef.current.filter(
         (call) => call.status !== "executing"
       );
       if (completedToolCalls.some((call) => call.status === "success")) {
+        const failedAssistantId = generateId();
         onSendMessage({
-          id: generateId(),
+          id: failedAssistantId,
           role: "assistant",
           content: `I couldn't complete the whole turn. ${friendlyError}`,
           timestamp: new Date().toISOString(),
@@ -398,14 +448,37 @@ export default function ChatPanel({
             })
           ),
         });
+        setRetryAssistantId(failedAssistantId);
         onMemoriesChange?.();
       } else {
+        setRetryAssistantId(null);
         setError(friendlyError);
       }
     } finally {
       setIsTyping(false);
       setActiveToolCalls([]);
     }
+  }
+
+  function handleRetry() {
+    if (!retryTurn || isTyping) return;
+    void handleSend(retryTurn.content, retryTurn);
+  }
+
+  async function handleCopy(messageId: string, content: string) {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {
+      return;
+    }
+    setCopiedMessageId(messageId);
+    if (copyTimeoutRef.current !== null) {
+      window.clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = window.setTimeout(() => {
+      setCopiedMessageId(null);
+    }, 1500);
   }
 
   // Inline setup for when no keys configured
@@ -515,8 +588,25 @@ export default function ChatPanel({
             <div
               className={`flex-1 min-w-0 ${msg.role === "user" ? "text-right" : ""}`}
             >
-              <div className="text-[10px] text-[var(--text-muted)] mb-1">
-                {msg.role === "user" ? "You" : "Compass"}
+              <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] mb-1">
+                <span>{msg.role === "user" ? "You" : "Compass"}</span>
+                {msg.role === "assistant" && (
+                  <button
+                    onClick={() => handleCopy(msg.id, msg.content)}
+                    className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                    title="Copy response"
+                    aria-label="Copy response"
+                  >
+                    {copiedMessageId === msg.id ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Copied
+                      </>
+                    ) : (
+                      <Copy className="w-3 h-3" />
+                    )}
+                  </button>
+                )}
               </div>
               {msg.role === "user" ? (
                 <div className="text-sm leading-relaxed text-[var(--accent)] inline-block text-left bg-[var(--accent-10)] rounded px-3 py-2 border border-[var(--accent-26)]">
@@ -534,6 +624,16 @@ export default function ChatPanel({
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {msg.content}
                   </ReactMarkdown>
+                  {retryAssistantId === msg.id && (
+                    <button
+                      onClick={handleRetry}
+                      disabled={isTyping}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded border border-red-400/40 px-2 py-1 text-[10px] text-red-300 hover:border-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Retry
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -586,9 +686,21 @@ export default function ChatPanel({
         {error && (
           <div className="mb-2 flex items-center justify-between gap-2 rounded border border-red-500/40 px-3 py-2 text-xs text-red-400">
             <span>{error}</span>
-            <button onClick={() => setError(null)} aria-label="Dismiss error" className="text-red-400/70 hover:text-red-400">
-              ×
-            </button>
+            <div className="flex items-center gap-2">
+              {retryTurn && (
+                <button
+                  onClick={handleRetry}
+                  disabled={isTyping}
+                  className="inline-flex items-center gap-1 rounded border border-red-400/40 px-2 py-1 text-[10px] text-red-300 hover:border-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Retry
+                </button>
+              )}
+              <button onClick={() => setError(null)} aria-label="Dismiss error" className="text-red-400/70 hover:text-red-400">
+                ×
+              </button>
+            </div>
           </div>
         )}
         <div className="flex gap-2">
