@@ -23,6 +23,12 @@ When a model 404s, query the provider's `/models` endpoint with the configured k
 
 Keys are BYOK, entered in the app's UI (clipboard paste via `xclip` on DISPLAY :0 in Devin sessions). `PERPLEXITY_API_KEY` was still unprovisioned as of Sep 2026 — Perplexity search (`app/api/integrations/perplexity/route.ts`) can't be tested end-to-end without it.
 
+## Custom (OpenAI-compatible) providers
+
+BYOK custom providers live in `vibe-compass-state` → `byokSettings.providers[]` with `custom:true`, `baseUrl`, `model`, optional `params` (merged into the request body). `openAICompatibleEndpoint` in chat-service trims trailing slashes and appends `/chat/completions` unless the URL already ends with it. Picker order: the four standard providers are checked first (enabled + project-scoped key), custom providers only after — so a chat turn proves the custom path only when no standard provider has a key for that project (use a fresh project).
+
+Easy e2e recipe: add a custom provider with base URL `https://api.groq.com/openai/v1`, model `openai/gpt-oss-20b`, and `${GROQ_API_KEY}` — a real reply confirms URL append, key lookup, and the OpenAI-compatible call path.
+
 ## Testing
 
 Guided-journey/chat tests: `testing-compass-guided-journey` skill. Encryption/BYOK: `testing-compass-encryption`. Mobile: `testing-compass-mobile`.
