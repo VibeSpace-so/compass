@@ -19,7 +19,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage, Integration, PersistedToolCall, Project, StageId } from "@/lib/types";
-import { getStage } from "@/lib/stages";
+import { getStage, getNextStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 
 import { formatChatError, generateChatResponse, ToolCallInfo } from "@/lib/chat-service";
@@ -348,8 +348,7 @@ export default function ChatPanel({
     if (text.startsWith("/")) {
       const cmd = text.slice(1).toLowerCase().trim();
       if (cmd === "advance" || cmd.startsWith("advance")) {
-        const stage = getStage(project.currentStage);
-        const nextStageId = stage ? getNextStageId(project.currentStage) : null;
+        const nextStageId = getNextStage(project.currentStage)?.id ?? null;
         if (nextStageId && onStageAdvance) {
           onStageAdvance(nextStageId);
           const systemMsg: ChatMessage = {
@@ -729,13 +728,4 @@ export default function ChatPanel({
       </div>
     </div>
   );
-}
-
-function getNextStageId(currentStage: StageId): StageId | null {
-  const stages: StageId[] = [
-    "ideation", "context", "landing-page", "github",
-    "hosting", "domain", "build-prototype", "next-features",
-  ];
-  const idx = stages.indexOf(currentStage);
-  return idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
 }

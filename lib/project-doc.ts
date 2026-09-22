@@ -311,9 +311,15 @@ export async function saveEncryptedProjectDoc(projectId: string, doc: ProjectDoc
 export async function loadEncryptedProjectDoc(projectId: string): Promise<ProjectDoc | null> {
   const encrypted = isProjectEncrypted(projectId);
   const password = getProjectPassword(projectId);
-  if (encrypted && !password) return null;
+  if (encrypted && !password) {
+    projectDocCache.delete(projectId);
+    return null;
+  }
   const stored = localStorage.getItem(DOC_PREFIX + projectId);
-  if (!stored) return null;
+  if (!stored) {
+    projectDocCache.delete(projectId);
+    return null;
+  }
   try {
     const json = encrypted ? await decrypt(stored, password!, projectId) : stored;
     const doc = JSON.parse(json) as ProjectDoc;

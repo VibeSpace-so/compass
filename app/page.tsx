@@ -22,6 +22,7 @@ import {
   isProjectUnlocked,
   loadAllProjectKeys,
   loadEncryptedChat,
+  lockProject,
 } from "@/lib/secure-storage";
 import {
   isProjectEncrypted,
@@ -29,9 +30,10 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
-import { getCachedMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
+import { getCachedMemories, clearProjectMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
 import {
   getCachedProjectDoc,
+  clearProjectDoc,
   ensureProjectDoc,
   loadEncryptedProjectDoc,
   migrateLegacyBrief,
@@ -57,6 +59,7 @@ export default function CompassPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBYOK, setShowBYOK] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const confirmDeleteRef = useRef<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -162,6 +165,11 @@ export default function CompassPage() {
 
   const handleWipeProject = useCallback(() => {
     if (!state || !state.selectedProjectId) return;
+    const projectId = state.selectedProjectId;
+    // Drop decrypted copies held in memory, not just localStorage
+    lockProject(projectId);
+    clearProjectMemories(projectId);
+    clearProjectDoc(projectId);
     // Project data wiped — go back to project list
     setState(loadState());
     setView("home");
@@ -182,7 +190,10 @@ export default function CompassPage() {
         clearTimeout(deleteTimeoutRef.current);
         deleteTimeoutRef.current = null;
       }
-      if (confirmDelete === id) {
+      // Ref mirrors confirmDelete so a quick second click before the
+      // re-render still confirms instead of just re-arming.
+      if (confirmDeleteRef.current === id) {
+        confirmDeleteRef.current = null;
         // Also wipe encrypted data for deleted project
         wipeProjectData(id);
         const newState = deleteProject(state, id);
@@ -192,14 +203,15 @@ export default function CompassPage() {
           setView("home");
         }
       } else {
+        confirmDeleteRef.current = id;
         setConfirmDelete(id);
-        deleteTimeoutRef.current = setTimeout(
-          () => setConfirmDelete(null),
-          3000
-        );
+        deleteTimeoutRef.current = setTimeout(() => {
+          confirmDeleteRef.current = null;
+          setConfirmDelete(null);
+        }, 3000);
       }
     },
-    [state, confirmDelete]
+    [state]
   );
 
   const handleToggleProvider = useCallback(
@@ -218,6 +230,7 @@ export default function CompassPage() {
   const handleGoHome = useCallback(() => {
     if (!state) return;
     setActiveProjectForConnectors(null);
+    setShowBYOK(false);
     setState(selectProject(state, null));
     setView("home");
   }, [state]);
@@ -357,7 +370,7 @@ export default function CompassPage() {
   return (
     <>
       <NavBar
-        hasProjects={state.projects.length > 0}
+        showSettings={view === "project" && selectedProject != null}
         onSettingsClick={() => setShowBYOK(true)}
         onLogoClick={handleGoHome}
       />

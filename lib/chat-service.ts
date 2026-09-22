@@ -494,6 +494,7 @@ interface AnthropicResponse {
 
 async function callAnthropicWithTools(
   apiKey: string,
+  model: string,
   systemPrompt: string,
   messages: { role: string; content: string }[],
   tools: ChatTool[],
@@ -508,7 +509,7 @@ async function callAnthropicWithTools(
 
   for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
     const body: Record<string, unknown> = {
-      model: "claude-3-5-haiku-20241022",
+      model,
       max_tokens: 1024,
       system: systemPrompt,
       messages: anthropicMessages,
@@ -596,7 +597,7 @@ async function callAnthropicWithTools(
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-3-5-haiku-20241022",
+      model,
       max_tokens: 1024,
       system: systemPrompt,
       messages: anthropicMessages,
@@ -809,6 +810,7 @@ export async function generateChatResponse(
     if (provider.id === "anthropic") {
       result = await callAnthropicWithTools(
         apiKey,
+        provider.model,
         systemPrompt,
         messages,
         tools,

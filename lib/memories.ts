@@ -235,10 +235,16 @@ export async function loadEncryptedMemories(
 ): Promise<ProjectMemory[]> {
   const encrypted = isProjectEncrypted(projectId);
   const password = getProjectPassword(projectId);
-  if (encrypted && !password) return [];
+  if (encrypted && !password) {
+    memoryCache.delete(projectId);
+    return [];
+  }
 
   const stored = localStorage.getItem(MEMORY_PREFIX + projectId);
-  if (!stored) return [];
+  if (!stored) {
+    memoryCache.delete(projectId);
+    return [];
+  }
 
   try {
     const json = encrypted ? await decrypt(stored, password!, projectId) : stored;

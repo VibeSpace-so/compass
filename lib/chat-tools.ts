@@ -1,5 +1,6 @@
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "./tool-types";
 import { getIntegrationRegistry } from "./integration-service";
+import { ensureDefaultConnectors } from "./connectors";
 import {
   addMemory,
   updateMemory,
@@ -382,6 +383,7 @@ const SYSTEM_TOOL_NAMES = new Set([
  * the ToolCapableConnector interface, plus built-in system tools.
  */
 export function getAvailableTools(): ChatTool[] {
+  ensureDefaultConnectors();
   const registry = getIntegrationRegistry();
   const configured = registry.getConfiguredConnectors();
   const tools: ChatTool[] = [...getSystemTools()];
@@ -411,6 +413,7 @@ export async function executeTool(
     return executeSystemTool(toolName, params);
   }
 
+  ensureDefaultConnectors();
   const registry = getIntegrationRegistry();
   const configured = registry.getConfiguredConnectors();
 
