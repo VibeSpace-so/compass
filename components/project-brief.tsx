@@ -126,7 +126,7 @@ export function ProjectBrief({
         </div>
       </div>
 
-      <div className="flex rounded border border-[var(--accent-26)] p-0.5">
+      <div className="flex rounded-lg border border-[var(--accent-26)] p-0.5">
         <button onClick={() => setView("document")} className={`flex-1 rounded px-2 py-1.5 text-xs ${view === "document" ? "bg-[var(--accent-10)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>Document</button>
         <button onClick={() => setView("memories")} className={`flex-1 rounded px-2 py-1.5 text-xs ${view === "memories" ? "bg-[var(--accent-10)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>Memories ({memories.length})</button>
       </div>
@@ -144,7 +144,7 @@ export function ProjectBrief({
             </button>
           </div>
           {(doc?.sections ?? []).map((section) => (
-            <div key={section.id} className="rounded border border-[var(--accent-26)] p-3">
+            <div key={section.id} className="rounded-xl border border-[var(--accent-26)] p-3">
               <div className="flex items-center gap-2 mb-1">
                 <h4 className="text-xs font-medium text-[var(--text-secondary)]">{section.title}</h4>
                 <span className="ml-auto text-[10px] text-[var(--text-faint)]">{new Date(section.updatedAt).toLocaleDateString()}</span>
@@ -154,7 +154,7 @@ export function ProjectBrief({
               </div>
               {editingSection === section.id ? (
                 <div className="space-y-2">
-                  <textarea value={sectionContent} onChange={(event) => setSectionContent(event.target.value)} rows={4} className="w-full rounded border border-[var(--accent-26)] bg-black px-2 py-1.5 text-sm text-[var(--text-secondary)] outline-none" />
+                  <textarea value={sectionContent} onChange={(event) => setSectionContent(event.target.value)} rows={4} className="w-full rounded-md border border-[var(--accent-26)] bg-black px-2 py-1.5 text-sm text-[var(--text-secondary)] outline-none" />
                   <div className="flex gap-2 text-[10px]">
                     <button onClick={() => { onUpdateDocSection?.(section.id, sectionContent); setEditingSection(null); }} className="text-[var(--accent)]">Save</button>
                     <button onClick={() => setEditingSection(null)} className="text-[var(--text-muted)]">Cancel</button>
@@ -170,7 +170,7 @@ export function ProjectBrief({
         </div>
       ) : (
         <>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search memories..." className="w-full rounded border border-[var(--accent-26)] bg-black px-2.5 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search memories..." className="w-full rounded-md border border-[var(--accent-26)] bg-black px-2.5 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]" />
           <div className="flex flex-wrap gap-1">
             <button onClick={() => setTypeFilter("all")} className={`rounded border px-2 py-1 text-[10px] ${typeFilter === "all" ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--accent-26)] text-[var(--text-muted)]"}`}>All</button>
             {TYPE_ORDER.map((type) => (
@@ -189,7 +189,7 @@ export function ProjectBrief({
                     {onPinMemory && <button onClick={() => onPinMemory(memory.id, !memory.pinned)} className={`${memory.pinned ? "text-yellow-400" : "text-[var(--text-faint)]"} hover:text-yellow-400`} title={memory.pinned ? "Unpin memory" : "Pin memory"}><Pin className="w-3 h-3" /></button>}
                     {editingId === memory.id ? (
                       <div className="flex-1 space-y-1">
-                        <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={3} className="w-full rounded border border-[var(--accent-26)] bg-black px-2 py-1 text-sm text-[var(--text-secondary)] outline-none" />
+                        <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={3} className="w-full rounded-md border border-[var(--accent-26)] bg-black px-2 py-1 text-sm text-[var(--text-secondary)] outline-none" />
                         <div className="flex gap-2 text-[10px]"><button onClick={() => { onUpdateMemory?.(memory.id, editingContent); setEditingId(null); }} className="text-[var(--accent)]">Save</button><button onClick={() => setEditingId(null)} className="text-[var(--text-muted)]">Cancel</button></div>
                       </div>
                     ) : <p className="text-[var(--text-secondary)] text-sm flex-1 leading-relaxed">{memory.content}</p>}
@@ -197,7 +197,7 @@ export function ProjectBrief({
                     {onUpdateMemory && editingId !== memory.id && <button onClick={() => { setEditingId(memory.id); setEditingContent(memory.content); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-faint)] hover:text-[var(--accent)]" title="Edit memory"><Pencil className="w-3 h-3" /></button>}
                     {onRemoveMemory && <button onClick={() => onRemoveMemory(memory.id)} className="opacity-0 group-hover:opacity-100 text-[var(--text-faint)] hover:text-red-400" title="Remove memory"><Trash2 className="w-3 h-3" /></button>}
                     {onUpdateMemoryTags && editingTags === memory.id ? (
-                      <input autoFocus value={tagValue} onChange={(event) => setTagValue(event.target.value)} onBlur={() => { onUpdateMemoryTags(memory.id, tagValue.split(",").map((tag) => tag.trim()).filter(Boolean)); setEditingTags(null); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} className="w-24 rounded border border-[var(--accent-26)] bg-black px-1 py-0.5 text-[10px] text-[var(--text-secondary)]" />
+                      <input autoFocus value={tagValue} onChange={(event) => setTagValue(event.target.value)} onBlur={() => { onUpdateMemoryTags(memory.id, tagValue.split(",").map((tag) => tag.trim()).filter(Boolean)); setEditingTags(null); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} className="w-24 rounded-md border border-[var(--accent-26)] bg-black px-1 py-0.5 text-[10px] text-[var(--text-secondary)]" />
                     ) : (
                       <button onClick={() => { setEditingTags(memory.id); setTagValue((memory.tags ?? []).join(", ")); }} className="flex flex-wrap gap-1 text-left" title="Edit tags">
                         {(memory.tags ?? []).length > 0
