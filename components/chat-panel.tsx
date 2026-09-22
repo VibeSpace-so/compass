@@ -139,18 +139,18 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
     // First interaction suggestions based on stage
     const stageReplies: Record<string, string[]> = {
       ideation: [
-        "Help me define my project idea",
-        "What questions should I answer before building?",
-        "I have a rough idea, help me refine it",
+        "Help me validate this problem",
+        "Who actually has this problem?",
+        "Research how people solve this today",
       ],
       context: [
-        "Help me write a project brief",
-        "What context should I gather before coding?",
-        "Research similar products for me",
+        "Draft my project brief",
+        "What context do AI build tools need?",
+        "Research how competitors solve this",
       ],
       "landing-page": [
-        "Generate a landing page prompt for Lovable",
-        "What should my landing page include?",
+        "Generate a validation page prompt",
+        "What should my pitch and CTA be?",
         "Help me write compelling copy",
       ],
       github: [
@@ -166,9 +166,9 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
         "How do I connect my domain?",
       ],
       "build-prototype": [
-        "Help me plan my core features",
-        "Generate a Cursor prompt for my prototype",
-        "What should I build first?",
+        "What did my validation evidence show?",
+        "Help me pick the ONE feature to build",
+        "Generate a Cursor prompt for the top feature",
       ],
       "next-features": [
         "Help me prioritize features",
@@ -257,13 +257,13 @@ function getDirectiveGreeting(project: Project): string {
   if (!stage) return "Let's get started with your project.";
 
   const greetings: Record<string, string> = {
-    ideation: `Let's define **${project.name || "your project"}**. Tell me:\n\n1. **Who is this for?** (your target user)\n2. **What problem does it solve?**\n3. **Why now?**\n\nI'll save your answers as core memories so we never lose context.`,
-    context: `Time to build context for **${project.name}**. Here's what we need:\n\n1. A **project brief** (target user, key features, constraints)\n2. **Research** on similar products\n3. **Technical decisions** (stack, tools, approach)\n\nWhat would you like to start with?`,
-    "landing-page": `Let's build a landing page for **${project.name}**. I can:\n\n- Generate a **Lovable/Bolt prompt** with your full project context\n- Help write **compelling copy** for your page\n- Define the **structure** (hero, features, CTA)\n\nReady to start?`,
-    github: `Let's get **${project.name}** into version control.\n\nI'll help you:\n1. Set up a GitHub repository\n2. Write a solid README\n3. Configure your project structure\n\nHave you created a repo yet, or should we start from scratch?`,
-    hosting: `Time to deploy **${project.name}** live.\n\nBest options for your project:\n- **Vercel** — zero-config for Next.js/React\n- **Netlify** — great for static sites\n- **Railway** — if you need a backend\n\nWhich hosting provider would you like to use?`,
-    domain: `Let's get a custom domain for **${project.name}**.\n\nI'll help you:\n1. **Choose** a memorable domain name\n2. **Register** it (Namecheap, Cloudflare, etc.)\n3. **Connect** it to your hosting\n\nDo you have a domain in mind, or want suggestions?`,
-    "build-prototype": `Time to build the real product. For **${project.name}**, let's:\n\n1. **Identify** your core feature (the one thing users need)\n2. **Generate** a detailed prompt for Cursor/Claude Code\n3. **Build** iteratively\n\nWhat's the most important feature to build first?`,
+    ideation: `Before building anything, let's validate the problem behind **${project.name || "your project"}**. Tell me:\n\n1. **Who has this problem?** (your target user)\n2. **How painful is it?** — what do they do about it today?\n3. **What evidence** says it's real and worth solving?\n\nI'll save your answers as memories — they're the context every tool downstream will use.`,
+    context: `Time to arm your AI tools with context for **${project.name}** — the richer the brief, the better the first build lands. We need:\n\n1. A **project brief** (problem evidence, target user, constraints)\n2. **Research** on how people solve this today\n3. **Technical decisions** (stack, tools, approach)\n\nNothing gets coded yet — context first. What would you like to start with?`,
+    "landing-page": `Let's validate demand for **${project.name}** — with a page, not a product. I can:\n\n- Generate a **Lovable/v0 prompt** carrying your full brief\n- Help write the **pitch + call to action** (a signup is your PMF signal)\n- Define the **structure** (hero, problem, CTA)\n\nReady to put the pitch in front of real people?`,
+    github: `Let's get **${project.name}** into version control.\n\nI'll help you:\n1. Set up a GitHub repository\n2. Write a README that states the problem you're validating\n3. Push your validation page\n\nHave you created a repo yet, or should we start from scratch?`,
+    hosting: `Time to get the **${project.name}** validation page live.\n\nBest options for your project:\n- **Vercel** — zero-config for Next.js/React\n- **Netlify** — great for static sites\n- **Railway** — if you need a backend\n\nDeploy it, share the link where your target users are, and tell me what comes back — signups and objections are your signal.`,
+    domain: `Let's get a custom domain for **${project.name}** — a real URL makes the demand test credible.\n\nI'll help you:\n1. **Choose** a memorable domain name\n2. **Register** it (Namecheap, Cloudflare, etc.)\n3. **Connect** it to your hosting\n\nDo you have a domain in mind, or want suggestions?`,
+    "build-prototype": `Before we build — what did validation show? For **${project.name}**, let's:\n\n1. **Review** the demand evidence in your memories\n2. **Pick the ONE feature** that evidence points to\n3. **Generate** a context-rich prompt for Cursor/Claude Code\n\nIf the evidence is thin, we'll go back and validate more first. What signal did you get?`,
     "next-features": `**${project.name}** is live! Now let's be strategic about what comes next.\n\n1. What **feedback** have you received?\n2. What features are users **actually asking for**?\n3. What's the **smallest thing** you can ship this week?\n\nLet's prioritize ruthlessly.`,
   };
 
