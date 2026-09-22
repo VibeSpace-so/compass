@@ -24,12 +24,14 @@ import {
 let _activeProjectId: string | null = null;
 let _activeStage: StageId | null = null;
 let _activeProjectName = "Project";
-let _onStageAdvance: ((newStage: StageId) => void) | null = null;
+let _onStageAdvance:
+  | ((newStage: StageId) => "applied" | "pending" | "noop")
+  | null = null;
 
 export function setToolContext(
   projectId: string,
   stage: StageId,
-  onStageAdvance?: (newStage: StageId) => void,
+  onStageAdvance?: (newStage: StageId) => "applied" | "pending" | "noop",
   projectName?: string
 ): void {
   _activeProjectId = projectId;
@@ -309,8 +311,20 @@ function executeSystemTool(
       if (!nextStage) {
         return { success: false, error: "Missing next_stage." };
       }
-      if (_onStageAdvance) {
-        _onStageAdvance(nextStage);
+      const outcome = _onStageAdvance ? _onStageAdvance(nextStage) : "applied";
+      if (outcome === "pending") {
+        // The UI gate parked the move for user confirmation — don't record
+        // a milestone for a transition that hasn't happened yet.
+        return {
+          success: true,
+          data: {
+            previousStage: _activeStage,
+            newStage: nextStage,
+            reason,
+            pendingConfirmation: true,
+            note: "Advance deferred — the user must confirm it in the Context sidebar (it would skip validation steps).",
+          },
+        };
       }
       // Also save as a memory
       addMemory(
