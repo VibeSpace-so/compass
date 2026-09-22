@@ -318,13 +318,25 @@ export function parseInlineToolCalls(
     if (raw) add(match[1], raw);
   }
 
+  // Some models emit {"action": "tool_name", "params": {...}} (or
+  // "action_input") instead of {"name": ..., "arguments"|"parameters": ...}.
+  const toolName = (parsed: Record<string, unknown>): string | undefined =>
+    typeof parsed.name === "string"
+      ? parsed.name
+      : typeof parsed.action === "string"
+        ? parsed.action
+        : undefined;
+  const toolArgs = (parsed: Record<string, unknown>): Record<string, unknown> =>
+    ((parsed.arguments ?? parsed.parameters ?? parsed.params ?? parsed.action_input ?? {}) as Record<string, unknown>);
+
   const jsonCandidates = [
     ...Array.from(content.matchAll(/```json\s*([\s\S]*?)```/gi), (match) => match[1]),
   ];
   for (const candidate of jsonCandidates) {
     try {
-      const parsed = JSON.parse(candidate) as { name?: string; arguments?: Record<string, unknown>; parameters?: Record<string, unknown> };
-      if (parsed.name) add(parsed.name, JSON.stringify(parsed.arguments ?? parsed.parameters ?? {}));
+      const parsed = JSON.parse(candidate) as Record<string, unknown>;
+      const name = toolName(parsed);
+      if (name) add(name, JSON.stringify(toolArgs(parsed)));
     } catch {
       // Ignore malformed candidates.
     }
@@ -333,8 +345,9 @@ export function parseInlineToolCalls(
     const raw = extractJson(content, index);
     if (!raw) continue;
     try {
-      const parsed = JSON.parse(raw) as { name?: string; arguments?: Record<string, unknown>; parameters?: Record<string, unknown> };
-      if (parsed.name) add(parsed.name, JSON.stringify(parsed.arguments ?? parsed.parameters ?? {}));
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const name = toolName(parsed);
+      if (name) add(name, JSON.stringify(toolArgs(parsed)));
     } catch {
       // Ignore non-tool JSON objects in ordinary prose.
     }
