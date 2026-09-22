@@ -16,6 +16,10 @@ import {
   addChatMessage,
   encryptProject,
   disableProjectEncryption,
+  addCustomProvider,
+  removeCustomProvider,
+  saveBYOKKey,
+  removeBYOKKey,
 } from "@/lib/storage";
 import {
   setProjectPassword,
@@ -46,7 +50,7 @@ import JourneyMap from "@/components/journey-map";
 import ProjectList from "@/components/project-list";
 import ProjectDetail from "@/components/project-detail";
 import CreateProjectModal from "@/components/create-project-modal";
-import BYOKSettings from "@/components/byok-settings";
+import BYOKSettings, { CustomProviderConfig } from "@/components/byok-settings";
 import ChatPanel from "@/components/chat-panel";
 import ProjectUnlock from "@/components/password-gate";
 
@@ -227,6 +231,34 @@ export default function CompassPage() {
     setState(loadStateForProject(state.selectedProjectId));
   }, [state]);
 
+  const handleAddCustomProvider = useCallback(
+    (config: CustomProviderConfig) => {
+      if (!state?.selectedProjectId) return;
+      const next = addCustomProvider(state, {
+        name: config.name,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        params: config.params,
+      });
+      const added =
+        next.byokSettings.providers[next.byokSettings.providers.length - 1];
+      if (config.apiKey) {
+        saveBYOKKey(state.selectedProjectId, added.id, config.apiKey);
+      }
+      setState(loadStateForProject(state.selectedProjectId));
+    },
+    [state]
+  );
+
+  const handleRemoveCustomProvider = useCallback(
+    (providerId: string) => {
+      if (!state?.selectedProjectId) return;
+      removeBYOKKey(state.selectedProjectId, providerId);
+      setState(removeCustomProvider(state, providerId));
+    },
+    [state]
+  );
+
   const handleGoHome = useCallback(() => {
     if (!state) return;
     setActiveProjectForConnectors(null);
@@ -399,11 +431,7 @@ export default function CompassPage() {
                 isEnabled={chatEnabled}
                 onSetupKeys={() => setShowBYOK(true)}
                 integrations={state.integrations}
-                enabledProviderIds={
-                  state.byokSettings.providers
-                    .filter((p) => p.enabled && p.keySet)
-                    .map((p) => p.id)
-                }
+                providers={state.byokSettings.providers}
                 onStageAdvance={handleStageAdvance}
                 onMemoriesChange={handleMemoriesRefresh}
                 isEncrypted={selectedEncrypted}
@@ -503,6 +531,8 @@ export default function CompassPage() {
         providers={state.byokSettings.providers}
         onToggleProvider={handleToggleProvider}
         onProvidersChange={handleReloadProviders}
+        onAddCustomProvider={handleAddCustomProvider}
+        onRemoveProvider={handleRemoveCustomProvider}
         projectId={state.selectedProjectId}
         isEncrypted={selectedEncrypted}
         onEncrypt={handleEncryptProject}

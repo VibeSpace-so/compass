@@ -1,4 +1,4 @@
-import { ChatMessage, Integration, Project, StageId } from "./types";
+import { BYOKProvider, ChatMessage, Integration, Project, StageId } from "./types";
 import { getStage } from "./stages";
 import { getSuggestionsForStage } from "./integrations";
 import { getBYOKKey } from "./storage";
@@ -27,6 +27,8 @@ interface LLMProvider {
   id: string;
   endpoint: string;
   model: string;
+  custom?: boolean;
+  extraParams?: Record<string, unknown>;
 }
 
 const PROVIDERS: LLMProvider[] = [
@@ -52,20 +54,44 @@ const PROVIDERS: LLMProvider[] = [
   },
 ];
 
-// Providers that support function calling
+// Providers that support function calling; custom OpenAI-compatible
+// endpoints are assumed capable (inline-call parsing covers the rest).
 const TOOL_CAPABLE_PROVIDERS = new Set(["groq", "openai", "anthropic", "google"]);
+
+function openAICompatibleEndpoint(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, "");
+  return trimmed.endsWith("/chat/completions")
+    ? trimmed
+    : `${trimmed}/chat/completions`;
+}
 
 function getActiveProvider(
   projectId: string,
-  enabledProviderIds?: string[]
+  providers?: BYOKProvider[]
 ): { provider: LLMProvider; apiKey: string } | null {
   for (const provider of PROVIDERS) {
-    if (enabledProviderIds && !enabledProviderIds.includes(provider.id)) {
+    if (providers && !providers.some((p) => p.id === provider.id && p.enabled)) {
       continue;
     }
     const key = getBYOKKey(projectId, provider.id);
     if (key) {
       return { provider, apiKey: key };
+    }
+  }
+  for (const p of providers ?? []) {
+    if (!p.custom || !p.enabled || !p.baseUrl || !p.model) continue;
+    const key = getBYOKKey(projectId, p.id);
+    if (key) {
+      return {
+        provider: {
+          id: p.id,
+          endpoint: openAICompatibleEndpoint(p.baseUrl),
+          model: p.model,
+          custom: true,
+          extraParams: p.params,
+        },
+        apiKey: key,
+      };
     }
   }
   return null;
@@ -198,10 +224,13 @@ export function formatChatError(error: unknown): string {
   const provider = providerMatch?.[1] ?? "Provider";
   const status = providerMatch?.[2];
   const lower = raw.toLowerCase();
-  const detail = status ? `${provider} response ${status}` : "Provider request failed";
+  const statusCode = status ?? raw.match(/API error \((\d{3})\)/)?.[1];
+  const detail = statusCode
+    ? `${provider} response ${statusCode}`
+    : "Provider request failed";
 
   if (
-    status === "429" ||
+    statusCode === "429" ||
     /\b(rate limit|rate_limit|quota|too many requests|tpm limit)\b/i.test(lower)
   ) {
     return `Provider rate limit reached, try again shortly or switch provider. (${detail})`;
@@ -319,7 +348,8 @@ async function callOpenAICompatibleWithTools(
   apiKey: string,
   messages: { role: string; content: string }[],
   tools: ChatTool[],
-  onToolCall?: (info: ToolCallInfo) => void
+  onToolCall?: (info: ToolCallInfo) => void,
+  extraParams?: Record<string, unknown>
 ): Promise<ChatResponseWithTools> {
   const toolDefs = tools.length > 0 ? toolsToOpenAIFormat(tools) : undefined;
   const allToolCalls: ToolCallInfo[] = [];
@@ -332,10 +362,11 @@ async function callOpenAICompatibleWithTools(
 
   for (let round = 0; round < MAX_TOOL_CALLS_PER_TURN; round++) {
     const body: Record<string, unknown> = {
-      model,
-      messages: conversationMessages,
       max_tokens: 1024,
       temperature: 0.7,
+      ...extraParams,
+      model,
+      messages: conversationMessages,
     };
     if (toolDefs && toolDefs.length > 0) {
       body.tools = toolDefs;
@@ -454,10 +485,11 @@ async function callOpenAICompatibleWithTools(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model,
-      messages: conversationMessages,
       max_tokens: 1024,
       temperature: 0.7,
+      ...extraParams,
+      model,
+      messages: conversationMessages,
     }),
   });
 
@@ -785,11 +817,11 @@ export async function generateChatResponse(
   project: Project,
   integrations: Integration[],
   history: ChatMessage[],
-  enabledProviderIds?: string[],
+  providers?: BYOKProvider[],
   onToolCall?: (info: ToolCallInfo) => void,
   onStageAdvance?: (newStage: StageId) => void
 ): Promise<ChatResponseWithTools> {
-  const active = getActiveProvider(project.id, enabledProviderIds);
+  const active = getActiveProvider(project.id, providers);
   if (!active) {
     return { content: "No API key configured. Please add an API key in Settings to enable AI-powered chat.", toolCalls: [] };
   }
@@ -802,7 +834,10 @@ export async function generateChatResponse(
   const messages = formatMessages(systemPrompt, history, userMessage);
 
   // Collect available tools from connectors
-  const tools = TOOL_CAPABLE_PROVIDERS.has(provider.id) ? getAvailableTools() : [];
+  const tools =
+    provider.custom || TOOL_CAPABLE_PROVIDERS.has(provider.id)
+      ? getAvailableTools()
+      : [];
 
   try {
     let result: ChatResponseWithTools;
@@ -825,14 +860,15 @@ export async function generateChatResponse(
         onToolCall
       );
     } else {
-      // OpenAI-compatible (Groq, OpenAI)
+      // OpenAI-compatible (Groq, OpenAI, custom endpoints)
       result = await callOpenAICompatibleWithTools(
         provider.endpoint,
         provider.model,
         apiKey,
         messages,
         tools,
-        onToolCall
+        onToolCall,
+        provider.extraParams
       );
     }
 

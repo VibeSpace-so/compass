@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChatMessage, Integration, PersistedToolCall, Project, StageId } from "@/lib/types";
+import { BYOKProvider, ChatMessage, Integration, PersistedToolCall, Project, StageId } from "@/lib/types";
 import { getStage, getNextStage } from "@/lib/stages";
 import { generateId } from "@/lib/storage";
 
@@ -31,7 +31,7 @@ interface ChatPanelProps {
   isEnabled: boolean;
   onSetupKeys: () => void;
   integrations: Integration[];
-  enabledProviderIds?: string[];
+  providers?: BYOKProvider[];
   onStageAdvance?: (newStage: StageId) => void;
   onMemoriesChange?: () => void;
   isEncrypted: boolean;
@@ -277,7 +277,7 @@ export default function ChatPanel({
   isEnabled,
   onSetupKeys,
   integrations,
-  enabledProviderIds,
+  providers,
   onStageAdvance,
   onMemoriesChange,
   isEncrypted,
@@ -404,7 +404,7 @@ export default function ChatPanel({
         project,
         integrations,
         history,
-        enabledProviderIds,
+        providers,
         handleToolCall,
         onStageAdvance
       );
@@ -501,10 +501,11 @@ export default function ChatPanel({
 
             <div className="space-y-2">
               {[
-                { id: "groq", name: "Groq", hint: "Free tier available", url: "https://console.groq.com/keys" },
-                { id: "openai", name: "OpenAI", hint: "GPT-4o mini", url: "https://platform.openai.com/api-keys" },
-                { id: "anthropic", name: "Anthropic", hint: "Claude 3.5", url: "https://console.anthropic.com/settings/keys" },
-                { id: "google", name: "Google Gemini", hint: "With web search", url: "https://aistudio.google.com/apikey" },
+                { id: "groq", name: "Groq", hint: "recommended: gpt-oss-20b", url: "https://console.groq.com/keys" },
+                { id: "openai", name: "OpenAI", hint: "recommended: gpt-5.6-luna", url: "https://platform.openai.com/api-keys" },
+                { id: "anthropic", name: "Anthropic", hint: "recommended: claude-haiku-4-5", url: "https://console.anthropic.com/settings/keys" },
+                { id: "google", name: "Google Gemini", hint: "recommended: gemini-flash-latest", url: "https://aistudio.google.com/apikey" },
+                { id: "custom", name: "Custom endpoint", hint: "any OpenAI-compatible API", url: "" },
               ].map((provider) => (
                 <button
                   key={provider.id}
@@ -519,15 +520,17 @@ export default function ChatPanel({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-[var(--text-muted)]">{provider.hint}</span>
-                    <a
-                      href={provider.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[var(--text-muted)] hover:text-[var(--accent)]"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                    {provider.url && (
+                      <a
+                        href={provider.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[var(--text-muted)] hover:text-[var(--accent)]"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
                 </button>
               ))}

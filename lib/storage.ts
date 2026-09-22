@@ -30,10 +30,34 @@ import {
 const STORAGE_KEY = "vibe-compass-state";
 
 const DEFAULT_PROVIDERS: BYOKProvider[] = [
-  { id: "openai", name: "OpenAI", enabled: false, keySet: false },
-  { id: "anthropic", name: "Anthropic", enabled: false, keySet: false },
-  { id: "google", name: "Google Gemini", enabled: false, keySet: false },
-  { id: "groq", name: "Groq", enabled: false, keySet: false },
+  {
+    id: "openai",
+    name: "OpenAI",
+    enabled: false,
+    keySet: false,
+    recommendedModels: ["gpt-5.6-luna", "gpt-5-mini", "gpt-4o-mini"],
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    enabled: false,
+    keySet: false,
+    recommendedModels: ["claude-haiku-4-5"],
+  },
+  {
+    id: "google",
+    name: "Google Gemini",
+    enabled: false,
+    keySet: false,
+    recommendedModels: ["gemini-flash-latest", "gemini-2.5-flash"],
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    enabled: false,
+    keySet: false,
+    recommendedModels: ["openai/gpt-oss-20b", "openai/gpt-oss-120b"],
+  },
 ];
 
 function defaultState(): AppState {
@@ -56,6 +80,18 @@ export function loadState(): AppState {
     const parsed = JSON.parse(raw) as AppState;
     if (!parsed.byokSettings) {
       parsed.byokSettings = { providers: DEFAULT_PROVIDERS };
+    } else {
+      // Backfill recommended models and any providers added since the save.
+      parsed.byokSettings.providers = [
+        ...parsed.byokSettings.providers.map((p) => ({
+          recommendedModels: DEFAULT_PROVIDERS.find((d) => d.id === p.id)
+            ?.recommendedModels,
+          ...p,
+        })),
+        ...DEFAULT_PROVIDERS.filter(
+          (d) => !parsed.byokSettings.providers.some((p) => p.id === d.id)
+        ),
+      ];
     }
     if (!parsed.integrations) {
       parsed.integrations = DEFAULT_INTEGRATIONS;
@@ -114,10 +150,8 @@ export function saveState(state: AppState): void {
   const toSave: AppState = {
     ...state,
     byokSettings: {
-      providers: state.byokSettings.providers.map(({ id, name, enabled }) => ({
-        id,
-        name,
-        enabled,
+      providers: state.byokSettings.providers.map((p) => ({
+        ...p,
         keySet: false, // Always false in persisted state; loaded from cache
       })),
     },
@@ -275,6 +309,48 @@ export function hasAnyKeyConfigured(state: AppState): boolean {
   return state.byokSettings.providers.some(
     (p) => p.enabled && p.keySet
   );
+}
+
+export function addCustomProvider(
+  state: AppState,
+  config: {
+    name: string;
+    baseUrl: string;
+    model: string;
+    params?: Record<string, unknown>;
+  }
+): AppState {
+  const provider: BYOKProvider = {
+    id: `custom-${generateId()}`,
+    name: config.name,
+    enabled: true,
+    keySet: false,
+    custom: true,
+    baseUrl: config.baseUrl,
+    model: config.model,
+    params: config.params,
+  };
+  const newState: AppState = {
+    ...state,
+    byokSettings: {
+      providers: [...state.byokSettings.providers, provider],
+    },
+  };
+  saveState(newState);
+  return newState;
+}
+
+export function removeCustomProvider(state: AppState, providerId: string): AppState {
+  const newState: AppState = {
+    ...state,
+    byokSettings: {
+      providers: state.byokSettings.providers.filter(
+        (p) => !(p.custom && p.id === providerId)
+      ),
+    },
+  };
+  saveState(newState);
+  return newState;
 }
 
 export function toggleIntegration(
