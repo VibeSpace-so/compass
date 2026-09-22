@@ -28,6 +28,13 @@ Tests the AI-guided journey system: core memories (save/display/encrypt), stage 
 3. Open API keys modal, enable Groq, paste the key from `$GROQ_API_KEY`
 4. Close modal — chat should show directive greeting
 
+For copy/greeting changes: stage greetings and first-turn suggested replies live in
+`components/chat-panel.tsx` (`getDirectiveGreeting`, `getSuggestedReplies`); stage card +
+Journey map descriptions/nextAction live in `lib/stages.ts`; per-stage model guidance lives in
+`lib/flow-orchestrator.ts` (`STAGE_TOOL_HINTS`). The stage greeting re-emits as a new chat
+message whenever `currentStage` changes — clicking a stage in the Journey map section is the
+fastest way to sample each stage's greeting + suggested replies without /advance turns.
+
 ## Key Test Flows
 
 ### 1. Memory Saving via Chat
