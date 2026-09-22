@@ -35,6 +35,14 @@ Journey map descriptions/nextAction live in `lib/stages.ts`; per-stage model gui
 message whenever `currentStage` changes — clicking a stage in the Journey map section is the
 fastest way to sample each stage's greeting + suggested replies without /advance turns.
 
+Layout/scroll gotchas: the sidebar tab row (Context|Brief|Settings) scrolls away when the main
+page scrolls — press `Home` to jump the page back to the top and restore it. Sidebar content has
+its own scroll (`devin-scrollable`); expanding the Journey map section pushes other sections off
+— scroll inside the sidebar, not the page. For visual-polish passes, full-page screenshots are
+too small to judge `rounded-xl`/inset-rail borders — use the `zoom` action on each card region
+instead. The stage-progress meter only shows a fill bar when the project is at threshold (seed
+`vibe-compass-project-mem-{id}` or use a project that already has stage memories).
+
 ## Key Test Flows
 
 ### 1. Memory Saving via Chat
