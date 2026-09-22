@@ -41,6 +41,12 @@ export interface BYOKProvider {
   name: string;
   enabled: boolean;
   keySet: boolean;
+  recommendedModels?: string[];
+  // User-added OpenAI-compatible endpoints
+  custom?: boolean;
+  baseUrl?: string;
+  model?: string;
+  params?: Record<string, unknown>;
 }
 
 export interface BYOKSettings {

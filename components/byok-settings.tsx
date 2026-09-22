@@ -15,12 +15,22 @@ import { BYOKProvider } from "@/lib/types";
 import { verifyProjectPassword } from "@/lib/crypto";
 import { saveBYOKKey, removeBYOKKey, getBYOKKey } from "@/lib/storage";
 
+export interface CustomProviderConfig {
+  name: string;
+  baseUrl: string;
+  model: string;
+  apiKey?: string;
+  params?: Record<string, unknown>;
+}
+
 interface BYOKSettingsProps {
   open: boolean;
   onClose: () => void;
   providers: BYOKProvider[];
   onToggleProvider: (id: string) => void;
   onProvidersChange: () => void;
+  onAddCustomProvider: (config: CustomProviderConfig) => void;
+  onRemoveProvider: (id: string) => void;
   projectId: string | null;
   isEncrypted: boolean;
   onEncrypt: (password: string) => Promise<void>;
@@ -245,11 +255,13 @@ function ProviderRow({
   provider,
   onToggle,
   onKeysChange,
+  onRemove,
   projectId,
 }: {
   provider: BYOKProvider;
   onToggle: () => void;
   onKeysChange: () => void;
+  onRemove?: () => void;
   projectId: string;
 }) {
   const [showKey, setShowKey] = useState(false);
@@ -275,15 +287,30 @@ function ProviderRow({
   }
 
   const currentKey = getBYOKKey(projectId, provider.id);
+  const subtitle = provider.custom
+    ? `${provider.baseUrl} → ${provider.model}`
+    : provider.recommendedModels?.length
+      ? `recommended: ${provider.recommendedModels.join(" · ")}`
+      : null;
 
   return (
     <div className="border border-[var(--accent-26)] rounded p-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <KeyRound className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-          <span className="text-xs font-medium text-[var(--accent)]">
-            {provider.name}
-          </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <KeyRound className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-[var(--accent)]">
+              {provider.name}
+            </span>
+            {subtitle && (
+              <div
+                className="text-[9px] text-[var(--text-muted)] truncate max-w-[260px]"
+                title={subtitle}
+              >
+                {subtitle}
+              </div>
+            )}
+          </div>
         </div>
 
         <button
@@ -383,6 +410,141 @@ function ProviderRow({
           )}
         </div>
       )}
+      {provider.custom && onRemove && (
+        <div className="mt-2 pt-2 border-t border-[var(--accent-26)] flex justify-end">
+          <button
+            onClick={onRemove}
+            className="text-[10px] text-red-400/60 hover:text-red-400"
+          >
+            remove provider
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddCustomProviderSection({
+  onAdd,
+}: {
+  onAdd: (config: CustomProviderConfig) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [model, setModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [paramsText, setParamsText] = useState("");
+  const [error, setError] = useState("");
+
+  function reset() {
+    setShowForm(false);
+    setName("");
+    setBaseUrl("");
+    setModel("");
+    setApiKey("");
+    setParamsText("");
+    setError("");
+  }
+
+  function handleAdd() {
+    if (!name.trim() || !baseUrl.trim() || !model.trim()) {
+      setError("Name, base URL and model are required.");
+      return;
+    }
+    let params: Record<string, unknown> | undefined;
+    if (paramsText.trim()) {
+      try {
+        const parsed = JSON.parse(paramsText);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("not an object");
+        }
+        params = parsed as Record<string, unknown>;
+      } catch {
+        setError("Parameters must be a valid JSON object.");
+        return;
+      }
+    }
+    onAdd({
+      name: name.trim(),
+      baseUrl: baseUrl.trim(),
+      model: model.trim(),
+      apiKey: apiKey.trim() || undefined,
+      params,
+    });
+    reset();
+  }
+
+  if (!showForm) {
+    return (
+      <button
+        onClick={() => setShowForm(true)}
+        className="w-full px-3 py-2.5 rounded border border-dashed border-[var(--accent-26)] text-xs text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+      >
+        + add custom provider (OpenAI-compatible)
+      </button>
+    );
+  }
+
+  const inputClass =
+    "w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] outline-none";
+
+  return (
+    <div className="border border-[var(--accent-26)] rounded p-3 space-y-2">
+      <div className="text-[11px] text-[var(--accent)] font-medium">
+        Custom provider
+      </div>
+      <input
+        value={name}
+        onChange={(e) => { setName(e.target.value); setError(""); }}
+        placeholder="Name (e.g. OpenRouter)"
+        className={inputClass}
+        autoFocus
+      />
+      <input
+        value={baseUrl}
+        onChange={(e) => { setBaseUrl(e.target.value); setError(""); }}
+        placeholder="Base URL (e.g. https://openrouter.ai/api/v1)"
+        className={inputClass}
+      />
+      <div className="text-[9px] text-[var(--text-muted)] -mt-1">
+        /chat/completions is appended if the URL doesn&apos;t end with it
+      </div>
+      <input
+        value={model}
+        onChange={(e) => { setModel(e.target.value); setError(""); }}
+        placeholder="Model (e.g. anthropic/claude-haiku-4-5)"
+        className={inputClass}
+      />
+      <input
+        type="password"
+        value={apiKey}
+        onChange={(e) => { setApiKey(e.target.value); setError(""); }}
+        placeholder="API key (optional — can add later)"
+        className={inputClass}
+      />
+      <input
+        value={paramsText}
+        onChange={(e) => { setParamsText(e.target.value); setError(""); }}
+        placeholder='Extra parameters as JSON (optional, e.g. {"temperature":0.5})'
+        className={inputClass}
+      />
+      {error && <p className="text-[10px] text-red-400">{error}</p>}
+      <div className="flex gap-2 pt-0.5">
+        <button
+          onClick={reset}
+          className="flex-1 px-3 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+        >
+          cancel
+        </button>
+        <button
+          onClick={handleAdd}
+          disabled={!name.trim() || !baseUrl.trim() || !model.trim()}
+          className="flex-1 px-3 py-1.5 rounded text-[10px] bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity disabled:opacity-40"
+        >
+          Add provider
+        </button>
+      </div>
     </div>
   );
 }
@@ -393,6 +555,8 @@ export default function BYOKSettings({
   providers,
   onToggleProvider,
   onProvidersChange,
+  onAddCustomProvider,
+  onRemoveProvider,
   projectId,
   isEncrypted,
   onEncrypt,
@@ -458,9 +622,15 @@ export default function BYOKSettings({
               provider={provider}
               onToggle={() => onToggleProvider(provider.id)}
               onKeysChange={onProvidersChange}
+              onRemove={
+                provider.custom
+                  ? () => onRemoveProvider(provider.id)
+                  : undefined
+              }
               projectId={projectId}
             />
           ))}
+          <AddCustomProviderSection onAdd={onAddCustomProvider} />
         </div>
 
         <div className="mt-5 pt-4 border-t border-[var(--accent-26)]">
