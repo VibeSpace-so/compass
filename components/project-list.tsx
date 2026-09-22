@@ -72,7 +72,7 @@ export default function ProjectList({
   if (projects.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="border border-dashed border-[var(--accent-26)] rounded p-8 text-center">
+        <div className="border border-dashed border-[var(--accent-26)] rounded-xl p-8 text-center">
           <FolderOpen className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-3" />
           <p className="text-sm text-[var(--text-muted)] mb-4">
             No projects yet. Create one to get started.
@@ -149,7 +149,7 @@ export default function ProjectList({
               `}
               onClick={() => onSelect(project.id)}
             >
-              <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--accent-10)] flex items-center justify-center">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--accent-10)] flex items-center justify-center">
                 {stage ? (
                   <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 ) : (

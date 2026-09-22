@@ -19,7 +19,7 @@ function DebtBadge({ level, label }: { level: DebtLevel; label: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border ${colors[level]} ${level === "high" ? "debt-badge-high" : ""}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] border ${colors[level]} ${level === "high" ? "debt-badge-high" : ""}`}
     >
       {label}: {level}
     </span>
@@ -51,9 +51,9 @@ export default function JourneyMap({
                 key={stage.id}
                 onClick={() => onStageClick?.(stage.id)}
                 disabled={!onStageClick}
-                className="group flex flex-col items-center gap-2 p-3 rounded border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all text-center"
+                className="group flex flex-col items-center gap-2 p-3 rounded-xl border border-[var(--accent-26)] hover:border-[var(--accent-44)] hover:bg-[var(--accent-10)]/40 hover:-translate-y-0.5 transition-all text-center"
               >
-                <div className="w-8 h-8 rounded flex items-center justify-center bg-[var(--accent-10)] text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--accent-10)] text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors">
                   <StageIcon name={stage.lucideIcon} className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[10px] text-[var(--text-secondary)] leading-tight">
@@ -114,14 +114,14 @@ export default function JourneyMap({
                   disabled={!onStageClick}
                   className={`
                     w-full text-left relative
-                    border rounded p-3 sm:p-4 md:p-5
+                    border rounded-xl p-3 sm:p-4 md:p-5
                     transition-all duration-200 active:scale-[0.99]
                     ${
                       isActive
-                        ? "border-[var(--accent)] bg-[var(--accent-10)] shadow-[0_0_20px_var(--accent-26)]"
+                        ? "border-[var(--accent-44)] bg-[var(--accent-10)] shadow-[inset_2px_0_0_var(--accent),0_0_24px_-8px_var(--accent-26)]"
                         : isPast
-                          ? "border-[var(--accent-44)] bg-[var(--accent-10)]"
-                          : "border-[var(--accent-26)] hover:border-[var(--accent-44)]"
+                          ? "border-[var(--accent-26)] bg-[var(--accent-10)]/50 opacity-60"
+                          : "border-[var(--accent-26)] hover:border-[var(--accent-44)] hover:bg-[var(--accent-10)]/40"
                     }
                     ${onStageClick ? "cursor-pointer" : "cursor-default"}
                   `}
@@ -129,7 +129,7 @@ export default function JourneyMap({
                   <div className="flex items-start gap-3 md:gap-4">
                     <div
                       className={`
-                        flex-shrink-0 w-10 h-10 rounded flex items-center justify-center
+                        flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center
                         ${
                           isActive
                             ? "bg-[var(--accent)] text-black"
@@ -157,8 +157,9 @@ export default function JourneyMap({
                           {stage.label}
                         </h3>
                         {isActive && (
-                          <span className="text-[10px] text-black bg-[var(--accent)] px-2 py-0.5 rounded">
-                            YOU ARE HERE
+                          <span className="ml-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--accent)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
+                            Current
                           </span>
                         )}
                       </div>

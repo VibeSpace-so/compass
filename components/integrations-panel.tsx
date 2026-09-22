@@ -32,7 +32,7 @@ export default function IntegrationsPanel({
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="border border-[var(--accent-26)] rounded p-4">
+    <div className="border border-[var(--accent-26)] rounded-xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <Plug className="w-3.5 h-3.5 text-[var(--text-muted)]" />
         <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-medium">
@@ -144,7 +144,7 @@ function SuggestionCard({
   return (
     <div
       className={`
-        rounded p-3 transition-all
+        rounded-xl p-3 transition-all
         ${
           projectConnected
             ? "bg-[var(--accent-10)] border border-[var(--accent-44)]"
@@ -219,7 +219,7 @@ function SuggestionCard({
               onChange={(e) => setTokenValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSaveToken()}
               placeholder="Paste your API token…"
-              className="flex-1 bg-black/40 border border-[var(--accent-26)] rounded px-2 py-1 text-[10px] text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-66)]"
+              className="flex-1 bg-black/40 border border-[var(--accent-26)] rounded-md px-2 py-1 text-[10px] text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-66)]"
             />
             <button
               onClick={handleSaveToken}

@@ -121,7 +121,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-[var(--accent-26)] rounded">
+    <div className="border border-[var(--accent-26)] rounded-xl">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-3 py-2.5 text-left"
@@ -323,7 +323,7 @@ export default function ProjectDetail({
                   onUpdate({ description: e.target.value.trim() });
                   setEditingDesc(false);
                 }}
-                className="w-full bg-transparent border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--text-secondary)] focus:border-[var(--accent)] outline-none resize-none"
+                className="w-full bg-transparent border border-[var(--accent-26)] rounded-xl px-3 py-2 text-xs text-[var(--text-secondary)] focus:border-[var(--accent)] outline-none resize-none"
               />
             ) : (
               <p
@@ -399,20 +399,21 @@ export default function ProjectDetail({
                 <div className="space-y-4">
                   {/* Current stage card */}
                   {stage && (
-                    <div className="border border-[var(--accent)] rounded p-4 bg-[var(--accent-10)]">
+                    <div className="rounded-xl border border-[var(--accent-26)] bg-[var(--accent-10)] p-4 shadow-[inset_2px_0_0_var(--accent)]">
                       <div className="flex items-center gap-2 mb-2">
                         <StageIcon name={stage.lucideIcon} className="w-4 h-4 text-[var(--accent)]" />
                         <span className="text-xs font-medium text-[var(--accent)]">
                           {stage.label}
                         </span>
-                        <span className="text-[10px] text-black bg-[var(--accent)] px-1.5 py-0.5 rounded ml-auto">
-                          CURRENT
+                        <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--accent)]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
+                          Current
                         </span>
                       </div>
                       <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">
                         {stage.description}
                       </p>
-                      <div className="bg-black/40 rounded p-2.5">
+                      <div className="rounded-lg bg-black/40 border border-[var(--accent-15)] p-2.5">
                         <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-0.5">
                           Next move
                         </div>
@@ -424,12 +425,18 @@ export default function ProjectDetail({
                   )}
 
                   {/* Stage progress + advance, merged */}
-                  <div className="border border-[var(--accent-26)] rounded p-3">
+                  <div className="border border-[var(--accent-26)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                       Stage progress
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--text-muted)]">
                       {completedActions.length} action{completedActions.length === 1 ? "" : "s"} captured · threshold {stageThreshold} to advance
+                    </div>
+                    <div className="mt-2 h-1 rounded-full bg-[var(--accent-10)] overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, (completedActions.length / stageThreshold) * 100)}%` }}
+                      />
                     </div>
                     {nextStage && (
                       <>
@@ -538,7 +545,7 @@ export default function ProjectDetail({
               {sidebarTab === "settings" && (
                 <div className="space-y-4">
                   {/* Notes */}
-                  <div className="border border-[var(--accent-26)] rounded p-3">
+                  <div className="border border-[var(--accent-26)] rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                         Notes
@@ -550,12 +557,12 @@ export default function ProjectDetail({
                       onChange={(e) => onUpdate({ notes: e.target.value })}
                       placeholder="Jot down thoughts, decisions..."
                       rows={5}
-                      className="w-full bg-black border border-[var(--accent-26)] rounded px-3 py-2 text-xs text-[var(--text-secondary)] focus:border-[var(--accent)] outline-none resize-none"
+                      className="w-full bg-black border border-[var(--accent-26)] rounded-md px-3 py-2 text-xs text-[var(--text-secondary)] focus:border-[var(--accent)] outline-none resize-none"
                     />
                   </div>
 
                   {/* Debt indicators */}
-                  <div className="border border-[var(--accent-26)] rounded p-3 space-y-3">
+                  <div className="border border-[var(--accent-26)] rounded-xl p-3 space-y-3">
                     <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                       Debt indicators
                     </div>
@@ -576,7 +583,7 @@ export default function ProjectDetail({
                   </div>
 
                   {/* Keyboard shortcuts */}
-                  <div className="border border-[var(--accent-26)] rounded p-3">
+                  <div className="border border-[var(--accent-26)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
                       Keyboard shortcuts
                     </div>
@@ -593,7 +600,7 @@ export default function ProjectDetail({
                           <span className="text-[10px] text-[var(--text-muted)]">
                             {shortcut.desc}
                           </span>
-                          <kbd className="text-[10px] text-[var(--accent)] bg-[var(--accent-10)] border border-[var(--accent-26)] rounded px-1.5 py-0.5">
+                          <kbd className="text-[10px] text-[var(--accent)] bg-[var(--accent-10)] border border-[var(--accent-26)] rounded-xl px-1.5 py-0.5">
                             {shortcut.key}
                           </kbd>
                         </div>
