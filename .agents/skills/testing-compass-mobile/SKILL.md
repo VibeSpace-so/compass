@@ -20,6 +20,10 @@ description: Test Compass mobile responsiveness end-to-end at 375px viewport. Us
 ## Pitfalls
 - Do NOT try to emulate mobile by shrinking the real Chrome window (`wmctrl -r ... -e 0,0,0,407,...`): Chrome enforces a ~500 CSS-px minimum window width, so `innerWidth` bottoms out around 500 and you never reach 375. Use the DevTools device toolbar and **leave DevTools open** — closing it (F12) cancels emulation and resets the viewport.
 - After toggling the device toolbar, always confirm emulation actually applied before asserting: `console.log(window.innerWidth)` should print exactly `375`. Typing into the width/height boxes can silently miss if the toolbar lost focus.
+- Elements can render in the viewport yet be unreachable behind overlapping chrome — e.g. the mobile sidebar overlay's tab row once sat under the sticky nav (fixed in PR #35). Verify reachability with `document.elementFromPoint(cx, cy)` rather than assuming a rendered button is clickable. Ctrl+B still toggles the sidebar.
+- DevTools docked shrinks the page viewport below the md breakpoint — close DevTools (or undock it) before asserting desktop layout, or the sidebar auto-close effect and `hidden md:` elements will make desktop look like mobile.
+- Keyboard shortcuts like Ctrl+Shift+M can be swallowed when the DevTools Console input has focus — click the page first or use F12, which still toggles DevTools.
+- In device-emulation mode the emulated page keeps scroll position across view changes and the view drifts after clicks; re-locate target buttons from a fresh screenshot before each click instead of reusing stale coordinates.
 - Tailwind utility classes (e.g. `text-xs`) override plain-element CSS rules; the mobile 16px rule in `app/globals.css` needs `!important` inside a `max-width: 767px` media query. If font-size regresses to 12px, check for this specificity issue.
 - `pointer: coarse` touch-target rules and safe-area insets do NOT activate in DevTools emulation — verify those by code inspection or on real hardware.
 - Existing test projects in localStorage may be password-locked with unknown passwords. Create a fresh project through the UI instead of guessing.
