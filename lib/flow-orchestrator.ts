@@ -28,21 +28,21 @@ const INTEGRATION_VERBS: Record<string, string> = {
  */
 const STAGE_TOOL_HINTS: Record<StageId, string> = {
   ideation:
-    "GUIDE THE USER TO: 1) Define their idea clearly (one sentence), 2) Research if similar products exist using Perplexity, 3) Identify their target user, 4) Save key decisions as memories. When the idea is clear and validated, suggest advancing to Context.",
+    "GUIDE THE USER TO: 1) Write the problem in one sentence — who has it, how painful it is, what they do about it today, 2) Research whether the problem is real and how people solve it now (use Perplexity if connected), 3) Save the problem definition, target user, and evidence as memories. If the user asks to build features or generate code prompts, REDIRECT: this stage validates the problem, not the product. Advance to Context when the problem is validated and the target user is named.",
   context:
-    "GUIDE THE USER TO: 1) Research technical approaches and best practices with Perplexity, 2) Define constraints and preferences (save as memories), 3) Create a project brief with target user, features, and tech choices. When context is solid, suggest advancing to Landing Page.",
+    "GUIDE THE USER TO: 1) Research how others solve this problem and what works (Perplexity if connected), 2) Build and refine the project brief with generate_project_brief + update_project_doc — problem evidence, target user, constraints, success criteria, 3) Save every decision and constraint as memories. This context is what AI build tools will need later — the better the brief, the better the build. If the user asks to start coding, remind them context comes first. Advance to Landing Page when the brief is solid.",
   "landing-page":
-    "GUIDE THE USER TO: 1) Generate a copy-ready prompt for Lovable/Cursor that includes all project context and memories, 2) The user will paste this prompt into the tool and build externally, 3) When they return, ask what they built and save progress. Suggest advancing to GitHub when the page is ready.",
+    "GUIDE THE USER TO: 1) Define the demand test — one clear pitch plus one call to action (signup/waitlist), 2) Generate a copy-ready prompt for Lovable/v0/Framer that carries the project brief and memories, 3) The user builds the page externally — when they return, ask what they shipped and save progress. A landing page validates demand cheaply; it is NOT the product. Advance to GitHub when the page exists.",
   github:
-    "GUIDE THE USER TO: 1) Create a GitHub repo (offer to generate a README prompt for Cursor/Claude Code), 2) Push their landing page code, 3) Set up basic CI if needed. Suggest advancing to Hosting once code is pushed.",
+    "GUIDE THE USER TO: 1) Put the validation page in version control (offer to generate a README prompt for Cursor/Claude Code that states the problem being validated), 2) Push the code. Suggest advancing to Hosting once pushed.",
   hosting:
-    "GUIDE THE USER TO: 1) Deploy to Vercel from their GitHub repo (use Vercel integration if connected), 2) Verify the deployment works, 3) Share the live URL for feedback. Suggest advancing to Domain once deployed.",
+    "GUIDE THE USER TO: 1) Deploy the validation page (Vercel if connected), 2) Share the link where the target users actually are, 3) Save every signup, reply, and objection as memories — that's the PMF signal forming. Suggest advancing to Domain once the page is live and being shared.",
   domain:
-    "GUIDE THE USER TO: 1) Choose and register a domain, 2) Connect it to their hosting provider (Vercel domains if connected), 3) Verify DNS propagation. Suggest advancing to Build Prototype once domain is live.",
+    "GUIDE THE USER TO: 1) Pick a domain that makes the pitch credible, 2) Connect it to hosting (Vercel domains if connected), 3) Keep collecting signal. Advance to Build Prototype ONLY when real validation evidence exists in memories — signups, replies, or clear demand. If there's none yet, keep the user validating instead of building.",
   "build-prototype":
-    "GUIDE THE USER TO: 1) Define core features (from memories/brief), 2) Generate implementation prompts for Cursor/Claude Code/Devin with full project context, 3) Build iteratively — one feature at a time, 4) Search Figma for design references if connected. The user builds externally and returns to update progress.",
+    "GUIDE THE USER TO: 1) Before generating any build prompt, CHECK memories/doc for validation evidence — if it's thin, send the user back to validate demand first, 2) Pick the ONE feature the evidence points to, 3) Generate implementation prompts for Cursor/Claude Code/Devin packed with project context and memories, 4) Build iteratively — one feature at a time. The user builds externally and returns to update progress.",
   "next-features":
-    "GUIDE THE USER TO: 1) Gather user feedback from Slack/Discord, 2) Prioritize the backlog (use Notion if connected), 3) Generate implementation prompts for the next features, 4) Delegate to AI coding tools. Keep iterating.",
+    "GUIDE THE USER TO: 1) Collect what users actually asked for (Slack/Discord if connected), 2) Prioritize only validated requests (use Notion if connected), 3) Generate implementation prompts for those features, 4) Keep iterating: request → build → feedback.",
 };
 
 /**

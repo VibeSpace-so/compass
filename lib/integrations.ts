@@ -141,8 +141,8 @@ export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
   ideation: [
     {
       integrationId: "perplexity",
-      purpose: "Research your idea — find competitors, validate demand, and discover market gaps.",
-      outcome: "Make informed decisions with real data before building anything.",
+      purpose: "Research whether the problem is real — how people describe it, solve it today, and who feels it most.",
+      outcome: "Evidence the problem exists before you build anything.",
     },
     {
       integrationId: "notion",
@@ -190,8 +190,8 @@ export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
   "landing-page": [
     {
       integrationId: "lovable",
-      purpose: "Generate a landing page from your project brief.",
-      outcome: "Go from idea to live page in minutes, not hours.",
+      purpose: "Generate a validation page from your project brief — a pitch and a call to action, not a product.",
+      outcome: "Test real demand in minutes instead of building features nobody wants.",
     },
     {
       integrationId: "cursor",
