@@ -171,16 +171,20 @@ button explicitly instead of pressing Enter.
 
 Groq (Llama models) sometimes output malformed tool calls in XML format (`<function=save_memory>`) instead of JSON. This causes a 400 error with `"code":"tool_use_failed"`. **Workaround:** Retry the message — it usually succeeds on the next attempt. This is a Groq model limitation, not a Compass bug.
 
-### Inline `{"action","params"}` tool calls are silently dropped (no memories saved)
+### Inline `{"action","params"}` tool calls (Groq models) — fixed in PR #41, watch for regressions
 
 Groq models that lack native tool-calling (`openai/gpt-oss-20b`, `qwen/qwen3.8-27b` — both confirmed) emit
-tool calls as inline text: `{"action": "save_memory", "params": {...}}`. `parseInlineToolCalls`
-(`lib/chat-service.ts`) only accepts `<function=name>{...}`, fenced ` ```json {name, arguments|parameters} `,
-or bare `{name, arguments|parameters}` — **NOT** `{action, params}`. The calls render as literal code
-blocks in the reply and never execute: 0 memories, stage "actions captured" counter stays 0, and the
-assistant claims it saved things. There is no error anywhere — check `Object.keys(localStorage).filter(k =>
-k.includes('project-mem-'))`, not the reply text. This makes the chat→memory→threshold path unreachable
-with these models; report it as a pre-existing app bug if hit while testing something else.
+tool calls as inline text: `{"action": "save_memory", "params": {...}}`. Before PR #41 these were silently
+dropped: `parseInlineToolCalls` (`lib/chat-service.ts`) only accepted `<function=name>{...}`, fenced
+` ```json {name, arguments|parameters} `, or bare `{name, arguments|parameters}` — the calls rendered as
+literal code blocks, never executed, and the assistant claimed it saved things with **no error anywhere**.
+The fix adds `toolName`/`toolArgs` helpers that also accept `action` + `params`/`action_input` alongside
+the old shapes — verified e2e (2 memories persisted, "Compass: save_memory" tool cards rendered, stage
+counter 0→2) and at unit level (all format variants + non-tool JSON ignored).
+
+**If a future regression makes inline calls render as ```json code blocks again**, the same diagnostic
+applies: check `Object.keys(localStorage).filter(k => k.includes('project-mem-'))`, not the reply text —
+the assistant will claim it saved things whether or not the calls executed.
 
 **Seeding workaround** (verifies downstream UI like the accent-filled Advance button): unencrypted
 projects read `vibe-compass-project-mem-{projectId}` as a plaintext JSON array, so write entries and reload:
