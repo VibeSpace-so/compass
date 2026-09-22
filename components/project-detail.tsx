@@ -339,7 +339,7 @@ export default function ProjectDetail({
 
         {/* Secondary panel — Context sidebar (desktop: side panel, mobile: overlay) */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-30 md:relative md:inset-auto md:z-auto flex flex-col w-full md:w-[340px] border-l border-[var(--accent-26)] overflow-hidden flex-shrink-0 bg-[#0a0a0a] md:bg-transparent">
+          <div className="fixed inset-x-0 bottom-0 top-12 z-30 md:relative md:inset-auto md:z-auto md:top-auto flex flex-col w-full md:w-[340px] border-l border-[var(--accent-26)] overflow-hidden flex-shrink-0 bg-[#0a0a0a] md:bg-transparent">
             {/* Sidebar header with close button on mobile */}
             <div className="flex items-center border-b border-[var(--accent-26)] flex-shrink-0">
               {sidebarTabs.map((tab) => (

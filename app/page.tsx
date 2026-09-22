@@ -59,6 +59,7 @@ export default function CompassPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBYOK, setShowBYOK] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const confirmDeleteRef = useRef<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -189,7 +190,10 @@ export default function CompassPage() {
         clearTimeout(deleteTimeoutRef.current);
         deleteTimeoutRef.current = null;
       }
-      if (confirmDelete === id) {
+      // Ref mirrors confirmDelete so a quick second click before the
+      // re-render still confirms instead of just re-arming.
+      if (confirmDeleteRef.current === id) {
+        confirmDeleteRef.current = null;
         // Also wipe encrypted data for deleted project
         wipeProjectData(id);
         const newState = deleteProject(state, id);
@@ -199,14 +203,15 @@ export default function CompassPage() {
           setView("home");
         }
       } else {
+        confirmDeleteRef.current = id;
         setConfirmDelete(id);
-        deleteTimeoutRef.current = setTimeout(
-          () => setConfirmDelete(null),
-          3000
-        );
+        deleteTimeoutRef.current = setTimeout(() => {
+          confirmDeleteRef.current = null;
+          setConfirmDelete(null);
+        }, 3000);
       }
     },
-    [state, confirmDelete]
+    [state]
   );
 
   const handleToggleProvider = useCallback(
