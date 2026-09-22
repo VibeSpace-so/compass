@@ -3,13 +3,13 @@
 import { Compass, KeyRound } from "lucide-react";
 
 interface NavBarProps {
-  hasProjects: boolean;
+  showSettings: boolean;
   onSettingsClick: () => void;
   onLogoClick: () => void;
 }
 
 export default function NavBar({
-  hasProjects,
+  showSettings,
   onSettingsClick,
   onLogoClick,
 }: NavBarProps) {
@@ -28,13 +28,15 @@ export default function NavBar({
         </button>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onSettingsClick}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all"
-          >
-            <KeyRound className="w-3 h-3" />
-            <span className="hidden sm:inline">API keys</span>
-          </button>
+          {showSettings && (
+            <button
+              onClick={onSettingsClick}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--accent-26)] hover:border-[var(--accent-44)] transition-all"
+            >
+              <KeyRound className="w-3 h-3" />
+              <span className="hidden sm:inline">API keys</span>
+            </button>
+          )}
         </div>
       </div>
     </nav>

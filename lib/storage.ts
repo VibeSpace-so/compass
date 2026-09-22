@@ -8,6 +8,7 @@ import {
   saveEncryptedChat,
   getCachedChat,
   setProjectPassword,
+  lockProject,
   rewriteProjectKeysAndChat,
 } from "./secure-storage";
 import {
@@ -211,6 +212,7 @@ export function updateProject(
 export function deleteProject(state: AppState, id: string): AppState {
   const { [id]: _removed, ...remainingChat } = state.chatHistory;
   const { [id]: _removedMem, ...remainingMemories } = state.memories;
+  lockProject(id);
   clearProjectMemories(id);
   clearProjectDoc(id);
   const newState: AppState = {

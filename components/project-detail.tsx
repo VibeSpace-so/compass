@@ -165,6 +165,13 @@ export default function ProjectDetail({
     }
   }
 
+  // The sidebar is a full-screen overlay below md — keep the chat in front on open.
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarOpen(false);
+    }
+  }, []);
+
   // Keyboard shortcut for sidebar toggle
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

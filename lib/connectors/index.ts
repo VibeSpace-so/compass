@@ -1,4 +1,7 @@
-import { IntegrationConnector } from "@/lib/integration-service";
+import {
+  IntegrationConnector,
+  getIntegrationRegistry,
+} from "@/lib/integration-service";
 import { NotionConnector } from "./notion";
 import { GoogleDocsConnector } from "./google-docs";
 import { FigmaConnector } from "./figma";
@@ -46,4 +49,17 @@ export function createDefaultConnectors(): IntegrationConnector[] {
     new Base44Connector(),
     new PerplexityConnector(),
   ];
+}
+
+/**
+ * Idempotently register every default connector. Safe to call before any
+ * registry use so tool availability never depends on render order.
+ */
+export function ensureDefaultConnectors(): void {
+  const registry = getIntegrationRegistry();
+  for (const connector of createDefaultConnectors()) {
+    if (!registry.getConnector(connector.id)) {
+      registry.registerConnector(connector);
+    }
+  }
 }

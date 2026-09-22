@@ -82,11 +82,12 @@ export function hasEncryptedKey(projectId: string, key: string): boolean {
 export async function loadAllProjectKeys(projectId: string): Promise<void> {
   const encrypted = isProjectEncrypted(projectId);
   const password = projectPasswords.get(projectId);
-  if (encrypted && !password) return;
-
-  if (!projectKeyCache.has(projectId)) {
-    projectKeyCache.set(projectId, new Map());
+  if (encrypted && !password) {
+    projectKeyCache.delete(projectId);
+    return;
   }
+
+  projectKeyCache.set(projectId, new Map());
 
   const prefix = ENC_PREFIX + projectId + "-";
   for (let i = 0; i < localStorage.length; i++) {
@@ -134,10 +135,16 @@ export async function replaceProjectChat(
 export async function loadEncryptedChat(projectId: string): Promise<ChatMessage[]> {
   const encrypted = isProjectEncrypted(projectId);
   const password = projectPasswords.get(projectId);
-  if (encrypted && !password) return [];
+  if (encrypted && !password) {
+    projectChatCache.delete(projectId);
+    return [];
+  }
 
   const stored = localStorage.getItem(CHAT_PREFIX + projectId);
-  if (!stored) return [];
+  if (!stored) {
+    projectChatCache.delete(projectId);
+    return [];
+  }
 
   try {
     const json = encrypted ? await decrypt(stored, password!, projectId) : stored;

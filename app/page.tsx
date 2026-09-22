@@ -22,6 +22,7 @@ import {
   isProjectUnlocked,
   loadAllProjectKeys,
   loadEncryptedChat,
+  lockProject,
 } from "@/lib/secure-storage";
 import {
   isProjectEncrypted,
@@ -29,9 +30,10 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
-import { getCachedMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
+import { getCachedMemories, clearProjectMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
 import {
   getCachedProjectDoc,
+  clearProjectDoc,
   ensureProjectDoc,
   loadEncryptedProjectDoc,
   migrateLegacyBrief,
@@ -162,6 +164,11 @@ export default function CompassPage() {
 
   const handleWipeProject = useCallback(() => {
     if (!state || !state.selectedProjectId) return;
+    const projectId = state.selectedProjectId;
+    // Drop decrypted copies held in memory, not just localStorage
+    lockProject(projectId);
+    clearProjectMemories(projectId);
+    clearProjectDoc(projectId);
     // Project data wiped — go back to project list
     setState(loadState());
     setView("home");
@@ -218,6 +225,7 @@ export default function CompassPage() {
   const handleGoHome = useCallback(() => {
     if (!state) return;
     setActiveProjectForConnectors(null);
+    setShowBYOK(false);
     setState(selectProject(state, null));
     setView("home");
   }, [state]);
@@ -357,7 +365,7 @@ export default function CompassPage() {
   return (
     <>
       <NavBar
-        hasProjects={state.projects.length > 0}
+        showSettings={view === "project" && selectedProject != null}
         onSettingsClick={() => setShowBYOK(true)}
         onLogoClick={handleGoHome}
       />
