@@ -139,14 +139,12 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
     // First interaction suggestions based on stage
     const stageReplies: Record<string, string[]> = {
       ideation: [
-        "Help me validate this problem",
-        "Who actually has this problem?",
-        "Research how people solve this today",
+        "Interview me about the problem",
+        "Why validate before building?",
       ],
       context: [
-        "Draft my project brief",
+        "Interview me to build the brief",
         "What context do AI build tools need?",
-        "Research how competitors solve this",
       ],
       "landing-page": [
         "Generate a validation page prompt",
@@ -257,8 +255,8 @@ function getDirectiveGreeting(project: Project): string {
   if (!stage) return "Let's get started with your project.";
 
   const greetings: Record<string, string> = {
-    ideation: `Before building anything, let's validate the problem behind **${project.name || "your project"}**. Tell me:\n\n1. **Who has this problem?** (your target user)\n2. **How painful is it?** — what do they do about it today?\n3. **What evidence** says it's real and worth solving?\n\nI'll save your answers as memories — they're the context every tool downstream will use.`,
-    context: `Time to arm your AI tools with context for **${project.name}** — the richer the brief, the better the first build lands. We need:\n\n1. A **project brief** (problem evidence, target user, constraints)\n2. **Research** on how people solve this today\n3. **Technical decisions** (stack, tools, approach)\n\nNothing gets coded yet — context first. What would you like to start with?`,
+    ideation: `Let's validate the problem behind **${project.name || "your project"}** before anything gets built. I'll ask one question at a time and save your answers — they become the context every tool downstream runs on.\n\nFirst: **who has this problem?** Describe the person who'd feel it most.`,
+    context: `Nothing gets coded for **${project.name}** yet — first we build the context your AI build tools will run on. One question at a time, saved as we go.\n\nLet's start: **what is it in one sentence?** Who it helps, and what it does for them.`,
     "landing-page": `Let's validate demand for **${project.name}** — with a page, not a product. I can:\n\n- Generate a **Lovable/v0 prompt** carrying your full brief\n- Help write the **pitch + call to action** (a signup is your PMF signal)\n- Define the **structure** (hero, problem, CTA)\n\nReady to put the pitch in front of real people?`,
     github: `Let's get **${project.name}** into version control.\n\nI'll help you:\n1. Set up a GitHub repository\n2. Write a README that states the problem you're validating\n3. Push your validation page\n\nHave you created a repo yet, or should we start from scratch?`,
     hosting: `Time to get the **${project.name}** validation page live.\n\nBest options for your project:\n- **Vercel** — zero-config for Next.js/React\n- **Netlify** — great for static sites\n- **Railway** — if you need a backend\n\nDeploy it, share the link where your target users are, and tell me what comes back — signups and objections are your signal.`,
