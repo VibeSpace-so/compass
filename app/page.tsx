@@ -449,9 +449,27 @@ export default function CompassPage() {
             showEncryptReminder={!selectedEncrypted && hasStoredKeys}
             onEncryptClick={() => setShowBYOK(true)}
           />
+        ) : state.projects.length > 0 ? (
+          <>
+            {/* Workspace first — marketing content yields to your projects */}
+            <div id="projects-section">
+              <ProjectList
+                projects={state.projects}
+                selectedId={state.selectedProjectId}
+                onSelect={handleSelectProject}
+                onDelete={handleDeleteProject}
+                onCreate={() => setShowCreateModal(true)}
+                onImport={handleImportProject}
+              />
+            </div>
+
+            <div className="border-t border-[var(--accent-26)]">
+              <JourneyMap />
+            </div>
+          </>
         ) : (
           <>
-            <Hero onStart={handleStart} hasProjects={state.projects.length > 0} />
+            <Hero onStart={handleStart} hasProjects={false} />
 
             <div className="border-t border-[var(--accent-26)]">
               <JourneyMap />

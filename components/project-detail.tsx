@@ -18,6 +18,7 @@ import {
   Lock,
   X,
   Download,
+  AlertTriangle,
 } from "lucide-react";
 import { exportProject } from "@/lib/project-export";
 import StageIcon from "./stage-icon";
@@ -142,6 +143,24 @@ function Section({
 
 type SidebarTab = "context" | "brief" | "settings";
 
+const BRIEF_PREVIEW_SECTIONS: { id: ProjectDocSectionId; label: string }[] = [
+  { id: "problem", label: "Problem" },
+  { id: "targetUser", label: "Target user" },
+  { id: "constraints", label: "Constraints" },
+];
+
+function firstDocLine(
+  doc: ProjectDoc | undefined,
+  id: ProjectDocSectionId
+): string | null {
+  const section = doc?.sections.find((s) => s.id === id);
+  const line = section?.content
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/^-\s*/, ""))
+    .find(Boolean);
+  return line ?? null;
+}
+
 export default function ProjectDetail({
   project,
   onUpdate,
@@ -165,6 +184,10 @@ export default function ProjectDetail({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reminderDismissed, setReminderDismissed] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [pendingAdvance, setPendingAdvance] = useState<{
+    stageId: StageId;
+    reason: string;
+  } | null>(null);
 
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
@@ -173,6 +196,47 @@ export default function ProjectDetail({
     (memory) => memory.stage === project.currentStage
   );
   const stageThreshold = getStageThreshold(project.currentStage);
+  const buildIndex = getStageIndex("build-prototype");
+  const hasValidationEvidence = memories.some((memory) =>
+    (["landing-page", "hosting", "domain"] as StageId[]).includes(memory.stage)
+  );
+  const docFilledCount =
+    doc?.sections.filter((section) => section.content.trim()).length ?? 0;
+  const docTotalCount = doc?.sections.length ?? BRIEF_PREVIEW_SECTIONS.length;
+
+  // Forward movement is free when it follows the arc; skipping stages or
+  // building without demand evidence earns a warning instead of a block.
+  function requestStage(targetId: StageId) {
+    const targetIdx = getStageIndex(targetId);
+    if (targetIdx < 0 || targetIdx === stageIdx) return;
+
+    const reasons: string[] = [];
+    if (targetIdx > stageIdx + 1) {
+      const skipped = targetIdx - stageIdx - 1;
+      reasons.push(`skips ${skipped} stage${skipped === 1 ? "" : "s"}`);
+    }
+    if (targetIdx > stageIdx && targetIdx >= buildIndex && !hasValidationEvidence) {
+      reasons.push("goes straight to building with no demand evidence saved yet");
+    }
+    if (reasons.length > 0) {
+      setPendingAdvance({
+        stageId: targetId,
+        reason: `Moving to ${getStage(targetId)?.label ?? targetId} ${reasons.join(
+          " and "
+        )} — the journey works because each stage feeds the next.`,
+      });
+      return;
+    }
+    setPendingAdvance(null);
+    onUpdate({ currentStage: targetId });
+  }
+
+  function confirmPendingAdvance() {
+    if (!pendingAdvance) return;
+    const targetId = pendingAdvance.stageId;
+    setPendingAdvance(null);
+    onUpdate({ currentStage: targetId });
+  }
 
   function handleExport() {
     try {
@@ -397,6 +461,83 @@ export default function ProjectDetail({
             <div className="flex-1 overflow-y-auto p-4">
               {sidebarTab === "context" && (
                 <div className="space-y-4">
+                  {/* Journey stepper — always-on wayfinding */}
+                  <div className="rounded-xl border border-[var(--accent-26)] p-3">
+                    <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                      Your journey
+                    </div>
+                    <div className="relative">
+                      <div
+                        className="absolute left-[5px] top-2 bottom-2 w-px bg-[var(--accent-15)]"
+                        aria-hidden
+                      />
+                      {STAGES.map((s, i) => {
+                        const isPast = i < stageIdx;
+                        const isCurrent = i === stageIdx;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => requestStage(s.id)}
+                            title={s.description}
+                            className="relative w-full flex items-center gap-2.5 py-1 text-left group"
+                          >
+                            <span
+                              className={`relative z-10 flex-shrink-0 w-2.5 h-2.5 rounded-full border transition-colors ${
+                                isCurrent
+                                  ? "bg-[var(--accent)] border-[var(--accent)] shadow-[0_0_6px_var(--accent)]"
+                                  : isPast
+                                    ? "bg-[var(--accent-44)] border-[var(--accent-44)]"
+                                    : "bg-black border-[var(--accent-26)] group-hover:border-[var(--accent-44)]"
+                              }`}
+                            />
+                            <span
+                              className={`flex-1 min-w-0 truncate text-[11px] transition-colors ${
+                                isCurrent
+                                  ? "text-[var(--accent)] font-medium"
+                                  : isPast
+                                    ? "text-[var(--text-muted)]"
+                                    : "text-[var(--text-secondary)] group-hover:text-[var(--accent)]"
+                              }`}
+                            >
+                              {s.label}
+                            </span>
+                            {isCurrent && (
+                              <span className="flex-shrink-0 text-[9px] font-medium uppercase tracking-wider text-[var(--accent)]">
+                                Now
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Advancement warning */}
+                  {pendingAdvance && (
+                    <div className="rounded-xl border border-yellow-600/40 bg-yellow-500/5 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-yellow-500/90 leading-relaxed">
+                          {pendingAdvance.reason}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 mt-2.5">
+                        <button
+                          onClick={confirmPendingAdvance}
+                          className="flex-1 px-2.5 py-1.5 rounded text-[10px] font-medium border border-yellow-600/50 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                        >
+                          Continue anyway
+                        </button>
+                        <button
+                          onClick={() => setPendingAdvance(null)}
+                          className="flex-1 px-2.5 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+                        >
+                          Stay here
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Current stage card */}
                   {stage && (
                     <div className="rounded-xl border border-[var(--accent-26)] bg-[var(--accent-10)] p-4 shadow-[inset_2px_0_0_var(--accent)]">
@@ -441,7 +582,7 @@ export default function ProjectDetail({
                     {nextStage && (
                       <>
                         <button
-                          onClick={() => onUpdate({ currentStage: nextStage.id })}
+                          onClick={() => requestStage(nextStage.id)}
                           className={`mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs font-medium transition-opacity ${
                             completedActions.length >= stageThreshold
                               ? "bg-[var(--accent)] text-black hover:opacity-80"
@@ -457,6 +598,50 @@ export default function ProjectDetail({
                       </>
                     )}
                   </div>
+
+                  {/* Brief snapshot — context is always visible */}
+                  <button
+                    onClick={() => setSidebarTab("brief")}
+                    className="w-full rounded-xl border border-[var(--accent-26)] p-3 text-left hover:border-[var(--accent-44)] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
+                        Your brief
+                      </span>
+                      <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+                        {docFilledCount}/{docTotalCount}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-[var(--accent-10)] overflow-hidden mb-2.5">
+                      <div
+                        className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, (docFilledCount / Math.max(docTotalCount, 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      {BRIEF_PREVIEW_SECTIONS.map(({ id, label }) => {
+                        const content = firstDocLine(doc, id);
+                        return (
+                          <div key={id} className="flex gap-2 text-[11px]">
+                            <span className="w-20 flex-shrink-0 text-[var(--text-muted)]">
+                              {label}
+                            </span>
+                            <span
+                              className={`flex-1 min-w-0 truncate ${
+                                content
+                                  ? "text-[var(--text-secondary)]"
+                                  : "text-[var(--text-muted)] italic"
+                              }`}
+                            >
+                              {content ?? "not captured yet"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </button>
 
                   {/* Deeper actions live behind expandable sections */}
                   <Section title="Tools & resources">
@@ -519,9 +704,7 @@ export default function ProjectDetail({
                   <Section title="Journey map">
                     <JourneyMap
                       activeStage={project.currentStage}
-                      onStageClick={(id: StageId) =>
-                        onUpdate({ currentStage: id })
-                      }
+                      onStageClick={(id: StageId) => requestStage(id)}
                       compact
                     />
                   </Section>
