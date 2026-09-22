@@ -171,6 +171,31 @@ button explicitly instead of pressing Enter.
 
 Groq (Llama models) sometimes output malformed tool calls in XML format (`<function=save_memory>`) instead of JSON. This causes a 400 error with `"code":"tool_use_failed"`. **Workaround:** Retry the message — it usually succeeds on the next attempt. This is a Groq model limitation, not a Compass bug.
 
+### Inline `{"action","params"}` tool calls are silently dropped (no memories saved)
+
+Groq models that lack native tool-calling (`openai/gpt-oss-20b`, `qwen/qwen3.8-27b` — both confirmed) emit
+tool calls as inline text: `{"action": "save_memory", "params": {...}}`. `parseInlineToolCalls`
+(`lib/chat-service.ts`) only accepts `<function=name>{...}`, fenced ` ```json {name, arguments|parameters} `,
+or bare `{name, arguments|parameters}` — **NOT** `{action, params}`. The calls render as literal code
+blocks in the reply and never execute: 0 memories, stage "actions captured" counter stays 0, and the
+assistant claims it saved things. There is no error anywhere — check `Object.keys(localStorage).filter(k =>
+k.includes('project-mem-'))`, not the reply text. This makes the chat→memory→threshold path unreachable
+with these models; report it as a pre-existing app bug if hit while testing something else.
+
+**Seeding workaround** (verifies downstream UI like the accent-filled Advance button): unencrypted
+projects read `vibe-compass-project-mem-{projectId}` as a plaintext JSON array, so write entries and reload:
+
+```js
+localStorage.setItem('vibe-compass-project-mem-<projectId>', JSON.stringify([
+  {id:'s1', type:'decision', content:'...', stage:'ideation',
+   createdAt:'2026-09-22T20:00:00Z', source:'ai'}
+])); location.reload()
+```
+
+`stage` must match the project's current stage for the counter to see it; valid `type`s are
+preference|decision|constraint|context|learning|artifact. `git checkout` is not needed — nothing in the
+repo was edited.
+
 ### Raw provider errors are surfaced verbatim in the chat bubble
 
 There is no friendly error mapping: an exhausted Groq quota renders the whole provider
