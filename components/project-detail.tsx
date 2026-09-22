@@ -216,7 +216,7 @@ export default function ProjectDetail({
       reasons.push(`skips ${skipped} stage${skipped === 1 ? "" : "s"}`);
     }
     if (targetIdx > stageIdx && targetIdx >= buildIndex && !hasValidationEvidence) {
-      reasons.push("there's no demand evidence in your memories yet");
+      reasons.push("goes straight to building with no demand evidence saved yet");
     }
     if (reasons.length > 0) {
       setPendingAdvance({
@@ -625,7 +625,7 @@ export default function ProjectDetail({
                         const content = firstDocLine(doc, id);
                         return (
                           <div key={id} className="flex gap-2 text-[11px]">
-                            <span className="w-16 flex-shrink-0 text-[var(--text-muted)]">
+                            <span className="w-20 flex-shrink-0 text-[var(--text-muted)]">
                               {label}
                             </span>
                             <span
