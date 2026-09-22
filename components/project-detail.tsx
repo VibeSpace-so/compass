@@ -110,6 +110,36 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
   );
 }
 
+function Section({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-[var(--accent-26)] rounded">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+      >
+        <span className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
+          {title}
+        </span>
+        {open ? (
+          <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
+        )}
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
 type SidebarTab = "context" | "brief" | "settings";
 
 export default function ProjectDetail({
@@ -133,7 +163,6 @@ export default function ProjectDetail({
   const [editingDesc, setEditingDesc] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("context");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showMap, setShowMap] = useState(false);
   const [reminderDismissed, setReminderDismissed] = useState(false);
   const [exportError, setExportError] = useState("");
 
@@ -394,6 +423,7 @@ export default function ProjectDetail({
                     </div>
                   )}
 
+                  {/* Stage progress + advance, merged */}
                   <div className="border border-[var(--accent-26)] rounded p-3">
                     <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                       Stage progress
@@ -401,101 +431,85 @@ export default function ProjectDetail({
                     <div className="mt-1 text-[10px] text-[var(--text-muted)]">
                       {completedActions.length} action{completedActions.length === 1 ? "" : "s"} captured · threshold {stageThreshold} to advance
                     </div>
-                    {nextStage && completedActions.length >= stageThreshold && (
-                      <div className="mt-1 text-[10px] text-[var(--accent)]">
-                        Ready to advance →
-                      </div>
+                    {nextStage && (
+                      <>
+                        <button
+                          onClick={() => onUpdate({ currentStage: nextStage.id })}
+                          className={`mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs font-medium transition-opacity ${
+                            completedActions.length >= stageThreshold
+                              ? "bg-[var(--accent)] text-black hover:opacity-80"
+                              : "border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)]"
+                          }`}
+                        >
+                          Advance to {nextStage.label}
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-2 text-center">
+                          Or type /advance in chat
+                        </p>
+                      </>
                     )}
                   </div>
 
-                  {/* Stage readiness indicator */}
-                  {nextStage && (
-                    <div className="border border-[var(--accent-26)] rounded p-3">
-                      <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                        Ready to advance?
-                      </div>
-                      <button
-                        onClick={() => onUpdate({ currentStage: nextStage.id })}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs bg-[var(--accent)] text-black font-medium hover:opacity-80 transition-opacity"
-                      >
-                        Advance to {nextStage.label}
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-2 text-center">
-                        Or type /advance in chat
-                      </p>
+                  {/* Deeper actions live behind expandable sections */}
+                  <Section title="Tools & resources">
+                    <div className="space-y-3">
+                      {stage && (
+                        <div>
+                          <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                            Recommended tools
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {stage.tools.map((tool) => (
+                              <button
+                                key={tool}
+                                onClick={() => onUpdate({ selectedTool: tool })}
+                                className={`px-2 py-1 rounded text-[10px] border transition-colors ${
+                                  project.selectedTool === tool
+                                    ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                                    : "border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)]"
+                                }`}
+                              >
+                                {tool}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {stage && stage.links.length > 0 && (
+                        <div>
+                          <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                            Resources
+                          </div>
+                          <div className="space-y-1.5">
+                            {stage.links.map((link) => (
+                              <a
+                                key={link.url}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                {link.label}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </Section>
 
-                  {/* Recommended tools */}
-                  {stage && (
-                    <div className="border border-[var(--accent-26)] rounded p-3">
-                      <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                        Recommended tools
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {stage.tools.map((tool) => (
-                          <button
-                            key={tool}
-                            onClick={() => onUpdate({ selectedTool: tool })}
-                            className={`px-2 py-1 rounded text-[10px] border transition-colors ${
-                              project.selectedTool === tool
-                                ? "border-[var(--accent)] bg-[var(--accent)] text-black"
-                                : "border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)]"
-                            }`}
-                          >
-                            {tool}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <Section title="Integrations">
+                    <IntegrationsPanel
+                      integrations={integrations}
+                      onToggle={onToggleIntegration}
+                      stageId={project.currentStage}
+                      projectId={project.id}
+                    />
+                  </Section>
 
-                  {/* Resources */}
-                  {stage && stage.links.length > 0 && (
-                    <div className="border border-[var(--accent-26)] rounded p-3">
-                      <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                        Resources
-                      </div>
-                      <div className="space-y-1.5">
-                        {stage.links.map((link) => (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
-                          >
-                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                            {link.label}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Contextual integrations */}
-                  <IntegrationsPanel
-                    integrations={integrations}
-                    onToggle={onToggleIntegration}
-                    stageId={project.currentStage}
-                    projectId={project.id}
-                  />
-
-                  {/* Journey map toggle */}
-                  <button
-                    onClick={() => setShowMap(!showMap)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
-                  >
-                    {showMap ? (
-                      <ChevronDown className="w-3 h-3" />
-                    ) : (
-                      <ChevronRight className="w-3 h-3" />
-                    )}
-                    {showMap ? "Hide" : "Show"} full journey map
-                  </button>
-
-                  {showMap && (
+                  <Section title="Journey map">
                     <JourneyMap
                       activeStage={project.currentStage}
                       onStageClick={(id: StageId) =>
@@ -503,7 +517,7 @@ export default function ProjectDetail({
                       }
                       compact
                     />
-                  )}
+                  </Section>
                 </div>
               )}
 
