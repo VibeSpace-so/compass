@@ -253,14 +253,19 @@ armed state expires within a few seconds — a slow second click RE-ARMS instead
 trash twice in quick succession (same action batch) to actually delete and get the "Project deleted —
 Undo" toast.
 
-### Raw provider errors are surfaced verbatim in the chat bubble
+### Raw provider errors are surfaced verbatim in the chat bubble — superseded on journey-fixes branch
 
-There is no friendly error mapping: an exhausted Groq quota renders the whole provider
-JSON (`Rate limit reached ... Limit 8000, Used 7890 ...`) as a chat message, and a
-malformed tool call renders `attempted to call tool 'save_memory<|channel|>commentary'
-which was not in request.tools`. Treat these as UX defects worth reporting, and note
-that a memory can still be persisted by a turn that visibly failed — always re-check
-the Brief counter after an error rather than assuming the turn was a no-op.
+On branches before the `formatChatError`/`shouldRetryNonStream` fix there was no friendly error
+mapping: an exhausted Groq quota rendered the whole provider JSON (`Rate limit reached ... Limit
+8000, Used 7890 ...`), and a malformed tool call rendered `attempted to call tool
+'save_memory<|channel|>commentary'`. On `devin/1790178106-journey-fixes`+ provider errors ARE
+mapped: 429/rate-limit text becomes "Provider rate limit reached — wait a moment, or add/switch
+providers in AI Guidance (a custom endpoint can work around per-minute caps). (Provider response
+NNN)" with a Retry button, and the stream→non-stream fallback only retries
+400/404/405/406/415/422 (never 429/401/403/5xx — no more double-fire). If raw JSON leaks into a
+bubble again, that's a regression. Either way: a memory can still be persisted by a turn that
+visibly failed — always re-check the Brief counter after an error rather than assuming the turn
+was a no-op.
 
 ### Integration "Connected" badge is global, not per project
 
@@ -269,6 +274,30 @@ the Brief counter after an error rather than assuming the turn was a no-op.
 in `lib/integration-service.ts`. Connecting Perplexity in one project shows
 "Connected" in every project. The absence of a "Test connection" button (which uses the
 project-scoped `tokenSaved`) is the giveaway that no real token exists there.
+
+### Phantom saves on weaker models — "I've saved" narration ≠ tool call (verified Sep 2026)
+
+On `openai/gpt-4o-mini` (AI Gateway), the model routinely **claims** persistence without emitting
+tool calls: "I've saved this milestone…", "I'll save this decision…", or ask-to-save prompts like
+"Shall I proceed to save this as a memory?" — no tool card, Brief badge and stage counters
+unmoved. In a full 9-stage run it produced 3 real `save_memory` calls (all at Ideation) + 5
+`update_project_doc` (all at Context) and ZERO saves across the other 6 stages despite repeated
+narrated claims. Two consequences for testing:
+
+- **Never trust the reply text for persistence claims** — assert on the Brief badge, the stage
+  "N actions captured" counter, or the `vibe-compass-project-mem-{id}` key.
+- **Stage "actions captured" counts `save_memory` only, not `update_project_doc`** — a stage can
+  fill 5/9 brief rows and still read 0/N, which makes the earned-threshold warn fire on users
+  who did real work. When verifying gate warnings, prefer the stepper-row node click for +1
+  moves — the sidebar "Advance to X" button hit-area flaked once (3 clicks, no warn; DOM showed
+  no `disabled`).
+- **Tool routing is ask-shape dependent**: a typed "Write the Cursor prompt…" got a hand-written
+  inline prompt (fabricated files, no tool card); the suggested chip "Write the Cursor prompt
+  for it" fired the real `cursor_generate_prompt`. When a PR claims tool output changed, trigger
+  the tool — don't accept inline text as proof.
+- **Pinned-header checks**: with only a few memories the list won't overflow — shrink the window
+  (`wmctrl -r :ACTIVE: -e 0,0,0,1024,500`) so the list overflows, then scroll and confirm the
+  toggle/search stay put.
 
 ### Perplexity test-connection status is not reflected in the badge
 
