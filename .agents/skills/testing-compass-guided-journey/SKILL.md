@@ -337,14 +337,25 @@ narrated claims. Two consequences for testing:
 - `enhanceStageGuidance` is cache-first since 0500a48 — pills re-flag ONLY on the
   first generic→enhanced transition, not every open. Verify: clear-all → reload →
   reopen → expect 0 pills → select a never-enhanced stage → re-flags once.
+- Unread "!" pills sit on each risk/flag marker until viewed (hover or click
+  marks read, `vibe-compass-map-read-{id}`); header "N unread — clear" resets.
+  Marker ids hash the tooltip copy, so an AI-tailored rewrite re-flags as new.
 - Stage names are country-label <text> on the landmass (no blobs since f49b74e);
   an invisible `closedBlobPath(pointerEvents="fill")` is the click target —
-  dead-center name clicks work. Milestone flags sit beside names (z-10) — a
-  left-edge click can hit the flag instead of the name.
+  dead-center name clicks work. Milestone flags sit at trail-segment midpoints
+  (flagSpot, z-10) — a click near the trail can hit the flag instead of the name.
 - Markers are ~16-26px buttons (flags w-4, skull w-6, warn w-5) — hard to click
   at 100%. Zoom to 125%+, or dispatch
   `btn.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}))` via devtools and
-  screenshot — the tooltip renders regardless.
+  screenshot — the tooltip renders regardless. Danger = round red skull badge,
+  warn = yellow triangle; hazards sit ~68-80px OFF-trail alternating sides
+  (riskSpot); 6 POI landmarks are icon-only (name + detail in the tooltip).
+- Trails are Catmull-Rom <path>s (smoothPath; curvePoint/curveNormal place
+  markers). Zoom 0.4–2.5 via +/%/− + Ctrl/Cmd-wheel, two-finger pinch on touch
+  (touchAction pan-x pan-y); open fits the whole continent (≤1.5) or 0.7
+  phone-centered on the current stage, "%" re-fits. Below lg the detail panel
+  stacks under the map. Pan = overflow scroll (wheel/touch; NOT mouse drag);
+  the 1000×620 layer scales while tooltip/compass/zoom UI stay unscaled.
 - COORDINATE SCALING: display 1600×1200 real, screenshots 1024×768 (×0.64 both
   axes), DOM viewport 1600×1069 (~131px browser chrome above it). DOM rect →
   screenshot click: `ssx = vx*0.64`, `ssy = (vy+131)*0.64`. When a click "does
