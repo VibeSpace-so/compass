@@ -299,6 +299,42 @@ narrated claims. Two consequences for testing:
   (`wmctrl -r :ACTIVE: -e 0,0,0,1024,500`) so the list overflows, then scroll and confirm the
   toggle/search stay put.
 
+### Journey Map overlay (PR #58) — entry, layering traps, verification tactics
+
+- Entry: stage-progress card in the Context sidebar has BOTH a "map" icon-button and a
+  "Click to open the journey map →" link — verify both independently.
+- **Stacking (fixed in c818054)**: the overlay used to render INSIDE `<main>`
+  (`relative z-10` in page.tsx) so the sticky nav (`z-40`) painted OVER the map
+  header — "Back to chat" was unreachable and BYOK could open over the map. Now
+  portaled to `document.body` + an Escape keydown listener exists. Still verify
+  close paths at EVERY stage position, not just mid-journey: `applied` outcomes
+  (backward moves) intentionally keep the map open; only `pending` (gated forward
+  move) closes it — so on terminal-stage projects Back to chat / Escape are the
+  ONLY exits. If a regression reintroduces the trap: reload, or pivot back then
+  forward-move → pending → close.
+- **Mobile (≤640px, fixed in c818054)**: container is now `flex-col sm:flex-row`
+  — canvas (`min-h-[300px]`) stacks above the detail panel (`max-h-[45vh]`).
+  Previously it was always row + `w-full` panel → canvas collapsed to 0 width.
+  Horizontal scroll of the wide SVG works via touch/wheel but NOT mouse drag —
+  use the `scroll` action, don't judge by drag.
+- Node positions use `left: x/10%`/`top: y/6.2%` of the CONTAINER (not the SVG) —
+  compute hit targets from container geometry, and prefer `zoom` to locate risk
+  triangles/diamonds exactly; a few px miss produces no tooltip. Markers also have
+  onClick → tooltip, so CLICK works when hover coordinates are fuzzy.
+- Backward "Return to this stage" applies immediately (no warn) and the map STAYS open
+  (only `pending` closes it) — it writes a `decision` memory "Pivoted back from X to Y"
+  stamped on the TARGET stage + a "Moved to X" transcript marker. Verify via that
+  stage's Captured (N) tab and Brief → Memories.
+- Forward "Move to this stage" goes through the same `requestStage` warn gate as the
+  sidebar — the map CLOSES on pending so the warn card is visible behind it.
+- Needle logic (`recommendedStage`): currentIdx ≥ build-prototype && zero memories on
+  landing-page/hosting/domain stages → points back to Landing Page; else next stage.
+  The under-threshold "stay" branch is dead code (callsite passes threshold 0).
+- AI enhancement (`lib/map-guidance.ts`): fires for current + each SELECTED stage on
+  first view; look for the "tailored" badge + project-name-bearing copy. Cache is
+  localStorage `vibe-compass-map-guidance-{projectId}` — reload and reopen to verify
+  instant enhanced render. Needs an active BYOK provider (AI Gateway works; Groq 429s).
+
 ### Perplexity test-connection status is not reflected in the badge
 
 Saving a bogus token and clicking "Test connection" correctly shows a red error, but the
