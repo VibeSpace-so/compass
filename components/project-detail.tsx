@@ -44,6 +44,8 @@ interface ProjectDetailProps {
   showEncryptReminder?: boolean;
   onEncryptClick?: () => void;
   onSystemMessage?: (message: ChatMessage) => void;
+  /** Successful non-memory tool calls executed in the current stage. */
+  stageToolActions?: number;
 }
 
 function DebtSelector({
@@ -195,6 +197,7 @@ export default function ProjectDetail({
   showEncryptReminder = false,
   onEncryptClick,
   onSystemMessage,
+  stageToolActions = 0,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -213,6 +216,9 @@ export default function ProjectDetail({
   const completedActions = memories.filter(
     (memory) => memory.stage === project.currentStage
   );
+  // Memories plus real tool work — models that skip save_memory but run
+  // update_project_doc or a connector still count toward the gate.
+  const actionCount = completedActions.length + (stageToolActions ?? 0);
   const stageThreshold = getStageThreshold(project.currentStage);
   const buildIndex = getStageIndex("build-prototype");
   const hasValidationEvidence = memories.some((memory) =>
@@ -237,9 +243,9 @@ export default function ProjectDetail({
     if (targetIdx > stageIdx && targetIdx >= buildIndex && !hasValidationEvidence) {
       reasons.push("goes straight to building with no demand evidence saved yet");
     }
-    if (targetIdx > stageIdx && completedActions.length < stageThreshold) {
+    if (targetIdx > stageIdx && actionCount < stageThreshold) {
       reasons.push(
-        `only ${completedActions.length} of ${stageThreshold} suggested stage actions are captured`
+        `only ${actionCount} of ${stageThreshold} suggested stage actions are captured`
       );
     }
     if (reasons.length > 0) {
@@ -611,13 +617,13 @@ export default function ProjectDetail({
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--text-muted)]">
                       {nextStage
-                        ? `${completedActions.length} action${completedActions.length === 1 ? "" : "s"} captured · threshold ${stageThreshold} to advance`
-                        : `${completedActions.length} action${completedActions.length === 1 ? "" : "s"} captured · journey complete`}
+                        ? `${actionCount} action${actionCount === 1 ? "" : "s"} captured · threshold ${stageThreshold} to advance`
+                        : `${actionCount} action${actionCount === 1 ? "" : "s"} captured · journey complete`}
                     </div>
                     <div className="mt-2 h-1 rounded-full bg-[var(--accent-10)] overflow-hidden">
                       <div
                         className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, (completedActions.length / stageThreshold) * 100)}%` }}
+                        style={{ width: `${Math.min(100, (actionCount / stageThreshold) * 100)}%` }}
                       />
                     </div>
                     {!nextStage && (
@@ -630,7 +636,7 @@ export default function ProjectDetail({
                         <button
                           onClick={() => requestStage(nextStage.id)}
                           className={`mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs font-medium transition-opacity ${
-                            completedActions.length >= stageThreshold
+                            actionCount >= stageThreshold
                               ? "bg-[var(--accent)] text-black hover:opacity-80"
                               : "border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)]"
                           }`}

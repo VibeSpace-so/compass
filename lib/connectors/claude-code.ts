@@ -4,7 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
-import { projectBriefBlock } from "@/lib/tool-context";
+import { projectBriefBlock, resolveTechStack } from "@/lib/tool-context";
 
 export class ClaudeCodeConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "claude-code";
@@ -85,9 +85,8 @@ export class ClaudeCodeConnector implements IntegrationConnector, ToolCapableCon
     const constraintList = constraints.length > 0
       ? `\nConstraints:\n${constraints.map((c) => `- ${c}`).join("\n")}`
       : "";
-    const techNote = params.techStack
-      ? `\nTech Stack: ${params.techStack as string}`
-      : "";
+    const techStack = resolveTechStack(params.techStack);
+    const techNote = techStack ? `\nTech Stack: ${techStack}` : "";
 
     const prompt = `Project: ${params.projectName as string}
 Description: ${params.description as string}
@@ -118,7 +117,7 @@ Guidelines:
     const prompt = `Implement the following feature in the "${params.projectName as string}" project.
 
 Project Description: ${params.description as string}
-Tech Stack: ${params.techStack as string}${patternsNote}
+Tech Stack: ${resolveTechStack(params.techStack)}${patternsNote}
 
 Feature: ${params.feature as string}${criteriaList}${projectBriefBlock()}
 
