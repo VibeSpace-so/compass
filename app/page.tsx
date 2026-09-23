@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Terminal } from "lucide-react";
-import { AppState, Project, ChatMessage, ProjectDocSectionId, StageId } from "@/lib/types";
+import { AppState, Project, ChatMessage, ProjectDocSectionId, StageId, ProjectMemory } from "@/lib/types";
 import {
   loadState,
   loadStateForProject,
@@ -34,7 +34,7 @@ import {
   wipeProjectData,
 } from "@/lib/crypto";
 import { setActiveProjectForConnectors } from "@/lib/integration-service";
-import { getCachedMemories, clearProjectMemories, removeMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
+import { getCachedMemories, clearProjectMemories, removeMemory, restoreMemory, updateMemory, setMemoryFields, loadEncryptedMemories } from "@/lib/memories";
 import {
   getCachedProjectDoc,
   clearProjectDoc,
@@ -65,6 +65,16 @@ export default function CompassPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const confirmDeleteRef = useRef<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [deletedProject, setDeletedProject] = useState<{
+    project: Project;
+    index: number;
+  } | null>(null);
+  const deleteWipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [memoryUndo, setMemoryUndo] = useState<{
+    projectId: string;
+    memory: ProjectMemory;
+  } | null>(null);
+  const memoryUndoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     cleanupOldGlobalEncryption();
@@ -198,13 +208,26 @@ export default function CompassPage() {
       // re-render still confirms instead of just re-arming.
       if (confirmDeleteRef.current === id) {
         confirmDeleteRef.current = null;
-        // Also wipe encrypted data for deleted project
-        wipeProjectData(id);
+        // Remove the card now, but hold the wipe for the undo window —
+        // Undo only works while keys/memories still exist.
+        const index = state.projects.findIndex((p) => p.id === id);
+        const deleted = state.projects[index];
         const newState = deleteProject(state, id);
         setState(newState);
         setConfirmDelete(null);
         if (state.selectedProjectId === id) {
           setView("home");
+        }
+        if (deleted) {
+          setDeletedProject({ project: deleted, index });
+          if (deleteWipeTimeoutRef.current) {
+            clearTimeout(deleteWipeTimeoutRef.current);
+          }
+          deleteWipeTimeoutRef.current = setTimeout(() => {
+            wipeProjectData(id);
+            setDeletedProject(null);
+            deleteWipeTimeoutRef.current = null;
+          }, 10000);
         }
       } else {
         confirmDeleteRef.current = id;
@@ -306,9 +329,35 @@ export default function CompassPage() {
     []
   );
 
+  const handleUndoDelete = useCallback(() => {
+    setDeletedProject((current) => {
+      if (!current) return null;
+      if (deleteWipeTimeoutRef.current) {
+        clearTimeout(deleteWipeTimeoutRef.current);
+        deleteWipeTimeoutRef.current = null;
+      }
+      setState((prev) => {
+        if (!prev || prev.projects.some((p) => p.id === current.project.id)) {
+          return prev;
+        }
+        const projects = [...prev.projects];
+        projects.splice(
+          Math.min(current.index, projects.length),
+          0,
+          current.project
+        );
+        return { ...prev, projects };
+      });
+      return null;
+    });
+  }, []);
+
   const handleRemoveMemory = useCallback(
     (memoryId: string) => {
       if (!state || !state.selectedProjectId) return;
+      const removed = getCachedMemories(state.selectedProjectId).find(
+        (m) => m.id === memoryId
+      );
       removeMemory(state.selectedProjectId, memoryId);
       // Refresh memories in state
       const updated = getCachedMemories(state.selectedProjectId);
@@ -316,9 +365,39 @@ export default function CompassPage() {
         if (!prev || !prev.selectedProjectId) return prev;
         return { ...prev, memories: { ...prev.memories, [prev.selectedProjectId!]: updated } };
       });
+      if (removed) {
+        if (memoryUndoTimeoutRef.current) {
+          clearTimeout(memoryUndoTimeoutRef.current);
+        }
+        setMemoryUndo({ projectId: state.selectedProjectId, memory: removed });
+        memoryUndoTimeoutRef.current = setTimeout(() => {
+          setMemoryUndo(null);
+          memoryUndoTimeoutRef.current = null;
+        }, 8000);
+      }
     },
     [state]
   );
+
+  const handleUndoMemory = useCallback(() => {
+    setMemoryUndo((current) => {
+      if (!current) return null;
+      if (memoryUndoTimeoutRef.current) {
+        clearTimeout(memoryUndoTimeoutRef.current);
+        memoryUndoTimeoutRef.current = null;
+      }
+      restoreMemory(current.projectId, current.memory);
+      const updated = getCachedMemories(current.projectId);
+      setState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          memories: { ...prev.memories, [current.projectId]: updated },
+        };
+      });
+      return null;
+    });
+  }, []);
 
   const handleMemoriesRefresh = useCallback(() => {
     if (!state?.selectedProjectId) return;
@@ -557,9 +636,37 @@ export default function CompassPage() {
         onDisableEncryption={handleDisableEncryption}
       />
 
-      {confirmDelete && (
-        <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 px-4 py-3 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg text-center">
-          Click delete again to confirm
+      {(confirmDelete || deletedProject || memoryUndo) && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 flex flex-col items-center gap-2">
+          {confirmDelete && (
+            <div className="px-4 py-3 rounded border border-red-500/40 bg-[#0a0a0a] text-xs text-red-400 shadow-lg text-center">
+              Click delete again to confirm
+            </div>
+          )}
+          {deletedProject && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--accent-26)] bg-[#0a0a0a] text-xs text-[var(--text-secondary)] shadow-lg">
+              <span>
+                Project &quot;{deletedProject.project.name}&quot; deleted
+              </span>
+              <button
+                onClick={handleUndoDelete}
+                className="text-[var(--accent)] font-medium hover:underline"
+              >
+                Undo
+              </button>
+            </div>
+          )}
+          {memoryUndo && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--accent-26)] bg-[#0a0a0a] text-xs text-[var(--text-secondary)] shadow-lg">
+              <span>Memory removed</span>
+              <button
+                onClick={handleUndoMemory}
+                className="text-[var(--accent)] font-medium hover:underline"
+              >
+                Undo
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

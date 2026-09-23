@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, isValidElement, cloneElement } from "react";
 import { Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, getStageIndex, STAGES } from "@/lib/stages";
 import { getStageThreshold } from "@/lib/flow-orchestrator";
@@ -206,9 +206,10 @@ export default function ProjectDetail({
 
   // Forward movement is free when it follows the arc; skipping stages or
   // building without demand evidence earns a warning instead of a block.
-  function requestStage(targetId: StageId) {
+  // Returns the outcome so the model's advance_stage tool can report it.
+  function requestStage(targetId: StageId): "applied" | "pending" | "noop" {
     const targetIdx = getStageIndex(targetId);
-    if (targetIdx < 0 || targetIdx === stageIdx) return;
+    if (targetIdx < 0 || targetIdx === stageIdx) return "noop";
 
     const reasons: string[] = [];
     if (targetIdx > stageIdx + 1) {
@@ -225,10 +226,11 @@ export default function ProjectDetail({
           " and "
         )} — the journey works because each stage feeds the next.`,
       });
-      return;
+      return "pending";
     }
     setPendingAdvance(null);
     onUpdate({ currentStage: targetId });
+    return "applied";
   }
 
   function confirmPendingAdvance() {
@@ -280,6 +282,13 @@ export default function ProjectDetail({
           'input[placeholder*="Ask anything"]'
         );
         chatInput?.focus();
+      }
+      // Alt+1/2/3 switch sidebar tabs
+      if (e.altKey && ["1", "2", "3"].includes(e.key)) {
+        e.preventDefault();
+        const tabs: SidebarTab[] = ["context", "brief", "settings"];
+        setSidebarOpen(true);
+        setSidebarTab(tabs[Number(e.key) - 1]);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -359,10 +368,13 @@ export default function ProjectDetail({
           {/* Mobile sidebar toggle */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 rounded border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+            className="relative p-1.5 rounded border border-[var(--accent-26)] text-[var(--text-muted)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
             title="Toggle sidebar (Ctrl+B)"
           >
             <Info className="w-4 h-4" />
+            {pendingAdvance && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_4px_rgba(234,179,8,0.8)]" />
+            )}
           </button>
         </div>
         {exportError && (
@@ -426,7 +438,9 @@ export default function ProjectDetail({
 
           {/* Chat fills remaining space */}
           <div className="flex-1 overflow-hidden">
-            {chatPanel}
+            {isValidElement<{ onStageAdvanceGate?: typeof requestStage }>(chatPanel)
+              ? cloneElement(chatPanel, { onStageAdvanceGate: requestStage })
+              : chatPanel}
           </div>
         </div>
 
@@ -765,6 +779,24 @@ export default function ProjectDetail({
                     </p>
                   </div>
 
+                  {/* Backup reminder */}
+                  <div className="border border-[var(--accent-26)] rounded-xl p-3">
+                    <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                      Backup
+                    </div>
+                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed mb-2">
+                      Everything lives in this browser — export a JSON backup
+                      regularly, especially before clearing site data.
+                    </p>
+                    <button
+                      onClick={handleExport}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] border border-[var(--accent-26)] text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      <Download className="w-3 h-3" />
+                      Export backup
+                    </button>
+                  </div>
+
                   {/* Keyboard shortcuts */}
                   <div className="border border-[var(--accent-26)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider mb-2">
@@ -774,6 +806,7 @@ export default function ProjectDetail({
                       {[
                         { key: "Ctrl+B", desc: "Toggle sidebar" },
                         { key: "Ctrl+/", desc: "Focus chat" },
+                        { key: "Alt+1/2/3", desc: "Sidebar tabs" },
                         { key: "/advance", desc: "Advance stage" },
                       ].map((shortcut) => (
                         <div

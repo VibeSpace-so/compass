@@ -134,6 +134,14 @@ export function removeMemory(projectId: string, memoryId: string): boolean {
   return true;
 }
 
+export function restoreMemory(projectId: string, memory: ProjectMemory): void {
+  const existing = memoryCache.get(projectId) || [];
+  if (existing.some((m) => m.id === memory.id)) return;
+  const updated = [...existing, memory];
+  memoryCache.set(projectId, updated);
+  saveEncryptedMemories(projectId, updated).catch(() => {});
+}
+
 export function getMemoriesByType(
   projectId: string,
   type: MemoryType

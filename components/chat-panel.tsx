@@ -33,6 +33,9 @@ interface ChatPanelProps {
   integrations: Integration[];
   providers?: BYOKProvider[];
   onStageAdvance?: (newStage: StageId) => void;
+  // Gated path used by the model's advance_stage tool — the UI warns
+  // instead of applying when the move would skip validation steps.
+  onStageAdvanceGate?: (newStage: StageId) => "applied" | "pending" | "noop";
   onMemoriesChange?: () => void;
   isEncrypted: boolean;
 }
@@ -176,14 +179,35 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
     return stageReplies[project.currentStage] || [];
   }
 
-  // After conversation started — suggest contextual follow-ups
+  // After conversation started — suggest stage-aware follow-ups
   const lastMsg = messages[messages.length - 1];
   if (lastMsg?.role === "assistant") {
-    return [
-      "Tell me more",
-      "What's the next step?",
-      `/advance`,
-    ];
+    const followUps: Record<string, string[]> = {
+      ideation: [
+        "What counts as real problem evidence?",
+        "How do I talk to potential users?",
+      ],
+      context: [
+        "What should go into my brief?",
+        "Research how people solve this today",
+      ],
+      "landing-page": [
+        "What should my pitch and CTA say?",
+        "Where should I share this page?",
+      ],
+      github: ["What should my README cover?"],
+      hosting: ["Where do my target users hang out?"],
+      domain: ["Suggest memorable domain names"],
+      "build-prototype": [
+        "Which feature does my evidence point to?",
+        "Write the Cursor prompt for it",
+      ],
+      "next-features": [
+        "What are users asking for most?",
+        "What's the smallest thing I can ship next?",
+      ],
+    };
+    return [...(followUps[project.currentStage] ?? ["Tell me more"]), "/advance"];
   }
   return [];
 }
@@ -277,11 +301,13 @@ export default function ChatPanel({
   integrations,
   providers,
   onStageAdvance,
+  onStageAdvanceGate,
   onMemoriesChange,
   isEncrypted,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallDisplay[]>([]);
   const [typingLabel, setTypingLabel] = useState("Thinking...");
   const [error, setError] = useState<string | null>(null);
@@ -397,6 +423,15 @@ export default function ChatPanel({
       : messages;
 
     try {
+      setStreamingText("");
+      const advanceForTools = onStageAdvanceGate
+        ? onStageAdvanceGate
+        : onStageAdvance
+          ? (id: StageId) => {
+              onStageAdvance(id);
+              return "applied" as const;
+            }
+          : undefined;
       const response = await generateChatResponse(
         userMessage.content,
         project,
@@ -404,7 +439,8 @@ export default function ChatPanel({
         history,
         providers,
         handleToolCall,
-        onStageAdvance
+        advanceForTools,
+        setStreamingText
       );
       const assistantMessage: ChatMessage = {
         id: generateId(),
@@ -421,6 +457,7 @@ export default function ChatPanel({
           })),
       };
       onSendMessage(assistantMessage);
+      setStreamingText("");
       onMemoriesChange?.();
       setRetryAssistantId(null);
     } catch (caught) {
@@ -454,6 +491,7 @@ export default function ChatPanel({
     } finally {
       setIsTyping(false);
       setActiveToolCalls([]);
+      setStreamingText("");
     }
   }
 
@@ -655,10 +693,19 @@ export default function ChatPanel({
                 <ToolCallCard key={`${tc.toolName}-${i}`} call={tc} />
               ))}
 
-              <div className="text-sm text-[var(--text-muted)] animate-pulse flex items-center gap-2">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                {typingLabel}
-              </div>
+              {streamingText ? (
+                <div className="text-sm leading-relaxed text-[var(--text-secondary)] prose-chat">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {streamingText}
+                  </ReactMarkdown>
+                  <span className="inline-block w-1.5 h-3.5 bg-[var(--accent)] animate-pulse align-text-bottom" />
+                </div>
+              ) : (
+                <div className="text-sm text-[var(--text-muted)] animate-pulse flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {typingLabel}
+                </div>
+              )}
             </div>
           </div>
         )}

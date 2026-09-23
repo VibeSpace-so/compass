@@ -22,6 +22,52 @@ const MAX_TOOL_CALLS_PER_TURN = 3;
 const GOOGLE_MODEL = "gemini-flash-latest";
 const GOOGLE_GENERATE_CONTENT_ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_MODEL}:generateContent`;
+const GOOGLE_STREAM_CONTENT_ENDPOINT =
+  `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_MODEL}:streamGenerateContent?alt=sse`;
+
+export type StageAdvanceOutcome = "applied" | "pending" | "noop";
+
+/** Consume an SSE response body, invoking onPayload for each `data:` JSON line. */
+async function streamSSE(
+  response: Response,
+  onPayload: (parsed: unknown) => void
+): Promise<void> {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const flush = () => {
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+      for (const line of block.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          onPayload(JSON.parse(payload));
+        } catch {
+          // Ignore keep-alive / non-JSON data lines.
+        }
+      }
+    }
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    flush();
+  }
+  buffer += decoder.decode();
+  flush();
+}
+
+function isSSEResponse(response: Response): boolean {
+  return (response.headers.get("content-type") ?? "").includes("text/event-stream");
+}
 
 interface LLMProvider {
   id: string;
@@ -370,7 +416,8 @@ async function callOpenAICompatibleWithTools(
   messages: { role: string; content: string }[],
   tools: ChatTool[],
   onToolCall?: (info: ToolCallInfo) => void,
-  extraParams?: Record<string, unknown>
+  extraParams?: Record<string, unknown>,
+  onTextDelta?: (text: string) => void
 ): Promise<ChatResponseWithTools> {
   const toolDefs = tools.length > 0 ? toolsToOpenAIFormat(tools) : undefined;
   const allToolCalls: ToolCallInfo[] = [];
@@ -393,27 +440,83 @@ async function callOpenAICompatibleWithTools(
       body.tools = toolDefs;
     }
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const sendRequest = (stream: boolean) =>
+      fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(stream ? { ...body, stream: true } : body),
+      });
 
+    // Try SSE first; fall back to a plain request when the endpoint
+    // can't stream (some custom OpenAI-compatible providers can't).
+    let response = await sendRequest(true);
+    if (!response.ok) {
+      response = await sendRequest(false);
+    }
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`API error (${response.status}): ${error}`);
     }
 
-    const data = (await response.json()) as { choices: OpenAIChoice[] };
-    const choice = data.choices?.[0];
-    if (!choice) {
+    let msg: OpenAIChoice["message"] | null = null;
+    if (isSSEResponse(response)) {
+      let textAcc = "";
+      let streamError: string | null = null;
+      const tcParts = new Map<number, { id: string; name: string; args: string }>();
+      await streamSSE(response, (chunk) => {
+        // Providers can deliver failures inside a 200 + SSE stream
+        // (e.g. Groq's tool-call validation errors) — surface them.
+        const err = (chunk as { error?: { message?: string } }).error?.message;
+        if (err && !streamError) streamError = err;
+        const delta = (
+          chunk as {
+            choices?: {
+              delta?: {
+                content?: string | null;
+                tool_calls?: {
+                  index: number;
+                  id?: string;
+                  function?: { name?: string; arguments?: string };
+                }[];
+              };
+            }[];
+          }
+        ).choices?.[0]?.delta;
+        if (!delta) return;
+        if (delta.content) {
+          textAcc += delta.content;
+          onTextDelta?.(textAcc);
+        }
+        for (const tc of delta.tool_calls ?? []) {
+          const part = tcParts.get(tc.index) ?? { id: "", name: "", args: "" };
+          if (tc.id) part.id = tc.id;
+          if (tc.function?.name) part.name += tc.function.name;
+          if (tc.function?.arguments) part.args += tc.function.arguments;
+          tcParts.set(tc.index, part);
+        }
+      });
+      if (streamError) throw new Error(streamError);
+      msg = {
+        role: "assistant",
+        content: textAcc || null,
+        tool_calls: [...tcParts.entries()]
+          .sort(([a], [b]) => a - b)
+          .map(([, part], i) => ({
+            id: part.id || `call_${i}`,
+            type: "function" as const,
+            function: { name: part.name, arguments: part.args },
+          })),
+      };
+    } else {
+      const data = (await response.json()) as { choices: OpenAIChoice[] };
+      msg = data.choices?.[0]?.message ?? null;
+    }
+    if (!msg) {
       return { content: "I couldn't generate a response. Please try again.", toolCalls: allToolCalls };
     }
-
-    const msg = choice.message;
 
     // Groq/Llama occasionally emits function calls as text rather than tool_calls.
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
@@ -551,7 +654,8 @@ async function callAnthropicWithTools(
   systemPrompt: string,
   messages: { role: string; content: string }[],
   tools: ChatTool[],
-  onToolCall?: (info: ToolCallInfo) => void
+  onToolCall?: (info: ToolCallInfo) => void,
+  onTextDelta?: (text: string) => void
 ): Promise<ChatResponseWithTools> {
   const toolDefs = tools.length > 0 ? toolsToAnthropicFormat(tools) : undefined;
   const allToolCalls: ToolCallInfo[] = [];
@@ -571,23 +675,102 @@ async function callAnthropicWithTools(
       body.tools = toolDefs;
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify(body),
-    });
+    const sendRequest = (stream: boolean) =>
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify(stream ? { ...body, stream: true } : body),
+      });
 
+    let response = await sendRequest(true);
+    if (!response.ok) {
+      response = await sendRequest(false);
+    }
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Anthropic API error (${response.status}): ${error}`);
     }
 
-    const data = (await response.json()) as AnthropicResponse;
+    let data: AnthropicResponse;
+    if (isSSEResponse(response)) {
+      const blocks: {
+        type: string;
+        text: string;
+        id?: string;
+        name?: string;
+        inputJson: string;
+      }[] = [];
+      let stopReason = "";
+      let streamError: string | null = null;
+      await streamSSE(response, (evt) => {
+        const errPayload = (evt as { error?: { message?: string } }).error;
+        if (errPayload?.message && !streamError) streamError = errPayload.message;
+        const e = evt as {
+          type: string;
+          index?: number;
+          content_block?: {
+            type: string;
+            text?: string;
+            id?: string;
+            name?: string;
+          };
+          delta?: {
+            type: string;
+            text?: string;
+            partial_json?: string;
+            stop_reason?: string;
+          };
+        };
+        if (e.type === "content_block_start" && e.index != null && e.content_block) {
+          blocks[e.index] = {
+            type: e.content_block.type,
+            text: e.content_block.text ?? "",
+            id: e.content_block.id,
+            name: e.content_block.name,
+            inputJson: "",
+          };
+        } else if (e.type === "content_block_delta" && e.index != null && e.delta) {
+          const blk = blocks[e.index];
+          if (!blk) return;
+          if (e.delta.type === "text_delta" && e.delta.text) {
+            blk.text += e.delta.text;
+            onTextDelta?.(
+              blocks
+                .filter((b) => b?.type === "text")
+                .map((b) => b.text)
+                .join("\n")
+            );
+          } else if (e.delta.type === "input_json_delta" && e.delta.partial_json) {
+            blk.inputJson += e.delta.partial_json;
+          }
+        } else if (e.type === "message_delta" && e.delta?.stop_reason) {
+          stopReason = e.delta.stop_reason;
+        }
+      });
+      if (streamError) throw new Error(streamError);
+      data = {
+        content: blocks
+          .filter(Boolean)
+          .map((b) =>
+            b.type === "tool_use"
+              ? {
+                  type: "tool_use",
+                  id: b.id,
+                  name: b.name,
+                  input: JSON.parse(b.inputJson || "{}") as Record<string, unknown>,
+                }
+              : { type: "text", text: b.text }
+          ),
+        stop_reason: stopReason,
+      };
+    } else {
+      data = (await response.json()) as AnthropicResponse;
+    }
 
     const textBlocks = data.content.filter((b) => b.type === "text");
     const toolUseBlocks = data.content.filter((b) => b.type === "tool_use");
@@ -698,7 +881,8 @@ async function callGoogleWithTools(
   systemPrompt: string,
   messages: { role: string; content: string }[],
   tools: ChatTool[],
-  onToolCall?: (info: ToolCallInfo) => void
+  onToolCall?: (info: ToolCallInfo) => void,
+  onTextDelta?: (text: string) => void
 ): Promise<ChatResponseWithTools> {
   const allToolCalls: ToolCallInfo[] = [];
 
@@ -732,19 +916,48 @@ async function callGoogleWithTools(
       body.tools = geminiToolsArr;
     }
 
-    const response = await fetch(GOOGLE_GENERATE_CONTENT_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(body),
-    });
+    const sendRequest = (stream: boolean) =>
+      fetch(stream ? GOOGLE_STREAM_CONTENT_ENDPOINT : GOOGLE_GENERATE_CONTENT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(body),
+      });
 
+    let response = await sendRequest(true);
+    if (!response.ok) {
+      response = await sendRequest(false);
+    }
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Google API error (${response.status}): ${error}`);
     }
 
-    const data = (await response.json()) as GeminiResponse;
-    const candidate = data.candidates?.[0];
+    let candidate: GeminiCandidate | null = null;
+    if (isSSEResponse(response)) {
+      const parts: GeminiPart[] = [];
+      let textAcc = "";
+      let finishReason = "";
+      let streamError: string | null = null;
+      await streamSSE(response, (chunk) => {
+        const err = (chunk as { error?: { message?: string } }).error?.message;
+        if (err && !streamError) streamError = err;
+        const cand = (chunk as GeminiResponse).candidates?.[0];
+        if (!cand) return;
+        for (const part of cand.content?.parts ?? []) {
+          parts.push(part);
+          if (part.text) {
+            textAcc += part.text;
+            onTextDelta?.(textAcc);
+          }
+        }
+        if (cand.finishReason) finishReason = cand.finishReason;
+      });
+      if (streamError) throw new Error(streamError);
+      candidate = { content: { parts, role: "model" }, finishReason };
+    } else {
+      const data = (await response.json()) as GeminiResponse;
+      candidate = data.candidates?.[0] ?? null;
+    }
     if (!candidate) {
       return {
         content: "I couldn't generate a response. Please try again.",
@@ -840,7 +1053,8 @@ export async function generateChatResponse(
   history: ChatMessage[],
   providers?: BYOKProvider[],
   onToolCall?: (info: ToolCallInfo) => void,
-  onStageAdvance?: (newStage: StageId) => void
+  onStageAdvance?: (newStage: StageId) => StageAdvanceOutcome,
+  onTextDelta?: (text: string) => void
 ): Promise<ChatResponseWithTools> {
   const active = getActiveProvider(project.id, providers);
   if (!active) {
@@ -870,7 +1084,8 @@ export async function generateChatResponse(
         systemPrompt,
         messages,
         tools,
-        onToolCall
+        onToolCall,
+        onTextDelta
       );
     } else if (provider.id === "google") {
       result = await callGoogleWithTools(
@@ -878,7 +1093,8 @@ export async function generateChatResponse(
         systemPrompt,
         messages,
         tools,
-        onToolCall
+        onToolCall,
+        onTextDelta
       );
     } else {
       // OpenAI-compatible (Groq, OpenAI, custom endpoints)
@@ -889,7 +1105,8 @@ export async function generateChatResponse(
         messages,
         tools,
         onToolCall,
-        provider.extraParams
+        provider.extraParams,
+        onTextDelta
       );
     }
 
