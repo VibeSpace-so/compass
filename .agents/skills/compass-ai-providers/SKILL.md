@@ -29,6 +29,12 @@ BYOK custom providers live in `vibe-compass-state` → `byokSettings.providers[]
 
 Easy e2e recipe: add a custom provider with base URL `https://api.groq.com/openai/v1`, model `openai/gpt-oss-20b`, and `${GROQ_API_KEY}` — a real reply confirms URL append, key lookup, and the OpenAI-compatible call path.
 
+## Groq free-tier wall (verified Sep 2026, full-journey run)
+
+The org's Groq key caps every chat model at **8K tokens/minute** (check `GET https://api.groq.com/openai/v1/models` — catalog varies; `groq/compound-mini` returned 404). Compass tool turns are ≥2 sequential requests (leg1 → tool_calls → leg2 with results), each ~6–8k tokens by mid-journey once memories+doc+history grow; the stream→non-stream fallback **re-fires the whole request** on any non-OK, doubling burn on 429s. Net effect ~6–7 real turns in: every tool turn 429s permanently — the tool leg still executes (memories DO save!) but the reply text never arrives; Retry re-fires both legs and fails again. Symptom: "I couldn't complete the whole turn. Provider response 429" cards that never recover.
+
+**Workaround that sustained a full 28-turn journey:** custom provider → Vercel AI Gateway, base URL `https://ai-gateway.vercel.sh/v1`, model `openai/gpt-4o-mini`, key `${AI_GATEWAY_API_KEY}` (org secret). OpenAI-compatible, tool calls + streaming both work, no TPM wall. Other working models on that key: `google/gemini-2.5-flash-lite`, `meta/llama-3.3-70b`, `mistral/mistral-small`. Remember the picker order — the custom provider only wins once no standard provider has a key on that project (toggle Groq off or use a fresh project). Get the key into the BYOK field via `printf %s "${AI_GATEWAY_API_KEY}" | DISPLAY=:0 xclip -selection clipboard` then Ctrl+V — never echo it.
+
 ## Testing
 
 Guided-journey/chat tests: `testing-compass-guided-journey` skill. Encryption/BYOK: `testing-compass-encryption`. Mobile: `testing-compass-mobile`.
