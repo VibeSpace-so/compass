@@ -237,6 +237,15 @@ failure, don't assume the turn was a no-op.
 event is an `error` object instead of a `[DONE]`, the failure was swallowed by the SSE path (regression
 to report), not a provider outage.
 
+### Suggested-reply chips: first-run vs post-turn sets
+
+`getSuggestedReplies` (`components/chat-panel.tsx`) returns the FIRST-RUN chip set only when
+`messages.length === 0` — and stage greetings are virtual (rendered, not stored in `messages`), so a
+fresh project still shows first-run chips after jumping stages via the stepper. Any real assistant
+reply flips chips to the post-turn `followUps[stage]` set (+`/advance`, except terminal stages). To
+verify first-run chips on a late stage, create a FRESH project and stepper-jump there — a reused
+project with chat history will only ever show the post-turn set.
+
 ### Project delete confirm is time-boxed
 
 The project-card trash button arms on first click ("Click delete again to confirm" toast) but the
