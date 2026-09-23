@@ -69,6 +69,12 @@ interface TooltipState {
 const BASE_W = 1000;
 const BASE_H = 620;
 
+// Ink-on-parchment palette (kept inline — the map borrows none of the app's neon vars).
+const INK = "#4a3419";
+const OXBLOOD = "#8a3324";
+const PAPER = "#f1e2bb";
+const MAP_FONT = 'var(--font-fell, Georgia, "Times New Roman", serif)';
+
 const POI_ICONS = {
   tent: Tent,
   bridge: Waypoints,
@@ -118,15 +124,15 @@ function CompassNeedle({
 }) {
   const deg = (Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI + 90;
   return (
-    <div className="w-16 h-16 rounded-full border border-[var(--accent-44)] bg-black/70 flex items-center justify-center shadow-[0_0_18px_-4px_var(--accent)]">
+    <div className="w-16 h-16 rounded-full border-2 border-[#4a3419] bg-[#efe0b5] flex items-center justify-center shadow-[0_2px_10px_rgba(58,38,12,0.4)]">
       <svg viewBox="0 0 64 64" className="w-12 h-12">
-        <circle cx="32" cy="32" r="29" fill="none" stroke="var(--accent-26)" strokeWidth="1" />
-        <text x="32" y="10" textAnchor="middle" fontSize="7" fill="var(--accent)">N</text>
+        <circle cx="32" cy="32" r="29" fill="none" stroke="#4a3419" strokeOpacity="0.4" strokeWidth="1" />
+        <text x="32" y="10" textAnchor="middle" fontSize="7" fill="#4a3419" fontFamily={MAP_FONT}>N</text>
         <g transform={`rotate(${deg} 32 32)`}>
-          <polygon points="32,8 35,32 32,28 29,32" fill="var(--accent)" />
-          <polygon points="32,56 35,32 32,36 29,32" fill="var(--text-muted)" opacity="0.5" />
+          <polygon points="32,8 35,32 32,28 29,32" fill="#8a3324" />
+          <polygon points="32,56 35,32 32,36 29,32" fill="#4a3419" opacity="0.45" />
         </g>
-        <circle cx="32" cy="32" r="2.4" fill="var(--accent)" />
+        <circle cx="32" cy="32" r="2.4" fill="#8a3324" />
       </svg>
     </div>
   );
@@ -308,10 +314,10 @@ export default function JourneyMapScreen({
   }
 
   const toneStyles: Record<TooltipState["tone"], string> = {
-    milestone: "border-emerald-500/50 text-emerald-200",
-    warn: "border-yellow-500/50 text-yellow-200",
-    danger: "border-red-500/60 text-red-200",
-    poi: "border-[var(--accent-26)] text-[var(--text-secondary)]",
+    milestone: "border-[#3f6b35] text-[#2e4d28]",
+    warn: "border-[#8a6a1f] text-[#6b5114]",
+    danger: "border-[#9c2f1e] text-[#7c2416]",
+    poi: "border-[#6b5433] text-[#4a3419]",
   };
 
   if (!mounted) return null;
@@ -376,68 +382,95 @@ export default function JourneyMapScreen({
                 }}
                 onClick={() => setTooltip(null)}
               >
-            {/* Terrain texture */}
-            <div
-              className="absolute inset-0 opacity-[0.07]"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 1px 1px, var(--accent) 0.8px, transparent 0.8px)",
-                backgroundSize: "26px 26px",
-              }}
+            {/* Aged parchment + edge burn */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/map-parchment.jpg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
             />
+            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_110px_rgba(58,38,12,0.5)]" />
             <svg
               viewBox={`0 0 ${BASE_W} ${BASE_H}`}
               width={BASE_W}
               height={BASE_H}
               className="absolute inset-0"
             >
-              {/* Named regions — soft geographic zones behind the trail */}
+              <defs>
+                {/* Hand-drawn wobble applied to ink strokes (not to text) */}
+                <filter id="mapInk" x="-4%" y="-4%" width="108%" height="108%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="11" result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" />
+                </filter>
+              </defs>
+
+              {/* Named regions — hatched ink zones behind the trail */}
               {MAP_REGIONS.map((r) => (
                 <g key={r.label}>
                   <path
                     d={closedBlobPath(r)}
-                    fill="var(--accent)"
-                    fillOpacity="0.045"
-                    stroke="var(--accent-44)"
-                    strokeOpacity="0.3"
-                    strokeWidth="1.2"
-                    strokeDasharray="5 7"
+                    fill="#8a6a35"
+                    fillOpacity="0.07"
+                    stroke={INK}
+                    strokeOpacity="0.4"
+                    strokeWidth="1"
+                    strokeDasharray="3 6"
+                    filter="url(#mapInk)"
                   />
                   <text
                     x={r.x}
                     y={r.y + r.ry * 0.52}
                     textAnchor="middle"
-                    fontSize="15"
+                    fontSize="17"
                     fontStyle="italic"
-                    letterSpacing="5"
-                    fill="var(--accent)"
-                    fillOpacity="0.15"
+                    letterSpacing="7"
+                    fill={INK}
+                    fillOpacity="0.34"
+                    fontFamily={MAP_FONT}
                   >
                     {r.label}
                   </text>
                 </g>
               ))}
 
-              {/* Visited trail */}
+              {/* Decorative ink — ridge lines and woods, no interaction */}
+              <g
+                stroke={INK}
+                fill="none"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.5"
+                filter="url(#mapInk)"
+              >
+                <path d="M 742,118 l 14,-22 l 14,22 M 764,121 l 11,-18 l 11,18 M 784,114 l 15,-24 l 15,24" />
+                <path d="M 855,108 l 11,-18 l 11,18 M 871,112 l 9,-15 l 9,15" />
+                <path d="M 210,548 l 6,-14 l 6,14 z M 216,548 v 6 M 230,556 l 5,-12 l 5,12 z M 235,556 v 6 M 250,544 l 6,-15 l 6,15 z M 256,544 v 7" />
+                <path d="M 882,548 q 8,-9 16,0 M 904,555 q 7,-8 14,0" />
+              </g>
+
+              {/* Visited trail — oxblood ink */}
               <path
                 d={visitedPath}
                 fill="none"
-                stroke="var(--accent)"
-                strokeWidth="3"
-                strokeDasharray="9 6"
+                stroke={OXBLOOD}
+                strokeWidth="3.2"
+                strokeDasharray="12 6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.55"
+                opacity="0.85"
+                filter="url(#mapInk)"
               />
-              {/* Unvisited trail */}
+              {/* Unvisited trail — dotted ink */}
               <path
                 d={futurePath}
                 fill="none"
-                stroke="var(--accent-44)"
-                strokeWidth="3"
-                strokeDasharray="2 10"
+                stroke={INK}
+                strokeWidth="2.6"
+                strokeDasharray="0.5 9"
                 strokeLinecap="round"
-                opacity="0.5"
+                opacity="0.55"
+                filter="url(#mapInk)"
               />
 
               {/* Stage territories — country names on the map, no icons */}
@@ -460,47 +493,80 @@ export default function JourneyMapScreen({
                   >
                     <path
                       d={closedBlobPath(terr)}
-                      fill="#0a0f0a"
-                      fillOpacity={isCurrent ? 0.85 : 0.72}
-                      stroke={
-                        isCurrent
-                          ? "var(--accent)"
-                          : isPast
-                            ? "var(--accent-44)"
-                            : "var(--accent-26)"
-                      }
-                      strokeOpacity={isCurrent ? 0.95 : isPast ? 0.6 : 0.45}
-                      strokeWidth={isCurrent || isSelected ? 1.8 : 1.1}
+                      fill={PAPER}
+                      fillOpacity={isCurrent ? 0.95 : 0.82}
+                      stroke={isCurrent ? OXBLOOD : INK}
+                      strokeOpacity={isCurrent ? 0.95 : isPast ? 0.7 : 0.45}
+                      strokeWidth={isCurrent || isSelected ? 2.4 : 1.4}
+                      filter="url(#mapInk)"
                     />
+                    {isCurrent && (
+                      <path
+                        d={closedBlobPath({ ...terr, rx: terr.rx - 6, ry: terr.ry - 5 })}
+                        fill="none"
+                        stroke={OXBLOOD}
+                        strokeOpacity="0.55"
+                        strokeWidth="0.8"
+                        filter="url(#mapInk)"
+                      />
+                    )}
                     <text
                       x={def.x}
                       y={def.y + 4}
                       textAnchor="middle"
-                      fontSize="11"
-                      fontWeight={isCurrent ? 700 : 500}
-                      letterSpacing="2"
-                      fill="var(--accent)"
-                      fillOpacity={isCurrent ? 1 : isPast ? 0.55 : 0.35}
-                      style={{ textTransform: "uppercase" }}
+                      fontSize={isCurrent ? 15 : label.length > 12 ? 11 : 13}
+                      letterSpacing="2.5"
+                      fill={isCurrent ? OXBLOOD : INK}
+                      fillOpacity={isCurrent ? 1 : isPast ? 0.8 : 0.6}
+                      fontFamily={MAP_FONT}
                     >
                       {label}
                     </text>
                     {isPast && (
                       <text
                         x={def.x}
-                        y={def.y + 18}
+                        y={def.y + 17}
                         textAnchor="middle"
-                        fontSize="8"
+                        fontSize="7"
+                        fontStyle="italic"
                         letterSpacing="2"
-                        fill="var(--accent)"
-                        fillOpacity="0.5"
+                        fill={INK}
+                        fillOpacity="0.55"
+                        fontFamily={MAP_FONT}
                       >
-                        ✓ visited
+                        · passed ·
                       </text>
                     )}
                   </g>
                 );
               })}
+
+              {/* Cartographer's rose */}
+              <g transform="translate(952,556)" opacity="0.6">
+                <circle r="27" fill="none" stroke={INK} strokeWidth="0.9" />
+                <circle r="21" fill="none" stroke={INK} strokeWidth="0.4" />
+                <path
+                  d="M0,-25 L4,-4 L25,0 L4,4 L0,25 L-4,4 L-25,0 L-4,-4 Z"
+                  fill="rgba(74,52,25,0.12)"
+                  stroke={INK}
+                  strokeWidth="0.7"
+                />
+                <path d="M0,-25 L4,-4 L0,0 L-4,-4 Z" fill={INK} />
+                <text y="-32" textAnchor="middle" fontSize="10" fill={INK} fontFamily={MAP_FONT}>
+                  N
+                </text>
+              </g>
+
+              {/* Double-rule map frame + corner ticks */}
+              <g fill="none" stroke={INK} pointerEvents="none">
+                <rect x="9" y="9" width={BASE_W - 18} height={BASE_H - 18} strokeWidth="1.8" strokeOpacity="0.7" />
+                <rect x="16" y="16" width={BASE_W - 32} height={BASE_H - 32} strokeWidth="0.7" strokeOpacity="0.5" />
+                <path
+                  d="M 9,40 v -31 h 31 M 960,9 h 31 v 31 M 991,580 v 31 h -31 M 40,611 h -31 v -31"
+                  strokeWidth="2.6"
+                  strokeOpacity="0.75"
+                />
+              </g>
             </svg>
 
 
@@ -521,10 +587,13 @@ export default function JourneyMapScreen({
                     setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" });
                   }}
                 >
-                  <span className="w-5 h-5 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
-                    <Icon className="w-3 h-3 text-[var(--text-muted)]" />
+                  <span className="w-5 h-5 rounded-full bg-[#f1e2bb]/90 border border-[#4a3419] flex items-center justify-center group-hover:bg-[#f7ecc9] transition-colors shadow-[0_1px_3px_rgba(58,38,12,0.4)]">
+                    <Icon className="w-3 h-3 text-[#4a3419]" />
                   </span>
-                  <span className="mt-0.5 text-[8px] uppercase tracking-wider text-[var(--text-muted)] bg-black/60 px-1 rounded whitespace-nowrap">
+                  <span
+                    className="mt-0.5 text-[8px] uppercase tracking-wider text-[#4a3419] px-1 rounded whitespace-nowrap"
+                    style={{ fontFamily: MAP_FONT, textShadow: "0 0 4px #f1e2bb, 0 0 6px #f1e2bb" }}
+                  >
                     {poi.label}
                   </span>
                 </button>
@@ -554,16 +623,16 @@ export default function JourneyMapScreen({
                     }}
                   >
                     {danger ? (
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-950/90 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]">
-                        <Skull className="w-3.5 h-3.5 text-red-300" />
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#f1e2bb] border-2 border-[#9c2f1e] shadow-[0_1px_4px_rgba(58,38,12,0.4)]">
+                        <Skull className="w-3.5 h-3.5 text-[#9c2f1e]" />
                       </span>
                     ) : (
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-yellow-950/80 border border-yellow-500/70">
-                        <AlertTriangle className="w-3 h-3 text-yellow-400" />
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#f1e2bb] border-[1.5px] border-[#8a6a1f] shadow-[0_1px_3px_rgba(58,38,12,0.35)]">
+                        <AlertTriangle className="w-3 h-3 text-[#8a6a1f]" />
                       </span>
                     )}
                     {!readIds.has(tipId) && (
-                      <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                      <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[#9c2f1e] text-[#f1e2bb] text-[8px] font-bold leading-none">
                         !
                       </span>
                     )}
@@ -601,9 +670,9 @@ export default function JourneyMapScreen({
                     show();
                   }}
                 >
-                  <Flag className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+                  <Flag className="w-4 h-4 text-[#3f6b35] drop-shadow-[0_1px_2px_rgba(58,38,12,0.4)]" />
                   {!readIds.has(tipId) && (
-                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[#9c2f1e] text-[#f1e2bb] text-[8px] font-bold leading-none">
                       !
                     </span>
                   )}
@@ -617,10 +686,10 @@ export default function JourneyMapScreen({
               style={{ left: currentNode.x, top: currentNode.y - 52 }}
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8a3324] opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8a3324]" />
               </span>
-              <MapPin className="w-4 h-4 text-[var(--accent)] mt-0.5" />
+              <MapPin className="w-4 h-4 text-[#8a3324] mt-0.5" />
             </div>
 
               </div>
@@ -628,7 +697,7 @@ export default function JourneyMapScreen({
               {/* Tooltip — outside the scaled layer so it stays readable at any zoom */}
               {tooltip && (
                 <div
-                  className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-lg border bg-black/95 shadow-xl text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
+                  className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-md border-2 bg-[#f1e2bb] shadow-[0_3px_12px_rgba(58,38,12,0.45)] text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
                   style={{
                     left: Math.min(
                       Math.max(8, tooltip.x * zoom),
@@ -640,7 +709,9 @@ export default function JourneyMapScreen({
                     ),
                   }}
                 >
-                  <div className="text-[11px] font-semibold mb-0.5">{tooltip.title}</div>
+                  <div className="text-[11px] font-semibold mb-0.5" style={{ fontFamily: MAP_FONT }}>
+                    {tooltip.title}
+                  </div>
                   <div className="text-[10px] leading-relaxed whitespace-pre-line opacity-90">
                     {tooltip.detail}
                   </div>
@@ -657,30 +728,33 @@ export default function JourneyMapScreen({
               toX={targetNode.x}
               toY={targetNode.y}
             />
-            <div className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] bg-black/70 px-1.5 py-0.5 rounded border border-[var(--accent-26)] whitespace-nowrap">
+            <div
+              className="text-[9px] uppercase tracking-wider text-[#4a3419] bg-[#efe0b5]/95 px-1.5 py-0.5 rounded border border-[#4a3419] whitespace-nowrap"
+              style={{ fontFamily: MAP_FONT }}
+            >
               → {targetStage?.label ?? "Stay"}
             </div>
           </div>
 
           {/* Zoom controls */}
-          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-0.5 rounded-lg border border-[var(--accent-26)] bg-black/80 p-1">
+          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-0.5 rounded-md border-2 border-[#4a3419] bg-[#efe0b5]/95 p-1 shadow-[0_2px_8px_rgba(58,38,12,0.4)]">
             <button
               onClick={() => setZoom((z) => Math.min(2.5, z * 1.25))}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              className="p-1.5 rounded text-[#4a3419] hover:bg-[#4a3419]/10 transition-colors"
               title="Zoom in"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setZoom(1)}
-              className="px-1 py-0.5 rounded text-[9px] tabular-nums text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+              className="px-1 py-0.5 rounded text-[9px] tabular-nums text-[#4a3419] hover:bg-[#4a3419]/10 transition-colors"
               title="Reset zoom"
             >
               {Math.round(zoom * 100)}%
             </button>
             <button
               onClick={() => setZoom((z) => Math.max(0.6, z * 0.8))}
-              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              className="p-1.5 rounded text-[#4a3419] hover:bg-[#4a3419]/10 transition-colors"
               title="Zoom out"
             >
               <Minus className="w-3.5 h-3.5" />
