@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, isValidElement, cloneElement } from "react";
-import { ChatMessage, Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
+import { BYOKProvider, ChatMessage, Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, getStageIndex, STAGES } from "@/lib/stages";
 import { getStageThreshold } from "@/lib/flow-orchestrator";
 import {
@@ -22,10 +22,12 @@ import {
 } from "lucide-react";
 import { exportProject } from "@/lib/project-export";
 import { generateId } from "@/lib/storage";
+import { addMemory } from "@/lib/memories";
 import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
 import IntegrationsPanel from "./integrations-panel";
 import { ProjectBrief } from "./project-brief";
+import JourneyMapScreen from "./journey-map-screen";
 
 interface ProjectDetailProps {
   project: Project;
@@ -44,6 +46,10 @@ interface ProjectDetailProps {
   showEncryptReminder?: boolean;
   onEncryptClick?: () => void;
   onSystemMessage?: (message: ChatMessage) => void;
+  /** Successful non-memory tool calls executed in the current stage. */
+  stageToolActions?: number;
+  providers?: BYOKProvider[];
+  onMemoriesChange?: () => void;
 }
 
 function DebtSelector({
@@ -195,6 +201,9 @@ export default function ProjectDetail({
   showEncryptReminder = false,
   onEncryptClick,
   onSystemMessage,
+  stageToolActions = 0,
+  providers,
+  onMemoriesChange,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -206,6 +215,7 @@ export default function ProjectDetail({
     stageId: StageId;
     reason: string;
   } | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const stage = getStage(project.currentStage);
   const nextStage = getNextStage(project.currentStage);
@@ -255,6 +265,24 @@ export default function ProjectDetail({
     onUpdate({ currentStage: targetId });
     onSystemMessage?.(stageMarker(targetId));
     return "applied";
+  }
+
+  // Backward moves apply immediately; record the pivot as a decision so the
+  // journey keeps an honest trail of why the project walked back.
+  function requestStageFromMap(targetId: StageId): "applied" | "pending" | "noop" {
+    const fromLabel = stage?.label ?? project.currentStage;
+    const outcome = requestStage(targetId);
+    if (outcome === "applied" && getStageIndex(targetId) < stageIdx) {
+      addMemory(
+        project.id,
+        "decision",
+        `Pivoted back from ${fromLabel} to ${getStage(targetId)?.label ?? targetId} — reworking an earlier stage.`,
+        targetId,
+        "ai"
+      );
+      onMemoriesChange?.();
+    }
+    return outcome;
   }
 
   function confirmPendingAdvance() {
@@ -604,10 +632,20 @@ export default function ProjectDetail({
                     </div>
                   )}
 
-                  {/* Stage progress + advance, merged */}
+                  {/* Stage progress + advance, merged — opens the journey map */}
                   <div className="border border-[var(--accent-26)] rounded-xl p-3">
-                    <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
-                      Stage progress
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
+                        Stage progress
+                      </div>
+                      <button
+                        onClick={() => setShowMap(true)}
+                        className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                        title="Open journey map"
+                      >
+                        <MapPin className="w-3 h-3" />
+                        map
+                      </button>
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--text-muted)]">
                       {nextStage
@@ -625,6 +663,12 @@ export default function ProjectDetail({
                         Validation never stops — keep the loop running.
                       </p>
                     )}
+                    <button
+                      onClick={() => setShowMap(true)}
+                      className="mt-1.5 w-full text-left text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      Click to open the journey map →
+                    </button>
                     {nextStage && (
                       <>
                         <button
@@ -861,6 +905,20 @@ export default function ProjectDetail({
           </div>
         )}
       </div>
+
+      {showMap && (
+        <JourneyMapScreen
+          project={project}
+          memories={memories}
+          providers={providers}
+          stageToolActions={stageToolActions}
+          onStageChange={requestStageFromMap}
+          onUpdateMemory={onUpdateMemory}
+          onRemoveMemory={onRemoveMemory}
+          onPinMemory={onPinMemory}
+          onClose={() => setShowMap(false)}
+        />
+      )}
     </div>
   );
 }

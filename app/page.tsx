@@ -528,6 +528,8 @@ export default function CompassPage() {
             showEncryptReminder={!selectedEncrypted && hasStoredKeys}
             onEncryptClick={() => setShowBYOK(true)}
             onSystemMessage={handleSendMessage}
+            providers={state.byokSettings.providers}
+            onMemoriesChange={handleMemoriesRefresh}
           />
         ) : state.projects.length > 0 ? (
           <>
