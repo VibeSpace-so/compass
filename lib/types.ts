@@ -8,7 +8,8 @@ export type StageId =
   | "hosting"
   | "domain"
   | "build-prototype"
-  | "next-features";
+  | "next-features"
+  | "grow-scale";
 
 export interface StageMetadata {
   id: StageId;

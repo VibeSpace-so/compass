@@ -157,6 +157,7 @@ function getSystemTools(): ChatTool[] {
             enum: [
               "ideation", "context", "landing-page", "github",
               "hosting", "domain", "build-prototype", "next-features",
+              "grow-scale",
             ],
             description: "The stage to advance to.",
           },
