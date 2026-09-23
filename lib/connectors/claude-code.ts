@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class ClaudeCodeConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "claude-code";
@@ -92,7 +93,7 @@ export class ClaudeCodeConnector implements IntegrationConnector, ToolCapableCon
 Description: ${params.description as string}
 Stage: ${params.stage as string}${techNote}
 
-Task: ${params.task as string}${constraintList}
+Task: ${params.task as string}${constraintList}${projectBriefBlock()}
 
 Guidelines:
 - Read the existing codebase before making changes
@@ -119,7 +120,7 @@ Guidelines:
 Project Description: ${params.description as string}
 Tech Stack: ${params.techStack as string}${patternsNote}
 
-Feature: ${params.feature as string}${criteriaList}
+Feature: ${params.feature as string}${criteriaList}${projectBriefBlock()}
 
 Implementation Plan:
 1. Analyze the existing codebase structure and identify where the feature fits

@@ -19,6 +19,7 @@ import {
   seedDocFromMemories,
   updateDocSection,
 } from "./project-doc";
+import { setActiveToolProject } from "./tool-context";
 
 // Context holders set by chat-service before each turn
 let _activeProjectId: string | null = null;
@@ -38,6 +39,7 @@ export function setToolContext(
   _activeStage = stage;
   _onStageAdvance = onStageAdvance || null;
   _activeProjectName = projectName || "Project";
+  setActiveToolProject(projectId, projectName);
 }
 
 /**

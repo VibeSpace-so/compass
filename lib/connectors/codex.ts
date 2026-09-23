@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class CodexConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "codex";
@@ -83,7 +84,7 @@ export class CodexConnector implements IntegrationConnector, ToolCapableConnecto
 Description: ${params.description as string}
 Stage: ${params.stage as string}${techNote}
 
-Task: ${params.task as string}
+Task: ${params.task as string}${projectBriefBlock()}
 
 Instructions for Codex:
 1. Understand the project structure and existing code
@@ -109,7 +110,7 @@ Project Description: ${params.description as string}
 Tech Stack: ${params.techStack as string}
 Scope: ${scope}
 
-Feature: ${params.feature as string}${reqList}
+Feature: ${params.feature as string}${reqList}${projectBriefBlock()}
 
 Implementation Guidelines:
 1. Read the existing codebase to understand patterns and conventions

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   X,
   Shield,
@@ -267,6 +267,22 @@ function ProviderRow({
   const [showKey, setShowKey] = useState(false);
   const [editingKey, setEditingKey] = useState(false);
   const [keyValue, setKeyValue] = useState("");
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const removeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleRemoveClick() {
+    if (!onRemove) return;
+    if (confirmingRemove) {
+      if (removeTimeoutRef.current) clearTimeout(removeTimeoutRef.current);
+      onRemove();
+      return;
+    }
+    setConfirmingRemove(true);
+    removeTimeoutRef.current = setTimeout(
+      () => setConfirmingRemove(false),
+      2500
+    );
+  }
 
   function handleSaveKey() {
     if (keyValue.trim()) {
@@ -413,10 +429,14 @@ function ProviderRow({
       {provider.custom && onRemove && (
         <div className="mt-2 pt-2 border-t border-[var(--accent-26)] flex justify-end">
           <button
-            onClick={onRemove}
-            className="text-[10px] text-red-400/60 hover:text-red-400"
+            onClick={handleRemoveClick}
+            className={`text-[10px] ${
+              confirmingRemove
+                ? "text-red-400 font-medium"
+                : "text-red-400/60 hover:text-red-400"
+            }`}
           >
-            remove provider
+            {confirmingRemove ? "confirm remove provider?" : "remove provider"}
           </button>
         </div>
       )}

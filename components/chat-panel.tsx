@@ -608,7 +608,10 @@ export default function ChatPanel({
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1 mobile-scroll">
-        {/* System greeting */}
+        {/* System greeting — orientation for a fresh transcript only. Rendering
+            it above history would rewrite the past on every stage change;
+            stage moves land as real "Moved to …" marker messages instead. */}
+        {messages.length === 0 && (
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-7 h-7 rounded bg-[var(--accent-10)] border border-[var(--accent-26)] flex items-center justify-center">
             <span className="text-xs text-[var(--accent)]">C</span>
@@ -624,6 +627,7 @@ export default function ChatPanel({
             </div>
           </div>
         </div>
+        )}
 
         {messages.map((msg) => (
           <div

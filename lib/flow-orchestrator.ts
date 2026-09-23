@@ -120,7 +120,10 @@ export function getStageTransitionAdvice(
   const stage = getStage(currentStage);
   const next = getNextStage(currentStage);
 
-  if (!stage || !next) return "";
+  if (!stage) return "";
+  if (!next) {
+    return `You're in ${stage.label}, the final stage — keep the validation loop running: ${stage.nextAction}`;
+  }
 
   if (completedActions.length === 0) {
     return `You're in the ${stage.label} stage. Focus on: ${stage.nextAction}`;

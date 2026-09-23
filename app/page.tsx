@@ -527,6 +527,7 @@ export default function CompassPage() {
             onUpdateMemoryTags={handleUpdateMemoryTags}
             showEncryptReminder={!selectedEncrypted && hasStoredKeys}
             onEncryptClick={() => setShowBYOK(true)}
+            onSystemMessage={handleSendMessage}
           />
         ) : state.projects.length > 0 ? (
           <>

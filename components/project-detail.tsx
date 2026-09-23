@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, isValidElement, cloneElement } from "react";
-import { Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
+import { ChatMessage, Project, ProjectDoc, ProjectDocSectionId, StageId, DebtLevel, Integration, ProjectMemory } from "@/lib/types";
 import { getStage, getNextStage, getStageIndex, STAGES } from "@/lib/stages";
 import { getStageThreshold } from "@/lib/flow-orchestrator";
 import {
@@ -21,6 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { exportProject } from "@/lib/project-export";
+import { generateId } from "@/lib/storage";
 import StageIcon from "./stage-icon";
 import JourneyMap from "./journey-map";
 import IntegrationsPanel from "./integrations-panel";
@@ -42,6 +43,7 @@ interface ProjectDetailProps {
   onUpdateMemoryTags?: (memoryId: string, tags: string[]) => void;
   showEncryptReminder?: boolean;
   onEncryptClick?: () => void;
+  onSystemMessage?: (message: ChatMessage) => void;
 }
 
 function DebtSelector({
@@ -149,6 +151,21 @@ const BRIEF_PREVIEW_SECTIONS: { id: ProjectDocSectionId; label: string }[] = [
   { id: "constraints", label: "Constraints" },
 ];
 
+// Records a stage change in the transcript itself — the greeting card only
+// renders for empty transcripts, so history needs a real marker to keep
+// "where am I" legible when scrolling back.
+function stageMarker(targetId: StageId): ChatMessage {
+  const stage = getStage(targetId);
+  return {
+    id: generateId(),
+    role: "assistant",
+    content: stage
+      ? `**Moved to ${stage.label}** — ${stage.nextAction}`
+      : `**Moved to ${targetId}**`,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 function firstDocLine(
   doc: ProjectDoc | undefined,
   id: ProjectDocSectionId
@@ -177,6 +194,7 @@ export default function ProjectDetail({
   onUpdateMemoryTags,
   showEncryptReminder = false,
   onEncryptClick,
+  onSystemMessage,
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -219,6 +237,11 @@ export default function ProjectDetail({
     if (targetIdx > stageIdx && targetIdx >= buildIndex && !hasValidationEvidence) {
       reasons.push("goes straight to building with no demand evidence saved yet");
     }
+    if (targetIdx > stageIdx && completedActions.length < stageThreshold) {
+      reasons.push(
+        `only ${completedActions.length} of ${stageThreshold} suggested stage actions are captured`
+      );
+    }
     if (reasons.length > 0) {
       setPendingAdvance({
         stageId: targetId,
@@ -230,6 +253,7 @@ export default function ProjectDetail({
     }
     setPendingAdvance(null);
     onUpdate({ currentStage: targetId });
+    onSystemMessage?.(stageMarker(targetId));
     return "applied";
   }
 
@@ -238,6 +262,7 @@ export default function ProjectDetail({
     const targetId = pendingAdvance.stageId;
     setPendingAdvance(null);
     onUpdate({ currentStage: targetId });
+    onSystemMessage?.(stageMarker(targetId));
   }
 
   function handleExport() {
@@ -585,7 +610,9 @@ export default function ProjectDetail({
                       Stage progress
                     </div>
                     <div className="mt-1 text-[10px] text-[var(--text-muted)]">
-                      {completedActions.length} action{completedActions.length === 1 ? "" : "s"} captured · threshold {stageThreshold} to advance
+                      {nextStage
+                        ? `${completedActions.length} action${completedActions.length === 1 ? "" : "s"} captured · threshold ${stageThreshold} to advance`
+                        : `${completedActions.length} action${completedActions.length === 1 ? "" : "s"} captured · journey complete`}
                     </div>
                     <div className="mt-2 h-1 rounded-full bg-[var(--accent-10)] overflow-hidden">
                       <div
@@ -593,6 +620,11 @@ export default function ProjectDetail({
                         style={{ width: `${Math.min(100, (completedActions.length / stageThreshold) * 100)}%` }}
                       />
                     </div>
+                    {!nextStage && (
+                      <p className="text-[10px] text-[var(--text-muted)] mt-2">
+                        Validation never stops — keep the loop running.
+                      </p>
+                    )}
                     {nextStage && (
                       <>
                         <button
