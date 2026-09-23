@@ -204,9 +204,9 @@ export function ProjectBrief({
                         </button>
                       ) : null}
                     </div>
-                    <span className="flex-shrink-0 text-[10px] text-[var(--text-faint)] whitespace-nowrap">{new Date(memory.updatedAt ?? memory.createdAt).toLocaleDateString()}</span>
-                    {onUpdateMemory && editingId !== memory.id && <button onClick={() => { setEditingId(memory.id); setEditingContent(memory.content); }} className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-[var(--text-faint)] hover:text-[var(--accent)]" title="Edit memory"><Pencil className="w-3 h-3" /></button>}
-                    {onRemoveMemory && <button onClick={() => onRemoveMemory(memory.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-[var(--text-faint)] hover:text-red-400" title="Remove memory"><Trash2 className="w-3 h-3" /></button>}
+                    <span className="hidden sm:inline flex-shrink-0 text-[10px] text-[var(--text-faint)] whitespace-nowrap">{new Date(memory.updatedAt ?? memory.createdAt).toLocaleDateString()}</span>
+                    {onUpdateMemory && editingId !== memory.id && <button onClick={() => { setEditingId(memory.id); setEditingContent(memory.content); }} className="flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-[var(--text-faint)] hover:text-[var(--accent)]" title="Edit memory"><Pencil className="w-3 h-3" /></button>}
+                    {onRemoveMemory && <button onClick={() => onRemoveMemory(memory.id)} className="flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-[var(--text-faint)] hover:text-red-400" title="Remove memory"><Trash2 className="w-3 h-3" /></button>}
                   </div>
                 ))}
               </div>

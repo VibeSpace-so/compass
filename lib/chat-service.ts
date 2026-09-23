@@ -464,8 +464,13 @@ async function callOpenAICompatibleWithTools(
     let msg: OpenAIChoice["message"] | null = null;
     if (isSSEResponse(response)) {
       let textAcc = "";
+      let streamError: string | null = null;
       const tcParts = new Map<number, { id: string; name: string; args: string }>();
       await streamSSE(response, (chunk) => {
+        // Providers can deliver failures inside a 200 + SSE stream
+        // (e.g. Groq's tool-call validation errors) — surface them.
+        const err = (chunk as { error?: { message?: string } }).error?.message;
+        if (err && !streamError) streamError = err;
         const delta = (
           chunk as {
             choices?: {
@@ -493,6 +498,7 @@ async function callOpenAICompatibleWithTools(
           tcParts.set(tc.index, part);
         }
       });
+      if (streamError) throw new Error(streamError);
       msg = {
         role: "assistant",
         content: textAcc || null,
@@ -700,7 +706,10 @@ async function callAnthropicWithTools(
         inputJson: string;
       }[] = [];
       let stopReason = "";
+      let streamError: string | null = null;
       await streamSSE(response, (evt) => {
+        const errPayload = (evt as { error?: { message?: string } }).error;
+        if (errPayload?.message && !streamError) streamError = errPayload.message;
         const e = evt as {
           type: string;
           index?: number;
@@ -743,6 +752,7 @@ async function callAnthropicWithTools(
           stopReason = e.delta.stop_reason;
         }
       });
+      if (streamError) throw new Error(streamError);
       data = {
         content: blocks
           .filter(Boolean)
@@ -927,7 +937,10 @@ async function callGoogleWithTools(
       const parts: GeminiPart[] = [];
       let textAcc = "";
       let finishReason = "";
+      let streamError: string | null = null;
       await streamSSE(response, (chunk) => {
+        const err = (chunk as { error?: { message?: string } }).error?.message;
+        if (err && !streamError) streamError = err;
         const cand = (chunk as GeminiResponse).candidates?.[0];
         if (!cand) return;
         for (const part of cand.content?.parts ?? []) {
@@ -939,6 +952,7 @@ async function callGoogleWithTools(
         }
         if (cand.finishReason) finishReason = cand.finishReason;
       });
+      if (streamError) throw new Error(streamError);
       candidate = { content: { parts, role: "model" }, finishReason };
     } else {
       const data = (await response.json()) as GeminiResponse;
