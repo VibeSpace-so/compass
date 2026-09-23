@@ -40,7 +40,7 @@ export default function JourneyMap({
               The Journey
             </h2>
             <p className="text-xs text-[var(--text-muted)]">
-              8 stages from idea to product.
+              {STAGES.length} stages from idea to product.
             </p>
           </div>
 

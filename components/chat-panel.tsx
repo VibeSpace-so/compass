@@ -173,7 +173,13 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
       ],
       "next-features": [
         "Help me prioritize features",
+        "How should I collect user feedback?",
         "What should I build next?",
+      ],
+      "grow-scale": [
+        "Run the launch-hardening checklist",
+        "Review my architecture before it breaks",
+        "Help me set up monitoring and alerts",
       ],
     };
     return stageReplies[project.currentStage] || [];
@@ -204,9 +210,20 @@ function getSuggestedReplies(project: Project, messages: ChatMessage[]): string[
       ],
       "next-features": [
         "What are users asking for most?",
+        "How do I close the loop with users?",
         "What's the smallest thing I can ship next?",
       ],
+      "grow-scale": [
+        "What should I monitor first?",
+        "How do I harden security cheaply?",
+        "What breaks first if usage 10x's?",
+        "Write me an incident runbook",
+      ],
     };
+    // Terminal stage has no next stage to advance into.
+    if (project.currentStage === "grow-scale") {
+      return followUps["grow-scale"];
+    }
     return [...(followUps[project.currentStage] ?? ["Tell me more"]), "/advance"];
   }
   return [];
@@ -287,6 +304,7 @@ function getDirectiveGreeting(project: Project): string {
     domain: `Let's get a custom domain for **${project.name}** — a real URL makes the demand test credible.\n\nI'll help you:\n1. **Choose** a memorable domain name\n2. **Register** it (Namecheap, Cloudflare, etc.)\n3. **Connect** it to your hosting\n\nDo you have a domain in mind, or want suggestions?`,
     "build-prototype": `Before we build — what did validation show? For **${project.name}**, let's:\n\n1. **Review** the demand evidence in your memories\n2. **Pick the ONE feature** that evidence points to\n3. **Generate** a context-rich prompt for Cursor/Claude Code\n\nIf the evidence is thin, we'll go back and validate more first. What signal did you get?`,
     "next-features": `**${project.name}** is live! Now let's be strategic about what comes next.\n\n1. What **feedback** have you received?\n2. What features are users **actually asking for**?\n3. What's the **smallest thing** you can ship this week?\n\nLet's prioritize ruthlessly.`,
+    "grow-scale": `**${project.name}** is live and growing — now we make it dependable. Let's find the weakest pillar first.\n\n1. If it breaks at 3am, do you get **alerted** or do users tell you?\n2. When did you last **restore a backup** — not just make one?\n3. What's your **biggest worry** if usage 10x'd tomorrow?\n\nPick the scariest one — we start there.`,
   };
 
   return greetings[project.currentStage] || `You're in the **${stage.label}** stage. ${stage.nextAction}`;

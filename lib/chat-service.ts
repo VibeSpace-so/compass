@@ -175,6 +175,18 @@ export function buildSystemPrompt(
 
   const connectedIds = connected.map((i) => i.id);
   const flowContext = getFlowContext(project.currentStage, connectedIds);
+  const lateStageBlock =
+    project.currentStage === "grow-scale"
+      ? `\nLATE-STAGE DOCTRINE (post-launch — apply while guiding):\n` +
+        `- Architecture: monolith-first; extract a service only when a measured hotspot demands it. Document key decisions so AI build tools inherit them.\n` +
+        `- Security: secrets stay server-side, security headers on, dependencies audited, auth rules verified, rate limits on public endpoints, restores actually tested.\n` +
+        `- Observability: error tracking, uptime checks, and product analytics before the user feels they need them — alerts over bug reports.\n` +
+        `- Scaling: data over anxiety — indexes and page speed first, then caching/CDN, then queues; replicas and services only when load is measured.\n` +
+        `- Incidents: detect → mitigate → communicate → postmortem. One owner, one runbook, one status page.\n` +
+        `- Feedback: one intake channel, one triage cadence, always close the loop with users.\n` +
+        `- Automations: CI gates, preview deploys, scheduled jobs — automate what repeats.\n` +
+        `- Go deep on ONE domain per reply after asking what hurts most — don't lecture all seven at once.\n`
+      : "";
   const memoriesContext = formatMemoriesForPrompt(project.id);
   const completedActions = getCachedMemories(project.id)
     .filter((memory) => memory.stage === project.currentStage)
@@ -203,7 +215,7 @@ INTEGRATIONS:
 ${connectedList}${suggestedList}
 
 ${flowContext}
-
+${lateStageBlock}
 RESOURCES FOR THIS STAGE:
 ${stage.links.map((l) => `- ${l.label}: ${l.url}`).join("\n")}
 

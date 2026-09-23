@@ -110,17 +110,34 @@ export const STAGES: StageMetadata[] = [
   {
     id: "next-features",
     label: "Next Features",
-    description: "Grow only what users asked for — validated learning in, code out.",
+    description: "Grow only what users asked for — validated learning in, code out — while shaping the product's design direction.",
     lucideIcon: "Sparkles",
     risk: "high",
     complexity: "high",
-    nextAction: "List three things real users actually requested. Build only those.",
-    tools: ["Linear", "Notion", "GitHub Issues", "Cursor"],
+    nextAction: "Set up the feedback loop first: one place users report, one weekly triage, one way you tell them it shipped.",
+    tools: ["Linear", "Notion", "GitHub Issues", "Cursor", "PostHog", "Canny", "Figma"],
     links: [
+      { label: "Continuous discovery habits", url: "https://www.producttalk.org/" },
       { label: "Prioritization frameworks", url: "https://www.productplan.com/glossary/prioritization-frameworks/" },
       { label: "Ship fast, learn faster", url: "https://www.ycombinator.com/library/4D-yc-s-essential-startup-advice" },
     ],
     debtNote: "This is the highest-debt stage. Every feature you add increases maintenance cost. Be ruthless about scope.",
+  },
+  {
+    id: "grow-scale",
+    label: "Grow & Scale",
+    description: "The app is live with real users — now harden it: reliability, security, and a scaling plan before growth makes weaknesses expensive.",
+    lucideIcon: "TrendingUp",
+    risk: "high",
+    complexity: "high",
+    nextAction: "Run a launch-hardening pass: error monitoring on, security checklist done, a backup restored (not just made), and your single biggest scaling worry written down.",
+    tools: ["Sentry", "PostHog", "Vercel", "GitHub Actions", "Upstash", "Clerk", "Linear"],
+    links: [
+      { label: "OWASP cheat sheets", url: "https://cheatsheetseries.owasp.org/" },
+      { label: "Postmortem culture", url: "https://sre.google/sre-book/postmortem-culture/" },
+      { label: "Choose boring technology", url: "http://boringtechnology.club/" },
+    ],
+    debtNote: "Operational debt compounds silently: no monitoring means users find your bugs first, untested backups mean one bad deploy is fatal, and no incident plan makes every outage last 3x longer.",
   },
 ];
 

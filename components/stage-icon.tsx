@@ -9,6 +9,7 @@ import {
   Rocket,
   Globe,
   Sparkles,
+  TrendingUp,
   Check,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Rocket,
   Globe,
   Sparkles,
+  TrendingUp,
 };
 
 interface StageIconProps {

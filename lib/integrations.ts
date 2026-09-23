@@ -324,6 +324,38 @@ export const STAGE_SUGGESTIONS: Record<StageId, StageSuggestion[]> = {
       outcome: "Ship more features in parallel while you focus on strategy.",
     },
   ],
+  "grow-scale": [
+    {
+      integrationId: "slack",
+      purpose: "One channel for alerts and user feedback — incidents and requests land where you already look.",
+      outcome: "Learn about problems from a channel, not from angry emails.",
+    },
+    {
+      integrationId: "discord",
+      purpose: "Keep the community feedback loop open where your users already talk.",
+      outcome: "Scaling decisions stay grounded in real requests.",
+    },
+    {
+      integrationId: "vercel",
+      purpose: "Watch deployment health, set up preview deploys and scheduled jobs.",
+      outcome: "Every PR gets checked automatically; ops work runs on cron, not memory.",
+    },
+    {
+      integrationId: "notion",
+      purpose: "Write the incident runbook and architecture decisions where they won't get lost.",
+      outcome: "The next outage is 30 minutes of following a doc, not 3 hours of improvising.",
+    },
+    {
+      integrationId: "devin",
+      purpose: "Automate recurring maintenance — dependency bumps, migrations, cleanup passes.",
+      outcome: "The codebase stays maintained while you stay on the product.",
+    },
+    {
+      integrationId: "perplexity",
+      purpose: "Research observability, auth, and scaling stack options before committing.",
+      outcome: "Choose boring, proven tools instead of whatever's trending.",
+    },
+  ],
 };
 
 export function getSuggestionsForStage(stageId: StageId): StageSuggestion[] {

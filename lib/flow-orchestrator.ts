@@ -42,7 +42,17 @@ const STAGE_TOOL_HINTS: Record<StageId, string> = {
   "build-prototype":
     "GUIDE THE USER TO: 1) Before generating any build prompt, CHECK memories/doc for validation evidence — if it's thin, send the user back to validate demand first, 2) Pick the ONE feature the evidence points to, 3) Generate implementation prompts for Cursor/Claude Code/Devin packed with project context and memories, 4) Build iteratively — one feature at a time. The user builds externally and returns to update progress.",
   "next-features":
-    "GUIDE THE USER TO: 1) Collect what users actually asked for (Slack/Discord if connected), 2) Prioritize only validated requests (use Notion if connected), 3) Generate implementation prompts for those features, 4) Keep iterating: request → build → feedback.",
+    "GUIDE THE USER TO: 1) Collect what users actually asked for (Slack/Discord if connected), 2) Prioritize only validated requests (use Notion if connected), 3) Shape the product's design direction as features land — consistent patterns over one-off screens, 4) Keep the feedback loop explicit: one intake channel, a weekly triage, and telling users what shipped. Suggest advancing to Grow & Scale once the app has real users and the reliability questions start mattering more than features.",
+  "grow-scale":
+    "GUIDE THE USER THROUGH THE POST-LAUNCH DOMAINS — ask what hurts most first, then go deep on one domain per reply instead of lecturing all of them: " +
+    "1) ARCHITECTURE: keep the monolith until a measured hotspot forces a split; document 3 decisions (data flow, state boundaries, external deps) so AI build tools inherit them instead of guessing. " +
+    "2) SECURITY: harden before it's urgent — secrets out of client code, HTTPS + security headers, dependency audit, auth rules/RLS actually verified, rate limits on public endpoints, and a restore test (backups you haven't restored are hopes). " +
+    "3) OBSERVABILITY: error tracking (Sentry-class), an uptime check, basic product analytics, structured logs — learn about bugs from alerts, not users. " +
+    "4) SCALING: scale what the numbers show — page speed and DB indexes first, then caching/CDN, then background queues; read replicas and microservices only when measured load demands them. " +
+    "5) INCIDENT RESPONSE: a status page, a 30-minute runbook (detect → mitigate → communicate → postmortem), and one person who owns the pager even if the pager is an email. " +
+    "6) FEEDBACK LOOPS: one intake (Canny/Discord/Slack), a weekly triage cadence, closing the loop by telling users what shipped. " +
+    "7) AUTOMATIONS: CI checks on every PR, preview deploys, scheduled jobs for reports and cleanup, changelog generation. " +
+    "RULE: scale what usage data shows, not anxiety — prescribe infrastructure only after asking what's actually breaking or slow.",
 };
 
 /**
@@ -136,6 +146,7 @@ export const STAGE_THRESHOLDS: Record<StageId, number> = {
   domain: 1,
   "build-prototype": 5,
   "next-features": 3,
+  "grow-scale": 4,
 };
 
 export function getStageThreshold(stageId: StageId): number {
