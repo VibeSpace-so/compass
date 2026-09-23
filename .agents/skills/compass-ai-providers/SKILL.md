@@ -19,6 +19,14 @@ When a model 404s, query the provider's `/models` endpoint with the configured k
 
 `googleSearch` grounding + function calling is opt-in-compatible on current models but was forbidden on older ones — Gemini's `save_memory` tool calls silently never worked before PR #25. If Gemini answers but never calls tools, verify the tool config is a combination the model supports, not just that requests return 200.
 
+## Inline-JSON tool calls (Groq and lookalikes)
+
+Some providers emit tool calls as inline JSON text (`{"action":"save_memory","params":{...}}` or `action_input`) instead of real tool_calls — Groq's `openai/gpt-oss-*` models do this, which silently never saved memories before PR #41 added `parseInlineToolCalls` coverage. If a provider answers fine but tools never fire, look for raw JSON in the reply text before suspecting keys or model support.
+
+## Custom providers
+
+Users can add custom providers in BYOK settings (PR #37): name + base URL + model + optional key + optional JSON params; `/chat/completions` is auto-appended and they take the OpenAI-compatible path. Custom providers persist in app state and are toggleable/removable. The AI Guidance UI shows muted `recommended:` model hints (e.g. gpt-5.6-luna, claude-haiku-4-5, gemini-flash-latest) rather than naming one pinned model per row — keep that pattern when editing the UI, don't reintroduce hardcoded model names.
+
 ## Keys
 
 Keys are BYOK, entered in the app's UI (clipboard paste via `xclip` on DISPLAY :0 in Devin sessions). `PERPLEXITY_API_KEY` was still unprovisioned as of Sep 2026 — Perplexity search (`app/api/integrations/perplexity/route.ts`) can't be tested end-to-end without it.
