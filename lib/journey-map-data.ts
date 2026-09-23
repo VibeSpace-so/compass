@@ -19,8 +19,8 @@ export interface MapStageDef {
 export const MAP_STAGES: MapStageDef[] = [
   {
     id: "ideation",
-    x: 90,
-    y: 470,
+    x: 105,
+    y: 300,
     milestones: [
       "Problem sentence written: who hurts, how much, what they do today",
       "3+ conversations with real people who have the problem",
@@ -42,8 +42,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "context",
-    x: 205,
-    y: 315,
+    x: 225,
+    y: 375,
     milestones: [
       "Brief filled: problem, target user, constraints, what 'validated' means",
       "Evidence captured as memories, not just chat scrollback",
@@ -65,7 +65,7 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "landing-page",
-    x: 340,
+    x: 350,
     y: 425,
     milestones: [
       "Page live with one clear value proposition",
@@ -95,8 +95,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "github",
-    x: 455,
-    y: 235,
+    x: 475,
+    y: 330,
     milestones: [
       "Repo pushed with a README that states the problem",
       "Issues or a board tracking what's validated vs assumed",
@@ -119,8 +119,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "hosting",
-    x: 565,
-    y: 350,
+    x: 590,
+    y: 370,
     milestones: [
       "Public URL anyone can open",
       "Shared where the target users actually are",
@@ -143,8 +143,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "domain",
-    x: 680,
-    y: 195,
+    x: 695,
+    y: 270,
     milestones: [
       "Domain registered and pointed at your hosting",
       "One canonical URL shared everywhere users live",
@@ -166,8 +166,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "build-prototype",
-    x: 790,
-    y: 330,
+    x: 780,
+    y: 190,
     milestones: [
       "ONE feature shipped — the one validation pointed to",
       "A real user (not you) tried it and reacted",
@@ -189,8 +189,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "next-features",
-    x: 875,
-    y: 165,
+    x: 870,
+    y: 285,
     milestones: [
       "Feedback loop live: one intake, one weekly triage, one ship announcement",
       "Ship → announce → measure cycle running weekly",
@@ -212,8 +212,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "grow-scale",
-    x: 915,
-    y: 430,
+    x: 900,
+    y: 440,
     milestones: [
       "Error monitoring live with real alerts",
       "Backup restored (tested, not just configured)",
@@ -252,43 +252,43 @@ export interface MapPoi {
 
 export const MAP_POIS: MapPoi[] = [
   {
-    x: 150,
-    y: 392,
+    x: 140,
+    y: 368,
     label: "Camp Zero",
     detail: "Where every journey starts: a hunch, a blank repo, and someone in pain you haven't met yet.",
     icon: "tent",
   },
   {
-    x: 268,
-    y: 370,
+    x: 280,
+    y: 330,
     label: "Dead Forest",
     detail: "Where projects that skipped validation go to rest. Great code. Zero users. Tread carefully.",
     icon: "trees",
   },
   {
-    x: 400,
-    y: 322,
+    x: 415,
+    y: 385,
     label: "Validation Crossing",
     detail: "The only safe bridge into build territory. Cross with evidence — signups, replies, or objections.",
     icon: "bridge",
   },
   {
-    x: 640,
-    y: 268,
+    x: 642,
+    y: 415,
     label: "Share Hollow",
     detail: "A deployed URL nobody shares gathers no signal. Tell the valley what you built.",
     icon: "mountain",
   },
   {
-    x: 735,
-    y: 248,
+    x: 700,
+    y: 140,
     label: "The Build Wall",
     detail: "Everything west of here was research. Everything east is code. Evidence is your climbing gear.",
     icon: "wall",
   },
   {
-    x: 833,
-    y: 240,
+    x: 845,
+    y: 225,
     label: "Feedback Loop",
     detail: "Ship → announce → listen → repeat. The loop is the engine; a release without it teaches you nothing.",
     icon: "loop",
@@ -308,10 +308,10 @@ export interface MapRegion {
 }
 
 export const MAP_REGIONS: MapRegion[] = [
-  { label: "IDEATION FLATS", x: 148, y: 392, rx: 128, ry: 108, rotate: -8, seed: 1 },
-  { label: "VALIDATION TERRITORY", x: 505, y: 292, rx: 198, ry: 138, rotate: -4, seed: 7 },
-  { label: "BUILD HIGHLANDS", x: 832, y: 246, rx: 118, ry: 122, rotate: 10, seed: 13 },
-  { label: "SCALE FRONTIER", x: 912, y: 430, rx: 82, ry: 78, rotate: 0, seed: 21 },
+  { label: "IDEATION FLATS", x: 160, y: 335, rx: 165, ry: 110, rotate: -8, seed: 1 },
+  { label: "VALIDATION TERRITORY", x: 520, y: 345, rx: 205, ry: 125, rotate: -4, seed: 7 },
+  { label: "BUILD HIGHLANDS", x: 822, y: 238, rx: 118, ry: 108, rotate: 8, seed: 13 },
+  { label: "SCALE FRONTIER", x: 895, y: 455, rx: 88, ry: 105, rotate: -6, seed: 21 },
 ];
 
 /** Per-stage territory: a small blob sized to its name, country-style. */
