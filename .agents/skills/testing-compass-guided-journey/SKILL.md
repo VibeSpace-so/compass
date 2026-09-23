@@ -215,6 +215,35 @@ localStorage.setItem('vibe-compass-project-mem-<projectId>', JSON.stringify([
 preference|decision|constraint|context|learning|artifact. `git checkout` is not needed — nothing in the
 repo was edited.
 
+**Never retype a project id when building localStorage keys.** Rendered ids can contain lookalike
+characters — a seeded `vibe-compass-project-mem-{id}` key that LOOKS right can differ byte-for-byte
+and silently hydrate nothing ("Memories (0)" forever). Always derive the id inside the console:
+`const sid = JSON.parse(localStorage.getItem('vibe-compass-state')).selectedProjectId` then
+`'vibe-compass-project-mem-' + sid`. Also include `createdAt` AND `updatedAt` ISO strings in seeded
+entries or the UI renders "Invalid Date" (`new Date(memory.updatedAt ?? memory.createdAt)`).
+
+### Streaming replies (PR #48+) — SSE in-band errors are swallowed
+
+The chat service sends `stream:true` and parses SSE via `streamSSE`, which ignores any `data:` payload
+that isn't a `choices[]` delta. When Groq aborts a stream because the model emitted a malformed tool
+call, it returns HTTP 200 + `text/event-stream` and puts the error INSIDE the stream as a
+`{"error":{"message":"Tool call validation f..."}}` event — the parser skips it, the assembled message
+is empty, and the UI shows the generic "I couldn't generate a response. Please try again." (no Retry
+card, no descriptive error — unlike the non-stream path's "invalid tool call" card). Worse: a
+`save_memory` in the same turn can still EXECUTE — check the mem key/Brief counter after any visible
+failure, don't assume the turn was a no-op.
+
+**Diagnose:** DevTools → Network → the `chat/completions` request → EventStream tab. If the last data
+event is an `error` object instead of a `[DONE]`, the failure was swallowed by the SSE path (regression
+to report), not a provider outage.
+
+### Project delete confirm is time-boxed
+
+The project-card trash button arms on first click ("Click delete again to confirm" toast) but the
+armed state expires within a few seconds — a slow second click RE-ARMS instead of deleting. Click the
+trash twice in quick succession (same action batch) to actually delete and get the "Project deleted —
+Undo" toast.
+
 ### Raw provider errors are surfaced verbatim in the chat bubble
 
 There is no friendly error mapping: an exhausted Groq quota renders the whole provider
