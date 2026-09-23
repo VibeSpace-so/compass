@@ -4,19 +4,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  BrickWall,
   Check,
   ChevronRight,
   Compass as CompassIcon,
   Diamond,
+  Flag,
   MapPin,
+  Minus,
+  Mountain,
   Pencil,
   Pin,
+  Plus,
+  Repeat,
+  Skull,
+  Tent,
   Trash2,
+  TreePine,
+  Waypoints,
   X,
 } from "lucide-react";
 import { BYOKProvider, Project, ProjectMemory, StageId } from "@/lib/types";
 import { getStage, getStageIndex } from "@/lib/stages";
-import { getMapStage, MAP_STAGES, recommendedStage } from "@/lib/journey-map-data";
+import {
+  curvePoint,
+  getMapStage,
+  MAP_POIS,
+  MAP_STAGES,
+  recommendedStage,
+  smoothPath,
+} from "@/lib/journey-map-data";
 import {
   enhanceStageGuidance,
   getStageGuidance,
@@ -41,20 +58,38 @@ interface TooltipState {
   y: number;
   title: string;
   detail: string;
-  tone: "milestone" | "warn" | "danger";
+  tone: "milestone" | "warn" | "danger" | "poi";
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
+/** Map is authored on a fixed 1000x620 canvas; zoom scales the layer. */
+const BASE_W = 1000;
+const BASE_H = 620;
+
+const POI_ICONS = {
+  tent: Tent,
+  bridge: Waypoints,
+  wall: BrickWall,
+  loop: Repeat,
+  mountain: Mountain,
+  trees: TreePine,
+} as const;
+
+/** Content hash so AI-rewritten copy counts as a new (unread) tooltip. */
+function hashStr(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
 }
 
 /** Risk marker spots: hazards sit on the trail segment leading into the node. */
 function riskSpot(stageIdx: number, riskIdx: number) {
   const node = MAP_STAGES[stageIdx];
   if (stageIdx === 0) return { x: node.x + 62 + riskIdx * 34, y: node.y - 46 };
-  const prev = MAP_STAGES[stageIdx - 1];
-  const t = 0.52 + riskIdx * 0.16;
-  return { x: lerp(prev.x, node.x, t), y: lerp(prev.y, node.y, t) };
+  const localT = 0.5 + riskIdx * 0.18;
+  return curvePoint(
+    MAP_STAGES,
+    (stageIdx - 1 + localT) / (MAP_STAGES.length - 1)
+  );
 }
 
 function CompassNeedle({
@@ -104,6 +139,11 @@ export default function JourneyMapScreen({
   const [guidance, setGuidance] = useState<Record<string, StageGuidance>>({});
   const enhancingRef = useRef<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const readKey = `vibe-compass-map-read-${project.id}`;
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
   const stage = getStage(selectedId);
   const mapDef = getMapStage(selectedId);
@@ -150,6 +190,31 @@ export default function JourneyMapScreen({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Load persisted read-state; ids include a content hash so an AI rewrite
+  // re-flags a marker as unread automatically.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(readKey);
+      if (raw) setReadIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* corrupted cache → start fresh */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readKey]);
+
+  // Ctrl/Cmd + wheel zooms (non-passive so preventDefault works).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => Math.min(2.5, Math.max(0.6, z * (e.deltaY < 0 ? 1.12 : 0.9))));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [mounted]);
+
   const hasValidationEvidence = memories.some((m) =>
     (["landing-page", "hosting", "domain"] as StageId[]).includes(m.stage)
   );
@@ -166,10 +231,55 @@ export default function JourneyMapScreen({
   const targetNode = MAP_STAGES[Math.max(0, getStageIndex(targetId))];
   const targetStage = getStage(targetId);
 
-  const visitedPath = MAP_STAGES.slice(0, currentIdx + 1).map((s) => `${s.x},${s.y}`).join(" ");
-  const futurePath = MAP_STAGES.slice(currentIdx).map((s) => `${s.x},${s.y}`).join(" ");
+  const visitedPath = smoothPath(MAP_STAGES.slice(0, currentIdx + 1));
+  const futurePath = smoothPath(MAP_STAGES.slice(currentIdx));
 
   const selectedGuidance = guidanceFor(selectedId);
+
+  const markRead = useCallback(
+    (id: string) => {
+      setReadIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        try {
+          localStorage.setItem(readKey, JSON.stringify([...next]));
+        } catch {
+          /* storage full — read state is best-effort */
+        }
+        return next;
+      });
+    },
+    [readKey]
+  );
+
+  const allTipIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const def of MAP_STAGES) {
+      const g = guidanceFor(def.id);
+      g.risks.forEach((r, ri) =>
+        ids.push(`${def.id}-r${ri}-${hashStr(r.title + r.detail)}`)
+      );
+      if (g.milestones.length) {
+        ids.push(`${def.id}-ms-${hashStr(g.milestones.join("|"))}`);
+      }
+    }
+    return ids;
+  }, [guidanceFor]);
+
+  const unreadCount = allTipIds.filter((id) => !readIds.has(id)).length;
+
+  function markAllRead() {
+    setReadIds((prev) => {
+      const next = new Set([...prev, ...allTipIds]);
+      try {
+        localStorage.setItem(readKey, JSON.stringify([...next]));
+      } catch {
+        /* best-effort */
+      }
+      return next;
+    });
+  }
 
   function handleGoToStage(id: StageId) {
     const outcome = onStageChange(id);
@@ -185,9 +295,10 @@ export default function JourneyMapScreen({
   }
 
   const toneStyles: Record<TooltipState["tone"], string> = {
-    milestone: "border-[var(--accent-44)] text-[var(--text-secondary)]",
+    milestone: "border-emerald-500/50 text-emerald-200",
     warn: "border-yellow-500/50 text-yellow-200",
     danger: "border-red-500/60 text-red-200",
+    poi: "border-[var(--accent-26)] text-[var(--text-secondary)]",
   };
 
   if (!mounted) return null;
@@ -209,19 +320,49 @@ export default function JourneyMapScreen({
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--accent-26)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors flex-shrink-0"
-        >
-          <X className="w-3.5 h-3.5" />
-          Back to chat
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--accent-26)] text-[10px] text-[var(--accent)] hover:border-[var(--accent-44)] transition-colors"
+              title="Mark every tooltip as read"
+            >
+              <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold">
+                !
+              </span>
+              {unreadCount} unread — clear
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--accent-26)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+            Back to chat
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-        {/* Map canvas */}
-        <div className="flex-1 min-h-[300px] sm:min-h-0 overflow-auto mobile-scroll relative">
-          <div className="relative min-w-[700px] h-full min-h-[520px]">
+        {/* Map canvas — scroll/pan via overflow, zoom via scaled layer */}
+        <div className="flex-1 min-h-[300px] sm:min-h-0 relative">
+          <div ref={scrollRef} className="absolute inset-0 overflow-auto mobile-scroll flex">
+            {/* m-auto centers when smaller, scrolls when larger */}
+            <div
+              className="m-auto relative flex-shrink-0"
+              style={{ width: BASE_W * zoom, height: BASE_H * zoom }}
+            >
+              {/* Authored 1000x620 layer, scaled */}
+              <div
+                className="absolute top-0 left-0"
+                style={{
+                  width: BASE_W,
+                  height: BASE_H,
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "0 0",
+                }}
+                onClick={() => setTooltip(null)}
+              >
             {/* Terrain texture */}
             <div
               className="absolute inset-0 opacity-[0.07]"
@@ -231,10 +372,15 @@ export default function JourneyMapScreen({
                 backgroundSize: "26px 26px",
               }}
             />
-            <svg viewBox="0 0 1000 620" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <svg
+              viewBox={`0 0 ${BASE_W} ${BASE_H}`}
+              width={BASE_W}
+              height={BASE_H}
+              className="absolute inset-0"
+            >
               {/* Visited trail */}
-              <polyline
-                points={visitedPath}
+              <path
+                d={visitedPath}
                 fill="none"
                 stroke="var(--accent)"
                 strokeWidth="3"
@@ -243,8 +389,8 @@ export default function JourneyMapScreen({
                 opacity="0.55"
               />
               {/* Unvisited trail */}
-              <polyline
-                points={futurePath}
+              <path
+                d={futurePath}
                 fill="none"
                 stroke="var(--accent-44)"
                 strokeWidth="3"
@@ -252,75 +398,116 @@ export default function JourneyMapScreen({
                 strokeLinecap="round"
                 opacity="0.5"
               />
-
-              {/* Risk markers on the trail */}
-              {MAP_STAGES.map((def, i) =>
-                guidanceFor(def.id).risks.map((risk, ri) => {
-                  const { x, y } = riskSpot(i, ri);
-                  const danger = risk.severity === "danger";
-                  return (
-                    <g
-                      key={`${def.id}-risk-${ri}`}
-                      transform={`translate(${x},${y})`}
-                      className="cursor-pointer"
-                      onMouseEnter={() =>
-                        setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity })
-                      }
-                      onMouseLeave={() => setTooltip(null)}
-                      onClick={() =>
-                        setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity })
-                      }
-                    >
-                      <polygon
-                        points="0,-13 12,9 -12,9"
-                        fill={danger ? "rgba(127,29,29,0.85)" : "rgba(113,63,18,0.85)"}
-                        stroke={danger ? "#ef4444" : "#eab308"}
-                        strokeWidth="1.5"
-                      />
-                      <text y="6" textAnchor="middle" fontSize="10" fill={danger ? "#fca5a5" : "#fde047"}>
-                        !
-                      </text>
-                    </g>
-                  );
-                })
-              )}
-
-              {/* Milestone diamonds */}
-              {MAP_STAGES.map((def) => {
-                const g = guidanceFor(def.id);
-                if (g.milestones.length === 0) return null;
-                const mx = def.x + 58;
-                const my = def.y + 34;
-                return (
-                  <g
-                    key={`${def.id}-ms`}
-                    transform={`translate(${mx},${my})`}
-                    className="cursor-pointer"
-                    onMouseEnter={() =>
-                      setTooltip({
-                        x: mx,
-                        y: my,
-                        title: `${getStage(def.id)?.label} milestones`,
-                        detail: g.milestones.map((m) => `• ${m}`).join("\n"),
-                        tone: "milestone",
-                      })
-                    }
-                    onMouseLeave={() => setTooltip(null)}
-                    onClick={() =>
-                      setTooltip({
-                        x: mx,
-                        y: my,
-                        title: `${getStage(def.id)?.label} milestones`,
-                        detail: g.milestones.map((m) => `• ${m}`).join("\n"),
-                        tone: "milestone",
-                      })
-                    }
-                  >
-                    <rect x="-6" y="-6" width="12" height="12" transform="rotate(45)" fill="var(--accent-10)" stroke="var(--accent)" strokeWidth="1.4" />
-                  </g>
-                );
-              })}
             </svg>
+
+
+            {/* Landmarks — Fallout-map dressing that names the real gates */}
+            {MAP_POIS.map((poi) => {
+              const Icon = POI_ICONS[poi.icon];
+              return (
+                <button
+                  key={poi.label}
+                  className="absolute flex flex-col items-center group"
+                  style={{ left: poi.x, top: poi.y, transform: "translate(-50%,-50%)" }}
+                  onMouseEnter={() =>
+                    setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" })
+                  }
+                  onMouseLeave={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" });
+                  }}
+                >
+                  <span className="w-6 h-6 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
+                    <Icon className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  </span>
+                  <span className="mt-0.5 text-[8px] uppercase tracking-wider text-[var(--text-muted)] bg-black/60 px-1 rounded whitespace-nowrap">
+                    {poi.label}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* Risk markers — warn triangles, round skulls for danger */}
+            {MAP_STAGES.map((def, i) =>
+              guidanceFor(def.id).risks.map((risk, ri) => {
+                const { x, y } = riskSpot(i, ri);
+                const danger = risk.severity === "danger";
+                const tipId = `${def.id}-r${ri}-${hashStr(risk.title + risk.detail)}`;
+                const show = () => {
+                  setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity });
+                  markRead(tipId);
+                };
+                return (
+                  <button
+                    key={tipId}
+                    className="absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: x, top: y }}
+                    onMouseEnter={show}
+                    onMouseLeave={() => setTooltip(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      show();
+                    }}
+                  >
+                    {danger ? (
+                      <span className="flex items-center justify-center w-7 h-7 rounded-full bg-red-950/90 border border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.45)]">
+                        <Skull className="w-4 h-4 text-red-300" />
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-yellow-950/80 border border-yellow-500/70">
+                        <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
+                      </span>
+                    )}
+                    {!readIds.has(tipId) && (
+                      <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                        !
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+
+            {/* Milestone flags */}
+            {MAP_STAGES.map((def) => {
+              const g = guidanceFor(def.id);
+              if (g.milestones.length === 0) return null;
+              const mx = def.x + 56;
+              const my = def.y + 30;
+              const tipId = `${def.id}-ms-${hashStr(g.milestones.join("|"))}`;
+              const detail = g.milestones.map((m) => `• ${m}`).join("\n");
+              const show = () => {
+                setTooltip({
+                  x: mx,
+                  y: my,
+                  title: `${getStage(def.id)?.label} milestones`,
+                  detail,
+                  tone: "milestone",
+                });
+                markRead(tipId);
+              };
+              return (
+                <button
+                  key={tipId}
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: mx, top: my }}
+                  onMouseEnter={show}
+                  onMouseLeave={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    show();
+                  }}
+                >
+                  <Flag className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+                  {!readIds.has(tipId) && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                      !
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
             {/* Stage nodes (HTML for icon fidelity) */}
             {MAP_STAGES.map((def, i) => {
@@ -331,9 +518,13 @@ export default function JourneyMapScreen({
               return (
                 <button
                   key={def.id}
-                  onClick={() => { setSelectedId(def.id); setActiveTab("overview"); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedId(def.id);
+                    setActiveTab("overview");
+                  }}
                   className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group"
-                  style={{ left: `${def.x / 10}%`, top: `${def.y / 6.2}%` }}
+                  style={{ left: def.x, top: def.y }}
                 >
                   <div
                     className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
@@ -369,34 +560,68 @@ export default function JourneyMapScreen({
               );
             })}
 
-            {/* Tooltip */}
-            {tooltip && (
-              <div
-                className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-lg border bg-black/95 shadow-xl text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
-                style={{
-                  left: `clamp(8px, ${tooltip.x / 10}%, calc(100% - 250px))`,
-                  top: `clamp(8px, ${tooltip.y / 6.2 + 3}%, calc(100% - 110px))`,
-                }}
-              >
-                <div className="text-[11px] font-semibold mb-0.5">{tooltip.title}</div>
-                <div className="text-[10px] leading-relaxed whitespace-pre-line opacity-90">
-                  {tooltip.detail}
-                </div>
               </div>
-            )}
 
-            {/* Compass + bearing */}
-            <div className="absolute top-3 right-3 flex flex-col items-center gap-1.5">
-              <CompassNeedle
-                fromX={currentNode.x}
-                fromY={currentNode.y}
-                toX={targetNode.x}
-                toY={targetNode.y}
-              />
-              <div className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] bg-black/70 px-1.5 py-0.5 rounded border border-[var(--accent-26)] whitespace-nowrap">
-                → {targetStage?.label ?? "Stay"}
-              </div>
+              {/* Tooltip — outside the scaled layer so it stays readable at any zoom */}
+              {tooltip && (
+                <div
+                  className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-lg border bg-black/95 shadow-xl text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
+                  style={{
+                    left: Math.min(
+                      Math.max(8, tooltip.x * zoom),
+                      BASE_W * zoom - 250
+                    ),
+                    top: Math.min(
+                      Math.max(8, tooltip.y * zoom + 24),
+                      BASE_H * zoom - 120
+                    ),
+                  }}
+                >
+                  <div className="text-[11px] font-semibold mb-0.5">{tooltip.title}</div>
+                  <div className="text-[10px] leading-relaxed whitespace-pre-line opacity-90">
+                    {tooltip.detail}
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Compass + bearing — fixed overlay, doesn't pan with the map */}
+          <div className="absolute top-3 right-3 flex flex-col items-center gap-1.5 pointer-events-none">
+            <CompassNeedle
+              fromX={currentNode.x}
+              fromY={currentNode.y}
+              toX={targetNode.x}
+              toY={targetNode.y}
+            />
+            <div className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] bg-black/70 px-1.5 py-0.5 rounded border border-[var(--accent-26)] whitespace-nowrap">
+              → {targetStage?.label ?? "Stay"}
+            </div>
+          </div>
+
+          {/* Zoom controls */}
+          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-0.5 rounded-lg border border-[var(--accent-26)] bg-black/80 p-1">
+            <button
+              onClick={() => setZoom((z) => Math.min(2.5, z * 1.25))}
+              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              title="Zoom in"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-1 py-0.5 rounded text-[9px] tabular-nums text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+              title="Reset zoom"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={() => setZoom((z) => Math.max(0.6, z * 0.8))}
+              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              title="Zoom out"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 

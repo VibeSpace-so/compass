@@ -70,6 +70,7 @@ export const MAP_STAGES: MapStageDef[] = [
     milestones: [
       "Page live with one clear value proposition",
       "First real signups, replies, or objections collected",
+      "Demand signal logged as memories (numbers, not vibes)",
     ],
     risks: [
       {
@@ -84,6 +85,12 @@ export const MAP_STAGES: MapStageDef[] = [
           "Compliments are free; signups, replies, and pre-orders are evidence. Optimize for the costly signal.",
         severity: "warn",
       },
+      {
+        title: "Fake door, real debt",
+        detail:
+          "A page that promises something you can't deliver collects signups you have to apologize to. Test demand, don't fake it.",
+        severity: "danger",
+      },
     ],
   },
   {
@@ -93,12 +100,19 @@ export const MAP_STAGES: MapStageDef[] = [
     milestones: [
       "Repo pushed with a README that states the problem",
       "Issues or a board tracking what's validated vs assumed",
+      "Landing page linked from README/socials — clicks become evidence",
     ],
     risks: [
       {
         title: "Repo as junk drawer",
         detail:
           "No README, no structure — future you, collaborators, and AI tools all lose the plot of what this project is.",
+        severity: "warn",
+      },
+      {
+        title: "Building in silence",
+        detail:
+          "Shipping code while collecting zero signal. The repo exists to serve the evidence loop — not the other way around.",
         severity: "warn",
       },
     ],
@@ -110,6 +124,7 @@ export const MAP_STAGES: MapStageDef[] = [
     milestones: [
       "Public URL anyone can open",
       "Shared where the target users actually are",
+      "Signup counter or analytics wired — traffic gets measured",
     ],
     risks: [
       {
@@ -118,18 +133,33 @@ export const MAP_STAGES: MapStageDef[] = [
           "Deployed but never shared is still zero demand evidence. The point of hosting is traffic, not uptime.",
         severity: "warn",
       },
+      {
+        title: "Broken first impression",
+        detail:
+          "Page live but the signup path is broken or untested — first visitors bounce and they don't come back.",
+        severity: "warn",
+      },
     ],
   },
   {
     id: "domain",
     x: 680,
     y: 195,
-    milestones: ["Domain registered and pointed at your hosting"],
+    milestones: [
+      "Domain registered and pointed at your hosting",
+      "One canonical URL shared everywhere users live",
+    ],
     risks: [
       {
         title: "Brand obsession",
         detail:
           "Days hunting the perfect name while demand goes unmeasured. A good-enough name this week beats the perfect name next month.",
+        severity: "warn",
+      },
+      {
+        title: "Polish on an unvalidated idea",
+        detail:
+          "A beautiful domain on a page nobody wants just makes the failure prettier. Name it after the signal, not before.",
         severity: "warn",
       },
     ],
@@ -208,6 +238,105 @@ export const MAP_STAGES: MapStageDef[] = [
 
 export function getMapStage(id: StageId): MapStageDef | undefined {
   return MAP_STAGES.find((s) => s.id === id);
+}
+
+// Landmark flavor content between the stage nodes — Fallout-map dressing that
+// also names the gates the journey is actually about.
+export interface MapPoi {
+  x: number;
+  y: number;
+  label: string;
+  detail: string;
+  icon: "tent" | "bridge" | "wall" | "loop" | "mountain" | "trees";
+}
+
+export const MAP_POIS: MapPoi[] = [
+  {
+    x: 150,
+    y: 392,
+    label: "Camp Zero",
+    detail: "Where every journey starts: a hunch, a blank repo, and someone in pain you haven't met yet.",
+    icon: "tent",
+  },
+  {
+    x: 268,
+    y: 370,
+    label: "Dead Forest",
+    detail: "Where projects that skipped validation go to rest. Great code. Zero users. Tread carefully.",
+    icon: "trees",
+  },
+  {
+    x: 400,
+    y: 322,
+    label: "Validation Crossing",
+    detail: "The only safe bridge into build territory. Cross with evidence — signups, replies, or objections.",
+    icon: "bridge",
+  },
+  {
+    x: 640,
+    y: 268,
+    label: "Share Hollow",
+    detail: "A deployed URL nobody shares gathers no signal. Tell the valley what you built.",
+    icon: "mountain",
+  },
+  {
+    x: 735,
+    y: 248,
+    label: "The Build Wall",
+    detail: "Everything west of here was research. Everything east is code. Evidence is your climbing gear.",
+    icon: "wall",
+  },
+  {
+    x: 833,
+    y: 240,
+    label: "Feedback Loop",
+    detail: "Ship → announce → listen → repeat. The loop is the engine; a release without it teaches you nothing.",
+    icon: "loop",
+  },
+];
+
+/** Catmull-Rom → cubic Bézier: a smooth winding trail through the nodes. */
+export function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return pts.length ? `M ${pts[0].x},${pts[0].y}` : "";
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+
+/** Point at parameter t (0..1) along the smooth trail through `pts`. */
+export function curvePoint(
+  pts: { x: number; y: number }[],
+  t: number
+): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+  const segs = pts.length - 1;
+  const raw = Math.min(Math.max(t, 0), 1) * segs;
+  const i = Math.min(Math.floor(raw), segs - 1);
+  const lt = raw - i;
+  const p0 = pts[Math.max(0, i - 1)];
+  const p1 = pts[i];
+  const p2 = pts[i + 1];
+  const p3 = pts[Math.min(pts.length - 1, i + 2)];
+  const c1x = p1.x + (p2.x - p0.x) / 6;
+  const c1y = p1.y + (p2.y - p0.y) / 6;
+  const c2x = p2.x - (p3.x - p1.x) / 6;
+  const c2y = p2.y - (p3.y - p1.y) / 6;
+  const u = 1 - lt;
+  return {
+    x: u * u * u * p1.x + 3 * u * u * lt * c1x + 3 * u * lt * lt * c2x + lt * lt * lt * p2.x,
+    y: u * u * u * p1.y + 3 * u * u * lt * c1y + 3 * u * lt * lt * c2y + lt * lt * lt * p2.y,
+  };
 }
 
 /** The stage the compass recommends walking toward next. */
