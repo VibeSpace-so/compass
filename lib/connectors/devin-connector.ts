@@ -6,6 +6,7 @@ import {
   hasIntegrationToken,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class DevinConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "devin";
@@ -145,6 +146,13 @@ export class DevinConnector implements IntegrationConnector, ToolCapableConnecto
       return { success: false, error: `Unknown tool: ${toolName}` };
     }
 
+    // The spawned session only sees its prompt — append the accumulated brief
+    // so Devin works on the real project, not a one-line task description.
+    const apiParams =
+      action === "create_session" && typeof params.prompt === "string"
+        ? { ...params, prompt: params.prompt + projectBriefBlock() }
+        : params;
+
     try {
       const res = await fetch("/api/integrations/devin", {
         method: "POST",
@@ -152,7 +160,7 @@ export class DevinConnector implements IntegrationConnector, ToolCapableConnecto
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action, params }),
+        body: JSON.stringify({ action, params: apiParams }),
       });
 
       const data: unknown = await res.json();
