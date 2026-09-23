@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Check,
@@ -102,6 +103,7 @@ export default function JourneyMapScreen({
   const [editDraft, setEditDraft] = useState("");
   const [guidance, setGuidance] = useState<Record<string, StageGuidance>>({});
   const enhancingRef = useRef<Set<string>>(new Set());
+  const [mounted, setMounted] = useState(false);
 
   const stage = getStage(selectedId);
   const mapDef = getMapStage(selectedId);
@@ -138,6 +140,15 @@ export default function JourneyMapScreen({
     ensureGuidance(selectedId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
+
+  useEffect(() => {
+    setMounted(true);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const hasValidationEvidence = memories.some((m) =>
     (["landing-page", "hosting", "domain"] as StageId[]).includes(m.stage)
@@ -179,7 +190,11 @@ export default function JourneyMapScreen({
     danger: "border-red-500/60 text-red-200",
   };
 
-  return (
+  if (!mounted) return null;
+
+  // Portaled to <body>: the overlay must sit above the sticky nav (z-40),
+  // which wins any z-index fight inside <main class="relative z-10">.
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-[#0a0f0a] text-[var(--text-secondary)] overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-[var(--accent-26)] bg-black/60 backdrop-blur-sm">
@@ -203,9 +218,9 @@ export default function JourneyMapScreen({
         </button>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
         {/* Map canvas */}
-        <div className="flex-1 overflow-auto mobile-scroll relative">
+        <div className="flex-1 min-h-[300px] sm:min-h-0 overflow-auto mobile-scroll relative">
           <div className="relative min-w-[700px] h-full min-h-[520px]">
             {/* Terrain texture */}
             <div
@@ -386,7 +401,7 @@ export default function JourneyMapScreen({
         </div>
 
         {/* Detail panel */}
-        <div className="w-full sm:w-[340px] border-t sm:border-t-0 sm:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] sm:min-h-0 overflow-y-auto mobile-scroll">
+        <div className="w-full sm:w-[340px] max-h-[45vh] sm:max-h-none border-t sm:border-t-0 sm:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] sm:min-h-0 overflow-y-auto mobile-scroll flex-shrink-0">
           {stage && mapDef ? (
             <>
               <div className="px-4 pt-4 pb-3 border-b border-[var(--accent-26)]">
@@ -605,6 +620,7 @@ export default function JourneyMapScreen({
           Pivots are normal — return to any stage, rework it, and the captured work carries forward everywhere.
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
