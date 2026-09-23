@@ -50,7 +50,6 @@ interface ProjectDetailProps {
   stageToolActions?: number;
   providers?: BYOKProvider[];
   onMemoriesChange?: () => void;
-||||||| b649e16
 }
 
 function DebtSelector({
@@ -205,7 +204,6 @@ export default function ProjectDetail({
   stageToolActions = 0,
   providers,
   onMemoriesChange,
-||||||| b649e16
 }: ProjectDetailProps) {
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
