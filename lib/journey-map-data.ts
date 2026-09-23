@@ -314,6 +314,24 @@ export const MAP_REGIONS: MapRegion[] = [
   { label: "SCALE FRONTIER", x: 912, y: 430, rx: 82, ry: 78, rotate: 0, seed: 21 },
 ];
 
+/** Per-stage territory: a small blob sized to its name, country-style. */
+export function territoryFor(
+  label: string,
+  x: number,
+  y: number,
+  seed: number
+): MapRegion {
+  return {
+    label,
+    x,
+    y,
+    rx: 26 + label.length * 4.5,
+    ry: 34,
+    rotate: (seed % 2 === 0 ? -1 : 1) * (2 + ((seed * 7) % 5)),
+    seed: seed * 31 + 3,
+  };
+}
+
 /** Wobbly closed blob (closed Catmull-Rom through ellipse anchors). */
 export function closedBlobPath(r: MapRegion): string {
   const n = 10;

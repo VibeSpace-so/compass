@@ -36,6 +36,7 @@ import {
   MAP_STAGES,
   recommendedStage,
   smoothPath,
+  territoryFor,
 } from "@/lib/journey-map-data";
 import {
   enhanceStageGuidance,
@@ -406,11 +407,11 @@ export default function JourneyMapScreen({
                     x={r.x}
                     y={r.y + r.ry * 0.52}
                     textAnchor="middle"
-                    fontSize="13"
+                    fontSize="15"
                     fontStyle="italic"
-                    letterSpacing="4"
+                    letterSpacing="5"
                     fill="var(--accent)"
-                    fillOpacity="0.28"
+                    fillOpacity="0.15"
                   >
                     {r.label}
                   </text>
@@ -438,6 +439,68 @@ export default function JourneyMapScreen({
                 strokeLinecap="round"
                 opacity="0.5"
               />
+
+              {/* Stage territories — country names on the map, no icons */}
+              {MAP_STAGES.map((def, i) => {
+                const s = getStage(def.id);
+                const label = s?.label ?? def.id;
+                const terr = territoryFor(label, def.x, def.y, i + 1);
+                const isCurrent = i === currentIdx;
+                const isPast = i < currentIdx;
+                const isSelected = def.id === selectedId;
+                return (
+                  <g
+                    key={def.id}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId(def.id);
+                      setActiveTab("overview");
+                    }}
+                  >
+                    <path
+                      d={closedBlobPath(terr)}
+                      fill="#0a0f0a"
+                      fillOpacity={isCurrent ? 0.85 : 0.72}
+                      stroke={
+                        isCurrent
+                          ? "var(--accent)"
+                          : isPast
+                            ? "var(--accent-44)"
+                            : "var(--accent-26)"
+                      }
+                      strokeOpacity={isCurrent ? 0.95 : isPast ? 0.6 : 0.45}
+                      strokeWidth={isCurrent || isSelected ? 1.8 : 1.1}
+                    />
+                    <text
+                      x={def.x}
+                      y={def.y + 4}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fontWeight={isCurrent ? 700 : 500}
+                      letterSpacing="2"
+                      fill="var(--accent)"
+                      fillOpacity={isCurrent ? 1 : isPast ? 0.55 : 0.35}
+                      style={{ textTransform: "uppercase" }}
+                    >
+                      {label}
+                    </text>
+                    {isPast && (
+                      <text
+                        x={def.x}
+                        y={def.y + 18}
+                        textAnchor="middle"
+                        fontSize="8"
+                        letterSpacing="2"
+                        fill="var(--accent)"
+                        fillOpacity="0.5"
+                      >
+                        ✓ visited
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
 
 
@@ -548,56 +611,17 @@ export default function JourneyMapScreen({
               );
             })}
 
-            {/* Stage nodes (HTML for icon fidelity) */}
-            {MAP_STAGES.map((def, i) => {
-              const isCurrent = i === currentIdx;
-              const isPast = i < currentIdx;
-              const isSelected = def.id === selectedId;
-              const s = getStage(def.id);
-              return (
-                <button
-                  key={def.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedId(def.id);
-                    setActiveTab("overview");
-                  }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group"
-                  style={{ left: def.x, top: def.y }}
-                >
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      isCurrent
-                        ? "border-[var(--accent)] bg-[var(--accent)] text-black shadow-[0_0_20px_var(--accent)]"
-                        : isPast
-                          ? "border-[var(--accent-44)] bg-black/80 text-[var(--accent)]"
-                          : "border-[var(--accent-26)] bg-black/80 text-[var(--text-muted)] group-hover:border-[var(--accent-44)]"
-                    } ${isSelected && !isCurrent ? "ring-2 ring-[var(--accent-44)] ring-offset-2 ring-offset-black" : ""}`}
-                  >
-                    {isPast ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <StageIcon name={s?.lucideIcon ?? "compass"} className="w-4 h-4" />
-                    )}
-                  </div>
-                  {isCurrent && (
-                    <span className="absolute -top-2 -right-2 flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--accent)]" />
-                    </span>
-                  )}
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded bg-black/70 border ${
-                      isCurrent
-                        ? "border-[var(--accent)] text-[var(--accent)]"
-                        : "border-[var(--accent-26)] text-[var(--text-secondary)]"
-                    } whitespace-nowrap`}
-                  >
-                    {s?.label}
-                  </span>
-                </button>
-              );
-            })}
+            {/* You-are-here pin over the current territory */}
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center"
+              style={{ left: currentNode.x, top: currentNode.y - 52 }}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]" />
+              </span>
+              <MapPin className="w-4 h-4 text-[var(--accent)] mt-0.5" />
+            </div>
 
               </div>
 
