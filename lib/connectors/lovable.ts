@@ -4,7 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
-import { projectBriefBlock } from "@/lib/tool-context";
+import { projectBriefBlock, resolveTechStack } from "@/lib/tool-context";
 
 export class LovableConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "lovable";
@@ -81,9 +81,8 @@ export class LovableConnector implements IntegrationConnector, ToolCapableConnec
     const featureList = features.length > 0
       ? `\nKey Features:\n${features.map((f) => `- ${f}`).join("\n")}`
       : "";
-    const techNote = params.techStack
-      ? `\nTech Stack: ${params.techStack as string}`
-      : "";
+    const techStack = resolveTechStack(params.techStack);
+    const techNote = techStack ? `\nTech Stack: ${techStack}` : "";
 
     const prompt = `Build a web application called "${params.projectName as string}".
 

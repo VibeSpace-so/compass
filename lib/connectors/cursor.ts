@@ -4,7 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
-import { projectBriefBlock } from "@/lib/tool-context";
+import { projectBriefBlock, resolveTechStack } from "@/lib/tool-context";
 
 export class CursorConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "cursor";
@@ -83,9 +83,8 @@ export class CursorConnector implements IntegrationConnector, ToolCapableConnect
     const filesNote = filesRef.length > 0
       ? `\nRelevant files to reference:\n${filesRef.map((f) => `- ${f}`).join("\n")}`
       : "";
-    const techNote = params.techStack
-      ? `\nTech Stack: ${params.techStack as string}`
-      : "";
+    const techStack = resolveTechStack(params.techStack);
+    const techNote = techStack ? `\nTech Stack: ${techStack}` : "";
 
     const prompt = `@Composer
 
@@ -119,7 +118,7 @@ Output the complete implementation with all necessary file changes.`;
 Set up a new project called "${params.projectName as string}".
 
 Description: ${params.description as string}
-Tech Stack: ${params.techStack as string}${featureList}${projectBriefBlock()}
+Tech Stack: ${resolveTechStack(params.techStack)}${featureList}${projectBriefBlock()}
 
 Setup Requirements:
 1. Initialize the project with the specified tech stack

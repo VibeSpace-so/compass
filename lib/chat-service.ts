@@ -1074,7 +1074,8 @@ export async function generateChatResponse(
   providers?: BYOKProvider[],
   onToolCall?: (info: ToolCallInfo) => void,
   onStageAdvance?: (newStage: StageId) => StageAdvanceOutcome,
-  onTextDelta?: (text: string) => void
+  onTextDelta?: (text: string) => void,
+  onExtractedMemories?: (count: number) => void
 ): Promise<ChatResponseWithTools> {
   const active = getActiveProvider(project.id, providers);
   if (!active) {
@@ -1128,6 +1129,22 @@ export async function generateChatResponse(
         provider.extraParams,
         onTextDelta
       );
+    }
+
+    // Persist facts the model didn't save itself — weak models narrate
+    // "I've saved this" without emitting the tool call. Fire-and-forget so
+    // the reply isn't delayed; dedup handles overlap with real tool saves.
+    if (result.content && userMessage.trim().length >= 8) {
+      void extractTurnMemories(
+        provider,
+        apiKey,
+        project.id,
+        project.currentStage,
+        userMessage,
+        result.content
+      ).then((count) => {
+        if (count > 0) onExtractedMemories?.(count);
+      });
     }
 
     return result;
@@ -1273,3 +1290,4 @@ async function extractTurnMemories(
     return 0;
   }
 }
+||||||| b649e16

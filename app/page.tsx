@@ -57,6 +57,32 @@ import ProjectUnlock from "@/components/password-gate";
 
 type View = "home" | "project" | "unlock";
 
+// Memory ops are tracked via the memory store itself; advance_stage is
+// navigation. Everything else that ran in a stage counts as captured work.
+const META_TOOL_NAMES = new Set([
+  "save_memory",
+  "list_memories",
+  "update_memory",
+  "advance_stage",
+]);
+
+function stageToolActionsFor(
+  project: Project,
+  chatHistory: AppState["chatHistory"]
+): number {
+  return (chatHistory[project.id] ?? []).reduce(
+    (count, message) =>
+      count +
+      (message.toolCalls ?? []).filter(
+        (call) =>
+          call.status === "success" &&
+          call.stage === project.currentStage &&
+          !META_TOOL_NAMES.has(call.toolName)
+      ).length,
+    0
+  );
+}
+
 export default function CompassPage() {
   const [state, setState] = useState<AppState | null>(null);
   const [view, setView] = useState<View>("home");
@@ -498,6 +524,7 @@ export default function CompassPage() {
         ) : view === "project" && selectedProject ? (
           <ProjectDetail
             project={selectedProject}
+            stageToolActions={stageToolActionsFor(selectedProject, state.chatHistory)}
             onUpdate={handleUpdateProject}
             onBack={handleGoHome}
             chatPanel={

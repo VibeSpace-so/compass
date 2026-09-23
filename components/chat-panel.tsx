@@ -458,7 +458,8 @@ export default function ChatPanel({
         providers,
         handleToolCall,
         advanceForTools,
-        setStreamingText
+        setStreamingText,
+        () => onMemoriesChange?.()
       );
       const assistantMessage: ChatMessage = {
         id: generateId(),
@@ -472,6 +473,7 @@ export default function ChatPanel({
             integrationId,
             status,
             result,
+            stage: project.currentStage,
           })),
       };
       onSendMessage(assistantMessage);
@@ -497,6 +499,7 @@ export default function ChatPanel({
               integrationId,
               status: status as "success" | "error",
               result,
+              stage: project.currentStage,
             })
           ),
         });

@@ -4,7 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
-import { projectBriefBlock } from "@/lib/tool-context";
+import { projectBriefBlock, resolveTechStack } from "@/lib/tool-context";
 
 export class CodexConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "codex";
@@ -76,9 +76,8 @@ export class CodexConnector implements IntegrationConnector, ToolCapableConnecto
   }
 
   private generateTask(params: Record<string, unknown>): ToolCallResult {
-    const techNote = params.techStack
-      ? `\nTech Stack: ${params.techStack as string}`
-      : "";
+    const techStack = resolveTechStack(params.techStack);
+    const techNote = techStack ? `\nTech Stack: ${techStack}` : "";
 
     const prompt = `Project: ${params.projectName as string}
 Description: ${params.description as string}
@@ -107,7 +106,7 @@ Instructions for Codex:
     const prompt = `Implement a feature in "${params.projectName as string}".
 
 Project Description: ${params.description as string}
-Tech Stack: ${params.techStack as string}
+Tech Stack: ${resolveTechStack(params.techStack)}
 Scope: ${scope}
 
 Feature: ${params.feature as string}${reqList}${projectBriefBlock()}

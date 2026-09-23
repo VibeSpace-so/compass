@@ -71,3 +71,22 @@ export function projectBriefBlock(projectIdOverride?: string): string {
     ``,
   ].join("\n");
 }
+
+/**
+ * Resolve a tech stack for generated prompts: the brief's Tech Stack section
+ * wins over the model-passed param so prompts never invent a stack when the
+ * project already documented one. Empty when neither exists.
+ */
+export function resolveTechStack(modelPassed?: unknown): string {
+  try {
+    if (_projectId) {
+      const doc = getSeededProjectDoc(_projectId);
+      const section = doc.sections.find((s) => s.id === "techStack");
+      const content = section?.content?.trim();
+      if (content) return content;
+    }
+  } catch {
+    // Fall through to the model-passed value.
+  }
+  return typeof modelPassed === "string" ? modelPassed.trim() : "";
+}
