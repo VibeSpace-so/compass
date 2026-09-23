@@ -4,7 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
-import { projectBriefBlock } from "@/lib/tool-context";
+import { projectBriefBlock, resolveTechStack } from "@/lib/tool-context";
 
 export class GitHubConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "github";
@@ -53,7 +53,8 @@ export class GitHubConnector implements IntegrationConnector, ToolCapableConnect
   async executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolCallResult> {
     if (toolName === "github_readme_prompt") {
       const features = (params.features as string[] | undefined) ?? [];
-      const stack = params.techStack ? `\n## Tech Stack\n\n${params.techStack}\n` : "";
+      const resolvedStack = resolveTechStack(params.techStack);
+      const stack = resolvedStack ? `\n## Tech Stack\n\n${resolvedStack}\n` : "";
       const featureSection = features.length
         ? `\n## Features\n\n${features.map((feature) => `- ${feature}`).join("\n")}\n`
         : "\n## Features\n\n- Add your first feature here\n";

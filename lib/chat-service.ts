@@ -1,4 +1,4 @@
-import { BYOKProvider, ChatMessage, Integration, Project, StageId } from "./types";
+import { BYOKProvider, ChatMessage, Integration, MemoryType, Project, StageId } from "./types";
 import { getStage } from "./stages";
 import { getSuggestionsForStage } from "./integrations";
 import { getBYOKKey } from "./storage";
@@ -14,7 +14,7 @@ import {
   getFlowContext,
   getStageTransitionAdvice,
 } from "./flow-orchestrator";
-import { formatMemoriesForPrompt, getCachedMemories } from "./memories";
+import { addMemory, formatMemoriesForPrompt, getCachedMemories } from "./memories";
 import { ChatTool } from "./tool-types";
 import { IntegrationAuth } from "./integration-service";
 
@@ -1074,7 +1074,8 @@ export async function generateChatResponse(
   providers?: BYOKProvider[],
   onToolCall?: (info: ToolCallInfo) => void,
   onStageAdvance?: (newStage: StageId) => StageAdvanceOutcome,
-  onTextDelta?: (text: string) => void
+  onTextDelta?: (text: string) => void,
+  onExtractedMemories?: (count: number) => void
 ): Promise<ChatResponseWithTools> {
   const active = getActiveProvider(project.id, providers);
   if (!active) {
@@ -1130,8 +1131,162 @@ export async function generateChatResponse(
       );
     }
 
+    // Persist facts the model didn't save itself — weak models narrate
+    // "I've saved this" without emitting the tool call. Fire-and-forget so
+    // the reply isn't delayed; dedup handles overlap with real tool saves.
+    if (result.content && userMessage.trim().length >= 8) {
+      void extractTurnMemories(
+        provider,
+        apiKey,
+        project.id,
+        project.currentStage,
+        userMessage,
+        result.content
+      ).then((count) => {
+        if (count > 0) onExtractedMemories?.(count);
+      });
+    }
+
     return result;
   } catch (error) {
     throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Post-turn memory extraction — deterministic persistence regardless of model
+// initiative. One small JSON-only call per completed turn, best-effort.
+// ---------------------------------------------------------------------------
+
+const EXTRACTABLE_MEMORY_TYPES = new Set<MemoryType>([
+  "context",
+  "decision",
+  "preference",
+  "constraint",
+  "learning",
+  "artifact",
+]);
+
+async function callSimpleCompletion(
+  provider: LLMProvider,
+  apiKey: string,
+  prompt: string,
+  maxTokens: number
+): Promise<string> {
+  if (provider.id === "anthropic") {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: provider.model,
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!response.ok) throw new Error(`Anthropic API error (${response.status})`);
+    const data = (await response.json()) as AnthropicResponse;
+    return (
+      data.content
+        ?.filter((block) => block.type === "text")
+        .map((block) => block.text ?? "")
+        .join("\n") ?? ""
+    );
+  }
+
+  if (provider.id === "google") {
+    const response = await fetch(GOOGLE_GENERATE_CONTENT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0 },
+      }),
+    });
+    if (!response.ok) throw new Error(`Google API error (${response.status})`);
+    const data = (await response.json()) as GeminiResponse;
+    return (
+      data.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text ?? "")
+        .join("") ?? ""
+    );
+  }
+
+  const response = await fetch(provider.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens,
+      temperature: 0,
+      ...provider.extraParams,
+    }),
+  });
+  if (!response.ok) throw new Error(`API error (${response.status})`);
+  const data = (await response.json()) as { choices: OpenAIChoice[] };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function extractTurnMemories(
+  provider: LLMProvider,
+  apiKey: string,
+  projectId: string,
+  stage: StageId,
+  userMessage: string,
+  assistantReply: string
+): Promise<number> {
+  const clip = (text: string, max: number) =>
+    text.length > max ? `${text.slice(0, max)}\u2026` : text;
+
+  const prompt = [
+    "Extract facts worth remembering about this project from the exchange below.",
+    "Persist only concrete artifacts, decisions, evidence, constraints, preferences,",
+    "or learnings stated or confirmed in it — no plans, opinions, or chit-chat.",
+    "",
+    `Stage: ${stage}`,
+    `USER: ${clip(userMessage, 1500)}`,
+    `ASSISTANT: ${clip(assistantReply, 2000)}`,
+    "",
+    'Return ONLY a JSON array (max 3 items): [{"type":"context|decision|preference|constraint|learning|artifact","content":"one self-contained sentence"}]',
+    "Return [] if nothing is worth persisting.",
+  ].join("\n");
+
+  try {
+    const raw = await callSimpleCompletion(provider, apiKey, prompt, 300);
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) return 0;
+    const parsed: unknown = JSON.parse(match[0]);
+    if (!Array.isArray(parsed)) return 0;
+    let saved = 0;
+    for (const item of parsed.slice(0, 3)) {
+      const candidate = item as { type?: unknown; content?: unknown };
+      if (
+        typeof candidate?.type !== "string" ||
+        typeof candidate?.content !== "string" ||
+        !candidate.content.trim() ||
+        !EXTRACTABLE_MEMORY_TYPES.has(candidate.type as MemoryType)
+      ) {
+        continue;
+      }
+      addMemory(
+        projectId,
+        candidate.type as MemoryType,
+        candidate.content.trim(),
+        stage,
+        "ai"
+      );
+      saved++;
+    }
+    return saved;
+  } catch {
+    return 0;
   }
 }

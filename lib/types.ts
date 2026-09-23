@@ -67,6 +67,8 @@ export interface PersistedToolCall {
   integrationId: string;
   status: "success" | "error";
   result?: string;
+  /** Stage the call ran in — lets stage progress count real tool work. */
+  stage?: StageId;
 }
 
 export type IntegrationCategory = "context" | "communication" | "design" | "build";
