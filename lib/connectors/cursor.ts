@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class CursorConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "cursor";
@@ -92,7 +93,7 @@ Project: ${params.projectName as string}
 Description: ${params.description as string}
 Stage: ${params.stage as string}${techNote}
 
-Task: ${params.task as string}${filesNote}
+Task: ${params.task as string}${filesNote}${projectBriefBlock()}
 
 Instructions:
 1. Analyze the existing codebase structure before making changes
@@ -118,7 +119,7 @@ Output the complete implementation with all necessary file changes.`;
 Set up a new project called "${params.projectName as string}".
 
 Description: ${params.description as string}
-Tech Stack: ${params.techStack as string}${featureList}
+Tech Stack: ${params.techStack as string}${featureList}${projectBriefBlock()}
 
 Setup Requirements:
 1. Initialize the project with the specified tech stack

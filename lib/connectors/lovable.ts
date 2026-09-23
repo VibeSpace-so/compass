@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class LovableConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "lovable";
@@ -87,7 +88,7 @@ export class LovableConnector implements IntegrationConnector, ToolCapableConnec
     const prompt = `Build a web application called "${params.projectName as string}".
 
 Description: ${params.description as string}
-Stage: ${params.stage as string}${featureList}${techNote}
+Stage: ${params.stage as string}${featureList}${techNote}${projectBriefBlock()}
 
 Requirements:
 - Clean, modern UI with intuitive navigation
@@ -114,7 +115,7 @@ Design Guidelines:
     const prompt = `Create a landing page for "${params.projectName as string}".
 
 Description: ${params.description as string}
-Stage: ${params.stage as string}${color}
+Stage: ${params.stage as string}${color}${projectBriefBlock()}
 
 Requirements:
 - Hero section with clear value proposition

@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class Base44Connector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "base44";
@@ -93,7 +94,7 @@ export class Base44Connector implements IntegrationConnector, ToolCapableConnect
     const prompt = `Create an app called "${params.projectName as string}" on Base44.
 
 Description: ${params.description as string}
-Stage: ${params.stage as string}${entityList}${flowList}
+Stage: ${params.stage as string}${entityList}${flowList}${projectBriefBlock()}
 
 App Requirements:
 - Clean, intuitive user interface
@@ -118,7 +119,7 @@ Design: Modern, clean, and professional. Prioritize usability over visual comple
     const prompt = `Add a new feature to the "${params.projectName as string}" app on Base44.
 
 Feature: ${params.feature as string}
-Description: ${params.description as string}${existingList}
+Description: ${params.description as string}${existingList}${projectBriefBlock()}
 
 Requirements:
 - Integrate with existing app structure and navigation

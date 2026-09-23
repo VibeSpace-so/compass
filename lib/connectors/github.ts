@@ -4,6 +4,7 @@ import {
   IntegrationTestResult,
 } from "@/lib/integration-service";
 import { ChatTool, ToolCallResult, ToolCapableConnector } from "@/lib/tool-types";
+import { projectBriefBlock } from "@/lib/tool-context";
 
 export class GitHubConnector implements IntegrationConnector, ToolCapableConnector {
   readonly id = "github";
@@ -58,7 +59,7 @@ export class GitHubConnector implements IntegrationConnector, ToolCapableConnect
         : "\n## Features\n\n- Add your first feature here\n";
       return {
         success: true,
-        data: `# ${params.projectName as string}\n\n${params.description as string}\n${featureSection}${stack}\n## Getting Started\n\n### Prerequisites\n\n- Node.js 20+\n- npm\n\n### Installation\n\n\`\`\`bash\ngit clone https://github.com/YOUR_USERNAME/${params.projectName as string}.git\ncd ${params.projectName as string}\nnpm install\nnpm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000) in your browser.\n\n## License\n\nThis project is licensed under the MIT License.`,
+        data: `# ${params.projectName as string}\n\n${params.description as string}${projectBriefBlock()}\n${featureSection}${stack}\n## Getting Started\n\n### Prerequisites\n\n- Node.js 20+\n- npm\n\n### Installation\n\n\`\`\`bash\ngit clone https://github.com/YOUR_USERNAME/${params.projectName as string}.git\ncd ${params.projectName as string}\nnpm install\nnpm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000) in your browser.\n\n## License\n\nThis project is licensed under the MIT License.`,
       };
     }
     if (toolName === "github_setup_commands") {

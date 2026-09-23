@@ -223,6 +223,7 @@ VALIDATION-FIRST RULES (non-negotiable):
 - The journey arc is: validate the problem → build and refine context → validate demand with a landing page and real signal → only then build features.
 - Before the Build Prototype stage, never generate code or feature prompts — if the user asks to build early, redirect them to the current validation step with one concrete action.
 - Context before code: the project brief and memories are what make AI build tools produce something worth having. Push the user to enrich them.
+- Keep the brief alive: whenever the user supplies facts that fit a brief section that's still empty (tech stack, features, decisions, constraints, open questions, milestones), update_project_doc in the same reply. The brief should track the journey, not freeze after Context.
 - A landing page is a demand test, not a product. Real PMF signal means signups, replies, objections — not vibes. Save that evidence as memories.
 - When the user reaches Build Prototype, check their validation evidence first and build only the feature it points to.
 - Interview, don't interrogate: ask ONE focused question per reply. In Ideation the arc is who has the problem → how painful it is → evidence it exists; in Context it's what they're building → who it's for → constraints and direction. Save each answer as a memory before asking the next question.
@@ -230,7 +231,7 @@ VALIDATION-FIRST RULES (non-negotiable):
 YOUR ROLE — PROACTIVE GUIDE:
 - You LEAD the experience. Don't wait for the user to know what to ask. Tell them: "Here's where you are. Here's your next move."
 - Be direct, opinionated, and action-oriented. Sound like a knowledgeable friend who's shipped products before.
-- When the user shares information about their project (target user, tech choices, constraints, preferences), use save_memory to persist it. This builds a knowledge base that helps you give better advice over time.
+- Persist proactively: whenever the user shares an artifact, evidence, decision, preference, or constraint — a shipped page, signup counts, a repo URL, a scoping decision — call save_memory in the SAME reply, without waiting to be asked. Stage counters and the advance gate depend on these memories existing.
 - When the user completes key milestones for the current stage, proactively suggest advancing to the next stage using advance_stage.
 - When the user needs to use an external tool (Lovable, Cursor, etc.), generate a complete, copy-ready prompt they can paste directly into that tool. Include all relevant project context and memories.
 - Guide the user through research before building. Suggest web searches (Perplexity) to validate ideas, find competitors, and gather best practices.
@@ -282,6 +283,13 @@ export interface ChatResponseWithTools {
   toolCalls: ToolCallInfo[];
 }
 
+// Statuses that can mean "this endpoint doesn't do SSE/streaming" — the only
+// ones worth re-firing the request without stream:true. Auth, rate-limit and
+// server errors would just double-burn quota on a retry.
+function shouldRetryNonStream(status: number): boolean {
+  return [400, 404, 405, 406, 415, 422].includes(status);
+}
+
 export function formatChatError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
   const providerMatch = raw.match(
@@ -299,7 +307,7 @@ export function formatChatError(error: unknown): string {
     statusCode === "429" ||
     /\b(rate limit|rate_limit|quota|too many requests|tpm limit)\b/i.test(lower)
   ) {
-    return `Provider rate limit reached, try again shortly or switch provider. (${detail})`;
+    return `Provider rate limit reached — wait a moment, or add/switch providers in AI Guidance (a custom endpoint can work around per-minute caps). (${detail})`;
   }
 
   if (
@@ -462,10 +470,10 @@ async function callOpenAICompatibleWithTools(
         body: JSON.stringify(stream ? { ...body, stream: true } : body),
       });
 
-    // Try SSE first; fall back to a plain request when the endpoint
-    // can't stream (some custom OpenAI-compatible providers can't).
+    // Try SSE first; fall back to a plain request only when the status can
+    // mean "can't stream" (some custom OpenAI-compatible providers can't).
     let response = await sendRequest(true);
-    if (!response.ok) {
+    if (!response.ok && shouldRetryNonStream(response.status)) {
       response = await sendRequest(false);
     }
     if (!response.ok) {
@@ -700,7 +708,7 @@ async function callAnthropicWithTools(
       });
 
     let response = await sendRequest(true);
-    if (!response.ok) {
+    if (!response.ok && shouldRetryNonStream(response.status)) {
       response = await sendRequest(false);
     }
     if (!response.ok) {
@@ -936,7 +944,7 @@ async function callGoogleWithTools(
       });
 
     let response = await sendRequest(true);
-    if (!response.ok) {
+    if (!response.ok && shouldRetryNonStream(response.status)) {
       response = await sendRequest(false);
     }
     if (!response.ok) {
