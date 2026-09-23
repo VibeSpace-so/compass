@@ -407,7 +407,7 @@ export default function JourneyMapScreen({
               return (
                 <button
                   key={poi.label}
-                  className="absolute flex flex-col items-center group"
+                  className="absolute z-10 flex flex-col items-center group"
                   style={{ left: poi.x, top: poi.y, transform: "translate(-50%,-50%)" }}
                   onMouseEnter={() =>
                     setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" })
@@ -441,7 +441,7 @@ export default function JourneyMapScreen({
                 return (
                   <button
                     key={tipId}
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
+                    className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                     style={{ left: x, top: y }}
                     onMouseEnter={show}
                     onMouseLeave={() => setTooltip(null)}
@@ -490,7 +490,7 @@ export default function JourneyMapScreen({
               return (
                 <button
                   key={tipId}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                   style={{ left: mx, top: my }}
                   onMouseEnter={show}
                   onMouseLeave={() => setTooltip(null)}
