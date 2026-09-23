@@ -295,6 +295,54 @@ export const MAP_POIS: MapPoi[] = [
   },
 ];
 
+// Broad named regions drawn behind the trail — the map reads like a real map,
+// and each region names the gate the journey is actually about.
+export interface MapRegion {
+  label: string;
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+  rotate: number; // degrees
+  seed: number; // deterministic wobble
+}
+
+export const MAP_REGIONS: MapRegion[] = [
+  { label: "IDEATION FLATS", x: 148, y: 392, rx: 128, ry: 108, rotate: -8, seed: 1 },
+  { label: "VALIDATION TERRITORY", x: 505, y: 292, rx: 198, ry: 138, rotate: -4, seed: 7 },
+  { label: "BUILD HIGHLANDS", x: 832, y: 246, rx: 118, ry: 122, rotate: 10, seed: 13 },
+  { label: "SCALE FRONTIER", x: 912, y: 430, rx: 82, ry: 78, rotate: 0, seed: 21 },
+];
+
+/** Wobbly closed blob (closed Catmull-Rom through ellipse anchors). */
+export function closedBlobPath(r: MapRegion): string {
+  const n = 10;
+  const rot = (r.rotate * Math.PI) / 180;
+  const cosR = Math.cos(rot);
+  const sinR = Math.sin(rot);
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const wobble = 0.86 + 0.2 * Math.sin(r.seed * 12.9898 + i * 4.17);
+    const ex = Math.cos(a) * r.rx * wobble;
+    const ey = Math.sin(a) * r.ry * wobble;
+    pts.push({ x: r.x + ex * cosR - ey * sinR, y: r.y + ex * sinR + ey * cosR });
+  }
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d + " Z";
+}
+
 /** Catmull-Rom → cubic Bézier: a smooth winding trail through the nodes. */
 export function smoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return pts.length ? `M ${pts[0].x},${pts[0].y}` : "";
@@ -311,6 +359,19 @@ export function smoothPath(pts: { x: number; y: number }[]): string {
     d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
   }
   return d;
+}
+
+/** Unit normal to the trail at parameter t — for placing markers off-path. */
+export function curveNormal(
+  pts: { x: number; y: number }[],
+  t: number
+): { x: number; y: number } {
+  const a = curvePoint(pts, Math.max(0, t - 0.012));
+  const b = curvePoint(pts, Math.min(1, t + 0.012));
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: -dy / len, y: dx / len };
 }
 
 /** Point at parameter t (0..1) along the smooth trail through `pts`. */

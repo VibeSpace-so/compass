@@ -27,9 +27,12 @@ import {
 import { BYOKProvider, Project, ProjectMemory, StageId } from "@/lib/types";
 import { getStage, getStageIndex } from "@/lib/stages";
 import {
+  closedBlobPath,
+  curveNormal,
   curvePoint,
   getMapStage,
   MAP_POIS,
+  MAP_REGIONS,
   MAP_STAGES,
   recommendedStage,
   smoothPath,
@@ -81,15 +84,24 @@ function hashStr(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-/** Risk marker spots: hazards sit on the trail segment leading into the node. */
+/** Hazards sit OFF the trail, alternating sides — things to steer around. */
 function riskSpot(stageIdx: number, riskIdx: number) {
   const node = MAP_STAGES[stageIdx];
-  if (stageIdx === 0) return { x: node.x + 62 + riskIdx * 34, y: node.y - 46 };
-  const localT = 0.5 + riskIdx * 0.18;
-  return curvePoint(
-    MAP_STAGES,
-    (stageIdx - 1 + localT) / (MAP_STAGES.length - 1)
-  );
+  if (stageIdx === 0) return { x: node.x + 56 + riskIdx * 40, y: node.y - 52 };
+  const segs = MAP_STAGES.length - 1;
+  const t = (stageIdx - 1 + 0.45 + riskIdx * 0.22) / segs;
+  const on = curvePoint(MAP_STAGES, t);
+  const n = curveNormal(MAP_STAGES, t);
+  const side = riskIdx % 2 === 0 ? 1 : -1;
+  const off = 44 + riskIdx * 12;
+  return { x: on.x + n.x * off * side, y: on.y + n.y * off * side };
+}
+
+/** Milestone flags are planted ON the trail just before the stage's node. */
+function flagSpot(stageIdx: number) {
+  const segs = MAP_STAGES.length - 1;
+  const t = stageIdx === 0 ? 0.06 / segs : (stageIdx - 0.13) / segs;
+  return curvePoint(MAP_STAGES, t);
 }
 
 function CompassNeedle({
@@ -378,12 +390,40 @@ export default function JourneyMapScreen({
               height={BASE_H}
               className="absolute inset-0"
             >
+              {/* Named regions — soft geographic zones behind the trail */}
+              {MAP_REGIONS.map((r) => (
+                <g key={r.label}>
+                  <path
+                    d={closedBlobPath(r)}
+                    fill="var(--accent)"
+                    fillOpacity="0.045"
+                    stroke="var(--accent-44)"
+                    strokeOpacity="0.3"
+                    strokeWidth="1.2"
+                    strokeDasharray="5 7"
+                  />
+                  <text
+                    x={r.x}
+                    y={r.y + r.ry * 0.52}
+                    textAnchor="middle"
+                    fontSize="13"
+                    fontStyle="italic"
+                    letterSpacing="4"
+                    fill="var(--accent)"
+                    fillOpacity="0.28"
+                  >
+                    {r.label}
+                  </text>
+                </g>
+              ))}
+
               {/* Visited trail */}
               <path
                 d={visitedPath}
                 fill="none"
                 stroke="var(--accent)"
                 strokeWidth="3"
+                strokeDasharray="9 6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 opacity="0.55"
@@ -418,8 +458,8 @@ export default function JourneyMapScreen({
                     setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" });
                   }}
                 >
-                  <span className="w-6 h-6 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
-                    <Icon className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <span className="w-5 h-5 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
+                    <Icon className="w-3 h-3 text-[var(--text-muted)]" />
                   </span>
                   <span className="mt-0.5 text-[8px] uppercase tracking-wider text-[var(--text-muted)] bg-black/60 px-1 rounded whitespace-nowrap">
                     {poi.label}
@@ -451,12 +491,12 @@ export default function JourneyMapScreen({
                     }}
                   >
                     {danger ? (
-                      <span className="flex items-center justify-center w-7 h-7 rounded-full bg-red-950/90 border border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.45)]">
-                        <Skull className="w-4 h-4 text-red-300" />
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-950/90 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]">
+                        <Skull className="w-3.5 h-3.5 text-red-300" />
                       </span>
                     ) : (
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-yellow-950/80 border border-yellow-500/70">
-                        <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-yellow-950/80 border border-yellow-500/70">
+                        <AlertTriangle className="w-3 h-3 text-yellow-400" />
                       </span>
                     )}
                     {!readIds.has(tipId) && (
@@ -469,12 +509,11 @@ export default function JourneyMapScreen({
               })
             )}
 
-            {/* Milestone flags */}
-            {MAP_STAGES.map((def) => {
+            {/* Milestone flags — planted on the trail before each node */}
+            {MAP_STAGES.map((def, i) => {
               const g = guidanceFor(def.id);
               if (g.milestones.length === 0) return null;
-              const mx = def.x + 56;
-              const my = def.y + 30;
+              const { x: mx, y: my } = flagSpot(i);
               const tipId = `${def.id}-ms-${hashStr(g.milestones.join("|"))}`;
               const detail = g.milestones.map((m) => `• ${m}`).join("\n");
               const show = () => {
@@ -499,7 +538,7 @@ export default function JourneyMapScreen({
                     show();
                   }}
                 >
-                  <Flag className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+                  <Flag className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
                   {!readIds.has(tipId) && (
                     <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
                       !
