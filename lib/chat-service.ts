@@ -69,7 +69,7 @@ function isSSEResponse(response: Response): boolean {
   return (response.headers.get("content-type") ?? "").includes("text/event-stream");
 }
 
-interface LLMProvider {
+export interface LLMProvider {
   id: string;
   endpoint: string;
   model: string;
@@ -111,7 +111,7 @@ function openAICompatibleEndpoint(baseUrl: string): string {
     : `${trimmed}/chat/completions`;
 }
 
-function getActiveProvider(
+export function getActiveProvider(
   projectId: string,
   providers?: BYOKProvider[]
 ): { provider: LLMProvider; apiKey: string } | null {
@@ -1167,7 +1167,7 @@ const EXTRACTABLE_MEMORY_TYPES = new Set<MemoryType>([
   "artifact",
 ]);
 
-async function callSimpleCompletion(
+export async function callSimpleCompletion(
   provider: LLMProvider,
   apiKey: string,
   prompt: string,
