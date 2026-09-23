@@ -19,7 +19,7 @@ export interface MapStageDef {
 export const MAP_STAGES: MapStageDef[] = [
   {
     id: "ideation",
-    x: 105,
+    x: 118,
     y: 300,
     milestones: [
       "Problem sentence written: who hurts, how much, what they do today",
@@ -212,8 +212,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "grow-scale",
-    x: 900,
-    y: 440,
+    x: 872,
+    y: 455,
     milestones: [
       "Error monitoring live with real alerts",
       "Backup restored (tested, not just configured)",
@@ -295,6 +295,20 @@ export const MAP_POIS: MapPoi[] = [
   },
 ];
 
+// One continent landmass: a single hand-drawn coastline enclosing every region.
+// Internal border lines divide it into the four named zones.
+export const MAP_LANDMASS =
+  "M 68,120 C 130,62 260,50 400,62 C 560,74 700,52 830,68 C 920,78 962,140 955,240 C 950,330 968,420 930,505 C 890,565 760,580 620,572 C 470,565 340,580 210,566 C 110,555 55,500 58,400 C 60,310 42,230 62,160 Z";
+
+// Border division lines between the regions sharing the landmass — west
+// (Flats | Validation), east (Validation | Highlands+Frontier), and the
+// south-east branch (Highlands | Frontier).
+export const MAP_BORDERS = [
+  "M 305,72 C 315,170 285,270 292,360 C 297,440 285,500 288,558",
+  "M 745,68 C 715,115 685,150 690,195 C 696,235 745,265 768,295 C 790,325 805,338 810,350 C 812,420 788,495 792,566",
+  "M 810,350 C 850,368 905,382 958,390",
+];
+
 // Broad named regions drawn behind the trail — the map reads like a real map,
 // and each region names the gate the journey is actually about.
 export interface MapRegion {
@@ -307,11 +321,12 @@ export interface MapRegion {
   seed: number; // deterministic wobble
 }
 
+// Label anchors inside each zone of the shared landmass.
 export const MAP_REGIONS: MapRegion[] = [
-  { label: "IDEATION FLATS", x: 160, y: 335, rx: 165, ry: 110, rotate: -8, seed: 1 },
-  { label: "VALIDATION TERRITORY", x: 520, y: 345, rx: 205, ry: 125, rotate: -4, seed: 7 },
-  { label: "BUILD HIGHLANDS", x: 822, y: 238, rx: 118, ry: 108, rotate: 8, seed: 13 },
-  { label: "SCALE FRONTIER", x: 895, y: 455, rx: 88, ry: 105, rotate: -6, seed: 21 },
+  { label: "IDEATION FLATS", x: 168, y: 335, rx: 165, ry: 110, rotate: -8, seed: 1 },
+  { label: "VALIDATION TERRITORY", x: 505, y: 345, rx: 205, ry: 125, rotate: -4, seed: 7 },
+  { label: "BUILD HIGHLANDS", x: 800, y: 122, rx: 118, ry: 108, rotate: 8, seed: 13 },
+  { label: "SCALE FRONTIER", x: 858, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },
 ];
 
 /** Per-stage territory: a small blob sized to its name, country-style. */

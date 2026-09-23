@@ -31,6 +31,8 @@ import {
   curveNormal,
   curvePoint,
   getMapStage,
+  MAP_BORDERS,
+  MAP_LANDMASS,
   MAP_POIS,
   MAP_REGIONS,
   MAP_STAGES,
@@ -378,13 +380,14 @@ export default function JourneyMapScreen({
                 }}
                 onClick={() => setTooltip(null)}
               >
-            {/* Terrain texture */}
+            {/* Terrain texture — clipped to the landmass so the sea stays clean */}
             <div
               className="absolute inset-0 opacity-[0.07]"
               style={{
                 backgroundImage:
                   "radial-gradient(circle at 1px 1px, var(--accent) 0.8px, transparent 0.8px)",
                 backgroundSize: "26px 26px",
+                clipPath: `path('${MAP_LANDMASS}')`,
               }}
             />
             <svg
@@ -401,33 +404,49 @@ export default function JourneyMapScreen({
                 </filter>
               </defs>
 
-              {/* Named regions — hatched zones behind the trail */}
+              {/* The continent — one landmass every region shares */}
+              <path d={MAP_LANDMASS} fill="var(--accent)" fillOpacity="0.045" />
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.5"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+                filter="url(#mapInk)"
+              />
+
+              {/* Internal border division lines between the regions */}
+              <g
+                fill="none"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.38"
+                strokeWidth="1.1"
+                strokeDasharray="6 4"
+                strokeLinecap="round"
+                filter="url(#mapInk)"
+              >
+                {MAP_BORDERS.map((d, i) => (
+                  <path key={i} d={d} />
+                ))}
+              </g>
+
+              {/* Region labels inside their zone of the shared landmass */}
               {MAP_REGIONS.map((r) => (
-                <g key={r.label}>
-                  <path
-                    d={closedBlobPath(r)}
-                    fill="var(--accent)"
-                    fillOpacity="0.05"
-                    stroke="var(--accent-44)"
-                    strokeOpacity="0.35"
-                    strokeWidth="1"
-                    strokeDasharray="3 6"
-                    filter="url(#mapInk)"
-                  />
-                  <text
-                    x={r.x}
-                    y={r.y + r.ry * 0.52}
-                    textAnchor="middle"
-                    fontSize="17"
-                    fontStyle="italic"
-                    letterSpacing="7"
-                    fill="var(--accent)"
-                    fillOpacity="0.16"
-                    fontFamily={MAP_FONT}
-                  >
-                    {r.label}
-                  </text>
-                </g>
+                <text
+                  key={r.label}
+                  x={r.x}
+                  y={r.y}
+                  textAnchor="middle"
+                  fontSize="17"
+                  fontStyle="italic"
+                  letterSpacing="7"
+                  fill="var(--accent)"
+                  fillOpacity="0.16"
+                  fontFamily={MAP_FONT}
+                >
+                  {r.label}
+                </text>
               ))}
 
               {/* Decorative strokes — ridge lines and woods, no interaction */}
@@ -440,8 +459,7 @@ export default function JourneyMapScreen({
                 opacity="0.28"
                 filter="url(#mapInk)"
               >
-                <path d="M 742,118 l 14,-22 l 14,22 M 764,121 l 11,-18 l 11,18 M 784,114 l 15,-24 l 15,24" />
-                <path d="M 855,108 l 11,-18 l 11,18 M 871,112 l 9,-15 l 9,15" />
+                <path d="M 835,112 l 13,-21 l 13,21 M 857,116 l 10,-16 l 10,16 M 875,109 l 12,-19 l 12,19 M 905,114 l 9,-14 l 9,14" />
                 <path d="M 215,540 l 6,-14 l 6,14 z M 221,540 v 6 M 240,552 l 5,-12 l 5,12 z M 245,552 v 6 M 264,537 l 6,-15 l 6,15 z M 270,537 v 7" />
                 <path d="M 882,548 q 8,-9 16,0 M 904,555 q 7,-8 14,0" />
               </g>
@@ -740,7 +758,7 @@ export default function JourneyMapScreen({
           </div>
 
           {/* Zoom controls */}
-          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-0.5 rounded-lg border border-[var(--accent-26)] bg-black/80 p-1">
+          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-1.5 rounded-lg border border-[var(--accent-26)] bg-black/80 p-1.5">
             <button
               onClick={() => setZoom((z) => Math.min(2.5, z * 1.25))}
               className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
