@@ -299,7 +299,7 @@ export const MAP_POIS: MapPoi[] = [
 // Bays and headlands give the shore real geography; internal borders divide
 // it into the four named zones.
 export const MAP_LANDMASS =
-  "M 60,190 C 80,175 92,168 118,162 C 140,157 150,140 160,115 C 168,95 180,72 205,58 C 235,50 280,48 335,58 C 395,64 425,50 480,56 C 515,60 535,70 575,64 C 670,52 760,48 838,60 C 915,68 968,108 962,175 C 957,225 978,262 968,325 C 960,378 976,432 948,488 C 962,518 984,540 972,570 C 965,592 945,600 912,594 C 865,585 800,578 728,573 C 628,579 528,570 432,577 C 335,584 258,562 192,561 C 122,558 70,512 60,432 C 54,368 42,315 52,255 C 55,228 56,207 60,190 Z";
+  "M 55,200 C 80,185 95,180 125,175 C 150,170 158,150 168,120 C 176,95 188,72 215,58 C 245,50 285,48 335,58 C 395,64 425,50 480,56 C 515,60 535,70 575,64 C 670,52 760,48 838,60 C 915,68 968,108 962,175 C 957,225 978,262 968,325 C 960,378 976,432 948,488 C 968,505 990,520 988,545 C 985,575 972,598 950,602 C 928,606 898,600 868,592 C 830,582 780,577 728,573 C 628,579 528,570 432,577 C 335,584 258,562 192,561 C 122,558 70,512 60,432 C 54,368 42,315 52,255 C 55,235 54,215 55,200 Z";
 
 // Small islands offshore — archipelago dressing in the sea band.
 export const MAP_ISLANDS: MapRegion[] = [
@@ -336,9 +336,9 @@ export const MAP_SEA_LABELS: {
   rotate?: number;
 }[] = [
   { label: "THE UNVALIDATED DEEP", x: 455, y: 36 },
-  { label: "DAYDREAM BAY", x: 98, y: 128, rotate: -43 },
+  { label: "DAYDREAM BAY", x: 110, y: 135, rotate: -43 },
   { label: "SEA OF ASSUMPTIONS", x: 255, y: 592 },
-  { label: "BAY OF ITERATIONS", x: 825, y: 597 },
+  { label: "BAY OF ITERATIONS", x: 770, y: 597 },
 ];
 
 // Border division lines between the regions sharing the landmass — west
