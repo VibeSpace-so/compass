@@ -367,6 +367,18 @@ narrated claims. Two consequences for testing:
   inside zones (IDEATION FLATS, VALIDATION TERRITORY, BUILD HIGHLANDS, SCALE
   FRONTIER). Watch: trail can cut through name letterforms (GitHub/Hosting);
   underline (name y+13) vs "· passed ·" (y+16) stack ~3px apart on past+selected.
+- MULTI-RESOLUTION SWEEP (PR #62): Playwright attaches to Chrome via CDP at
+  http://localhost:29229 and emulates sizes with
+  `Emulation.setDeviceMetricsOverride` — but the fit-zoom effect only runs on
+  overlay mount, so RELOAD the page after each resize (toggling metrics alone
+  won't re-fit). Reload also unmounts the overlay: reopen it per size. On ≤640px
+  the "map" button lives in the Context sidebar — press Control+b, then click the
+  hidden-but-mounted element via `el.click()` JS dispatch (Playwright's locator
+  click fails on it). Assert `scrollWidth <= innerWidth` for overflow, read the
+  zoom label for fit. Reference results: 375×812→70% (stage-centered),
+  768×1024→71% whole-continent (lg breakpoint stacks panel below map),
+  1024×768→66%, 1366×768→100%, 1920×1080→150% — every size must be legible
+  without manual zoom; anything needing a manual zoom-to-read is a layout bug.
 
 ### Perplexity test-connection status is not reflected in the badge
 
