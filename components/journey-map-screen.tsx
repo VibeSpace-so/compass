@@ -488,10 +488,10 @@ export default function JourneyMapScreen({
                 filter="url(#mapInk)"
               />
 
-              {/* Stage territories — country names on the map, no icons */}
+              {/* Stage names written directly on the land — country-label style */}
               {MAP_STAGES.map((def, i) => {
                 const s = getStage(def.id);
-                const label = s?.label ?? def.id;
+                const label = (s?.label ?? def.id).toUpperCase();
                 const terr = territoryFor(label, def.x, def.y, i + 1);
                 const isCurrent = i === currentIdx;
                 const isPast = i < currentIdx;
@@ -506,53 +506,41 @@ export default function JourneyMapScreen({
                       setActiveTab("overview");
                     }}
                   >
-                    <path
-                      d={closedBlobPath(terr)}
-                      fill="#0a0f0a"
-                      fillOpacity={isCurrent ? 0.9 : 0.78}
-                      stroke={
-                        isCurrent
-                          ? "var(--accent)"
-                          : isPast
-                            ? "var(--accent-44)"
-                            : "var(--accent-26)"
-                      }
-                      strokeOpacity={isCurrent ? 0.95 : isPast ? 0.65 : 0.45}
-                      strokeWidth={isCurrent || isSelected ? 2.2 : 1.3}
-                      filter="url(#mapInk)"
-                    />
-                    {isCurrent && (
-                      <path
-                        d={closedBlobPath({ ...terr, rx: terr.rx - 6, ry: terr.ry - 5 })}
-                        fill="none"
-                        stroke="var(--accent)"
-                        strokeOpacity="0.5"
-                        strokeWidth="0.8"
-                        filter="url(#mapInk)"
-                      />
-                    )}
+                    {/* invisible hit area over the name's footprint */}
+                    <path d={closedBlobPath(terr)} fill="transparent" pointerEvents="fill" />
                     <text
                       x={def.x}
                       y={def.y + 4}
                       textAnchor="middle"
-                      fontSize={isCurrent ? 15 : label.length > 12 ? 11 : 13}
-                      letterSpacing="2.5"
+                      fontSize={isCurrent ? 16 : label.length > 13 ? 11.5 : 13}
+                      letterSpacing="3.5"
                       fill="var(--accent)"
-                      fillOpacity={isCurrent ? 1 : isPast ? 0.8 : 0.45}
+                      fillOpacity={isCurrent ? 1 : isPast ? 0.72 : 0.42}
                       fontFamily={MAP_FONT}
                     >
                       {label}
                     </text>
+                    {(isCurrent || isSelected) && (
+                      <path
+                        d={`M ${def.x - terr.rx * 0.55},${def.y + 13} q ${terr.rx * 0.55},${isCurrent ? 5 : 4} ${terr.rx * 1.1},0`}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeOpacity={isCurrent ? 0.9 : 0.5}
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        filter="url(#mapInk)"
+                      />
+                    )}
                     {isPast && (
                       <text
                         x={def.x}
-                        y={def.y + 17}
+                        y={def.y + 16}
                         textAnchor="middle"
                         fontSize="7"
                         fontStyle="italic"
                         letterSpacing="2"
                         fill="var(--accent)"
-                        fillOpacity="0.55"
+                        fillOpacity="0.5"
                         fontFamily={MAP_FONT}
                       >
                         · passed ·
