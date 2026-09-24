@@ -672,12 +672,11 @@ export default function JourneyMapScreen({
                 {/* a small serpent in the west sea */}
                 <path d="M 26,470 q 4,-7 8,0 q 4,7 8,0 M 41,466 c 1,-4 4,-5 6,-3" />
                 {/* sea marks outside the coast */}
-                <path d="M 30,150 q 6,-5 12,0 q 6,5 12,0 M 46,165 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 28,158 q 6,-5 12,0 q 6,5 12,0 M 44,172 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 28,205 q 5,-4 10,0 q 5,4 10,0 M 34,425 q 5,-4 10,0 q 5,4 10,0" />
                 <path d="M 60,585 q 6,-5 12,0 q 6,5 12,0 M 78,598 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 350,600 q 6,-5 12,0 q 6,5 12,0 M 560,602 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 930,50 q 6,-5 12,0 q 6,5 12,0 M 950,62 q 6,-5 12,0 q 6,5 12,0" />
-                <path d="M 960,590 q 5,-4 10,0 q 5,4 10,0" />
                 <path d="M 120,36 q 6,-5 12,0 q 6,5 12,0 M 330,38 q 6,-5 12,0 q 6,5 12,0 M 640,40 q 6,-5 12,0 q 6,5 12,0" />
               </g>
 
@@ -774,7 +773,7 @@ export default function JourneyMapScreen({
               })}
 
               {/* Cartographer's rose */}
-              <g transform="translate(952,556)" opacity="0.45">
+              <g transform="translate(46,120) scale(0.7)" opacity="0.45">
                 <circle r="27" fill="none" stroke="var(--accent)" strokeWidth="0.9" />
                 <circle r="21" fill="none" stroke="var(--accent)" strokeWidth="0.4" />
                 <path
