@@ -296,9 +296,36 @@ export const MAP_POIS: MapPoi[] = [
 ];
 
 // One continent landmass: a single hand-drawn coastline enclosing every region.
-// Internal border lines divide it into the four named zones.
+// Bays and headlands give the shore real geography; internal borders divide
+// it into the four named zones.
 export const MAP_LANDMASS =
-  "M 68,120 C 130,62 260,50 400,62 C 560,74 700,52 830,68 C 920,78 962,140 955,240 C 950,330 968,420 930,505 C 890,565 760,580 620,572 C 470,565 340,580 210,566 C 110,555 55,500 58,400 C 60,310 42,230 62,160 Z";
+  "M 80,112 C 150,52 250,46 335,58 C 395,64 425,50 480,56 C 515,60 535,70 575,64 C 670,52 760,48 838,60 C 915,68 968,108 962,175 C 957,225 978,262 968,325 C 960,378 976,432 948,488 C 920,545 838,568 728,573 C 628,579 528,570 432,577 C 335,584 258,562 192,561 C 122,558 70,512 60,432 C 54,368 42,315 52,255 C 58,205 42,168 80,112 Z";
+
+// Small islands offshore — archipelago dressing in the sea band.
+export const MAP_ISLANDS: MapRegion[] = [
+  { label: "", x: 42, y: 82, rx: 9, ry: 6, rotate: -12, seed: 5 },
+  { label: "", x: 27, y: 295, rx: 8, ry: 6, rotate: 15, seed: 9 },
+  { label: "", x: 735, y: 600, rx: 10, ry: 6, rotate: -6, seed: 15 },
+  { label: "", x: 770, y: 597, rx: 6, ry: 4, rotate: 10, seed: 19 },
+];
+
+// Mirror Lake in Validation Territory — the still water evidence flows into.
+export const MAP_LAKE: MapRegion = {
+  label: "",
+  x: 545,
+  y: 485,
+  rx: 55,
+  ry: 33,
+  rotate: -8,
+  seed: 17,
+};
+
+// Streams: a feeder from Validation Crossing into the lake, and an outlet
+// from the lake to the southern sea.
+export const MAP_STREAMS = [
+  "M 414,468 C 450,470 480,474 500,480",
+  "M 545,512 C 540,532 530,550 534,568",
+];
 
 // Border division lines between the regions sharing the landmass — west
 // (Flats | Validation), east (Validation | Highlands+Frontier), and the

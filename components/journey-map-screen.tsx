@@ -32,8 +32,11 @@ import {
   curvePoint,
   getMapStage,
   MAP_BORDERS,
+  MAP_ISLANDS,
+  MAP_LAKE,
   MAP_LANDMASS,
   MAP_POIS,
+  MAP_STREAMS,
   MAP_REGIONS,
   MAP_STAGES,
   recommendedStage,
@@ -484,6 +487,40 @@ export default function JourneyMapScreen({
                 </filter>
               </defs>
 
+              {/* Depth rings — faded coast echoes out into the sea */}
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.10"
+                strokeWidth="1.1"
+                transform="translate(500 310) scale(1.05) translate(-500 -310)"
+                filter="url(#mapInk)"
+              />
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.055"
+                strokeWidth="0.9"
+                transform="translate(500 310) scale(1.105) translate(-500 -310)"
+                filter="url(#mapInk)"
+              />
+
+              {/* Islands offshore */}
+              {MAP_ISLANDS.map((isle, i) => (
+                <path
+                  key={i}
+                  d={closedBlobPath(isle)}
+                  fill="var(--accent)"
+                  fillOpacity="0.05"
+                  stroke="var(--accent-44)"
+                  strokeOpacity="0.4"
+                  strokeWidth="1"
+                  filter="url(#mapInk)"
+                />
+              ))}
+
               {/* The continent — one landmass every region shares */}
               <path d={MAP_LANDMASS} fill="var(--accent)" fillOpacity="0.045" />
               <path
@@ -503,6 +540,29 @@ export default function JourneyMapScreen({
                 strokeLinejoin="round"
                 filter="url(#mapInk)"
               />
+
+              {/* Mirror Lake + its streams — still water in the territory */}
+              <path
+                d={closedBlobPath(MAP_LAKE)}
+                fill="var(--accent)"
+                fillOpacity="0.06"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.45"
+                strokeWidth="1"
+                filter="url(#mapInk)"
+              />
+              <g
+                fill="none"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.35"
+                strokeWidth="1"
+                strokeLinecap="round"
+                filter="url(#mapInk)"
+              >
+                {MAP_STREAMS.map((d, i) => (
+                  <path key={i} d={d} />
+                ))}
+              </g>
 
               {/* Internal border division lines between the regions */}
               <g
@@ -547,14 +607,29 @@ export default function JourneyMapScreen({
                 opacity="0.28"
                 filter="url(#mapInk)"
               >
-                <path d="M 835,112 l 13,-21 l 13,21 M 857,116 l 10,-16 l 10,16 M 875,109 l 12,-19 l 12,19 M 905,114 l 9,-14 l 9,14" />
+                {/* Build Highlands mountain range — back ridge + foothills */}
+                <path d="M 758,118 l 15,-28 l 15,28 M 782,112 l 17,-31 l 17,31 M 810,116 l 14,-26 l 14,26 M 836,110 l 16,-29 l 16,29 M 864,114 l 15,-27 l 15,27 M 890,118 l 13,-23 l 13,23 M 914,122 l 11,-19 l 11,19" />
+                <path d="M 745,140 l 10,-15 l 10,15 M 770,136 l 11,-17 l 11,17 M 800,138 l 10,-15 l 10,15 M 830,135 l 12,-18 l 12,18 M 862,138 l 10,-14 l 10,14 M 888,142 l 9,-13 l 9,13 M 906,144 l 8,-11 l 8,11" opacity="0.7" />
+                <path d="M 715,158 q 8,-8 16,0 M 738,164 q 7,-7 14,0 M 695,168 q 6,-6 12,0" opacity="0.6" />
+                {/* Rolling hills in upper Validation Territory */}
+                <path d="M 360,190 q 14,-13 28,0 M 395,178 q 12,-11 24,0 M 435,186 q 13,-12 26,0 M 478,176 q 12,-10 24,0 M 515,190 q 11,-10 22,0" opacity="0.75" />
+                {/* Dead Forest — bare trunks around the POI */}
+                <path d="M 252,322 v -13 M 252,315 l -5,-4 M 252,312 l 4,-4 M 268,338 v -12 M 268,331 l -4,-3 M 306,318 v -14 M 306,310 l -5,-4 M 306,313 l 5,-4 M 318,338 v -11 M 318,332 l -4,-3" />
+                {/* Pines in the Flats */}
                 <path d="M 215,540 l 6,-14 l 6,14 z M 221,540 v 6 M 240,552 l 5,-12 l 5,12 z M 245,552 v 6 M 264,537 l 6,-15 l 6,15 z M 270,537 v 7" />
-                <path d="M 882,548 q 8,-9 16,0 M 904,555 q 7,-8 14,0" />
+                {/* Grass tufts + dunes in the Flats and Frontier */}
+                <path d="M 95,528 q 2,-5 4,0 M 118,544 q 2,-5 4,0 M 148,538 q 2,-5 4,0 M 172,548 q 2,-5 4,0 M 300,540 q 2,-4 4,0 M 330,534 q 2,-4 4,0" />
+                <path d="M 882,540 q 8,-9 16,0 M 904,547 q 7,-8 14,0 M 480,542 q 7,-7 14,0 M 520,538 q 6,-6 12,0" />
+                {/* Cliff hatching along the SE + east coast */}
+                <path d="M 952,396 l -11,-7 M 944,452 l -11,-5 M 925,500 l -11,-4 M 892,538 l -10,-5 M 856,560 l -9,-5 M 970,282 l -9,-7 M 966,330 l -10,-6" opacity="0.8" />
                 {/* sea marks outside the coast */}
                 <path d="M 30,150 q 6,-5 12,0 q 6,5 12,0 M 46,165 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 28,205 q 5,-4 10,0 q 5,4 10,0 M 34,425 q 5,-4 10,0 q 5,4 10,0" />
                 <path d="M 60,585 q 6,-5 12,0 q 6,5 12,0 M 78,598 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 350,600 q 6,-5 12,0 q 6,5 12,0 M 560,602 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 930,50 q 6,-5 12,0 q 6,5 12,0 M 950,62 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 960,590 q 5,-4 10,0 q 5,4 10,0" />
+                <path d="M 120,36 q 6,-5 12,0 q 6,5 12,0 M 330,38 q 6,-5 12,0 q 6,5 12,0 M 640,40 q 6,-5 12,0 q 6,5 12,0" />
               </g>
 
               {/* Visited trail */}
