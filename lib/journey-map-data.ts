@@ -19,8 +19,8 @@ export interface MapStageDef {
 export const MAP_STAGES: MapStageDef[] = [
   {
     id: "ideation",
-    x: 90,
-    y: 470,
+    x: 118,
+    y: 300,
     milestones: [
       "Problem sentence written: who hurts, how much, what they do today",
       "3+ conversations with real people who have the problem",
@@ -42,8 +42,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "context",
-    x: 205,
-    y: 315,
+    x: 225,
+    y: 375,
     milestones: [
       "Brief filled: problem, target user, constraints, what 'validated' means",
       "Evidence captured as memories, not just chat scrollback",
@@ -65,11 +65,12 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "landing-page",
-    x: 340,
+    x: 350,
     y: 425,
     milestones: [
       "Page live with one clear value proposition",
       "First real signups, replies, or objections collected",
+      "Demand signal logged as memories (numbers, not vibes)",
     ],
     risks: [
       {
@@ -84,15 +85,22 @@ export const MAP_STAGES: MapStageDef[] = [
           "Compliments are free; signups, replies, and pre-orders are evidence. Optimize for the costly signal.",
         severity: "warn",
       },
+      {
+        title: "Fake door, real debt",
+        detail:
+          "A page that promises something you can't deliver collects signups you have to apologize to. Test demand, don't fake it.",
+        severity: "danger",
+      },
     ],
   },
   {
     id: "github",
-    x: 455,
-    y: 235,
+    x: 475,
+    y: 330,
     milestones: [
       "Repo pushed with a README that states the problem",
       "Issues or a board tracking what's validated vs assumed",
+      "Landing page linked from README/socials — clicks become evidence",
     ],
     risks: [
       {
@@ -101,15 +109,22 @@ export const MAP_STAGES: MapStageDef[] = [
           "No README, no structure — future you, collaborators, and AI tools all lose the plot of what this project is.",
         severity: "warn",
       },
+      {
+        title: "Building in silence",
+        detail:
+          "Shipping code while collecting zero signal. The repo exists to serve the evidence loop — not the other way around.",
+        severity: "warn",
+      },
     ],
   },
   {
     id: "hosting",
-    x: 565,
-    y: 350,
+    x: 590,
+    y: 370,
     milestones: [
       "Public URL anyone can open",
       "Shared where the target users actually are",
+      "Signup counter or analytics wired — traffic gets measured",
     ],
     risks: [
       {
@@ -118,13 +133,22 @@ export const MAP_STAGES: MapStageDef[] = [
           "Deployed but never shared is still zero demand evidence. The point of hosting is traffic, not uptime.",
         severity: "warn",
       },
+      {
+        title: "Broken first impression",
+        detail:
+          "Page live but the signup path is broken or untested — first visitors bounce and they don't come back.",
+        severity: "warn",
+      },
     ],
   },
   {
     id: "domain",
-    x: 680,
-    y: 195,
-    milestones: ["Domain registered and pointed at your hosting"],
+    x: 695,
+    y: 270,
+    milestones: [
+      "Domain registered and pointed at your hosting",
+      "One canonical URL shared everywhere users live",
+    ],
     risks: [
       {
         title: "Brand obsession",
@@ -132,12 +156,18 @@ export const MAP_STAGES: MapStageDef[] = [
           "Days hunting the perfect name while demand goes unmeasured. A good-enough name this week beats the perfect name next month.",
         severity: "warn",
       },
+      {
+        title: "Polish on an unvalidated idea",
+        detail:
+          "A beautiful domain on a page nobody wants just makes the failure prettier. Name it after the signal, not before.",
+        severity: "warn",
+      },
     ],
   },
   {
     id: "build-prototype",
-    x: 790,
-    y: 330,
+    x: 780,
+    y: 190,
     milestones: [
       "ONE feature shipped — the one validation pointed to",
       "A real user (not you) tried it and reacted",
@@ -159,8 +189,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "next-features",
-    x: 875,
-    y: 165,
+    x: 870,
+    y: 285,
     milestones: [
       "Feedback loop live: one intake, one weekly triage, one ship announcement",
       "Ship → announce → measure cycle running weekly",
@@ -182,8 +212,8 @@ export const MAP_STAGES: MapStageDef[] = [
   },
   {
     id: "grow-scale",
-    x: 915,
-    y: 430,
+    x: 872,
+    y: 455,
     milestones: [
       "Error monitoring live with real alerts",
       "Backup restored (tested, not just configured)",
@@ -208,6 +238,199 @@ export const MAP_STAGES: MapStageDef[] = [
 
 export function getMapStage(id: StageId): MapStageDef | undefined {
   return MAP_STAGES.find((s) => s.id === id);
+}
+
+// Landmark flavor content between the stage nodes — Fallout-map dressing that
+// also names the gates the journey is actually about.
+export interface MapPoi {
+  x: number;
+  y: number;
+  label: string;
+  detail: string;
+  icon: "tent" | "bridge" | "wall" | "loop" | "mountain" | "trees";
+}
+
+export const MAP_POIS: MapPoi[] = [
+  {
+    x: 128,
+    y: 398,
+    label: "Camp Zero",
+    detail: "Where every journey starts: a hunch, a blank repo, and someone in pain you haven't met yet.",
+    icon: "tent",
+  },
+  {
+    x: 280,
+    y: 330,
+    label: "Dead Forest",
+    detail: "Where projects that skipped validation go to rest. Great code. Zero users. Tread carefully.",
+    icon: "trees",
+  },
+  {
+    x: 405,
+    y: 472,
+    label: "Validation Crossing",
+    detail: "The only safe bridge into build territory. Cross with evidence — signups, replies, or objections.",
+    icon: "bridge",
+  },
+  {
+    x: 642,
+    y: 415,
+    label: "Share Hollow",
+    detail: "A deployed URL nobody shares gathers no signal. Tell the valley what you built.",
+    icon: "mountain",
+  },
+  {
+    x: 700,
+    y: 140,
+    label: "The Build Wall",
+    detail: "Everything west of here was research. Everything east is code. Evidence is your climbing gear.",
+    icon: "wall",
+  },
+  {
+    x: 905,
+    y: 215,
+    label: "Feedback Loop",
+    detail: "Ship → announce → listen → repeat. The loop is the engine; a release without it teaches you nothing.",
+    icon: "loop",
+  },
+];
+
+// One continent landmass: a single hand-drawn coastline enclosing every region.
+// Internal border lines divide it into the four named zones.
+export const MAP_LANDMASS =
+  "M 68,120 C 130,62 260,50 400,62 C 560,74 700,52 830,68 C 920,78 962,140 955,240 C 950,330 968,420 930,505 C 890,565 760,580 620,572 C 470,565 340,580 210,566 C 110,555 55,500 58,400 C 60,310 42,230 62,160 Z";
+
+// Border division lines between the regions sharing the landmass — west
+// (Flats | Validation), east (Validation | Highlands+Frontier), and the
+// south-east branch (Highlands | Frontier).
+export const MAP_BORDERS = [
+  "M 305,72 C 315,170 285,270 292,360 C 297,440 285,500 288,558",
+  "M 745,68 C 715,115 685,150 690,195 C 696,235 745,265 768,295 C 790,325 805,338 810,350 C 812,420 788,495 792,566",
+  "M 810,350 C 850,368 905,382 958,390",
+];
+
+// Broad named regions drawn behind the trail — the map reads like a real map,
+// and each region names the gate the journey is actually about.
+export interface MapRegion {
+  label: string;
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+  rotate: number; // degrees
+  seed: number; // deterministic wobble
+}
+
+// Label anchors inside each zone of the shared landmass.
+export const MAP_REGIONS: MapRegion[] = [
+  { label: "IDEATION FLATS", x: 150, y: 505, rx: 165, ry: 110, rotate: -8, seed: 1 },
+  { label: "VALIDATION TERRITORY", x: 510, y: 240, rx: 205, ry: 125, rotate: -4, seed: 7 },
+  { label: "BUILD HIGHLANDS", x: 800, y: 122, rx: 118, ry: 108, rotate: 8, seed: 13 },
+  { label: "SCALE FRONTIER", x: 858, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },
+];
+
+/** Per-stage territory: a small blob sized to its name, country-style. */
+export function territoryFor(
+  label: string,
+  x: number,
+  y: number,
+  seed: number
+): MapRegion {
+  return {
+    label,
+    x,
+    y,
+    rx: 26 + label.length * 4.5,
+    ry: 34,
+    rotate: (seed % 2 === 0 ? -1 : 1) * (2 + ((seed * 7) % 5)),
+    seed: seed * 31 + 3,
+  };
+}
+
+/** Wobbly closed blob (closed Catmull-Rom through ellipse anchors). */
+export function closedBlobPath(r: MapRegion): string {
+  const n = 10;
+  const rot = (r.rotate * Math.PI) / 180;
+  const cosR = Math.cos(rot);
+  const sinR = Math.sin(rot);
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const wobble = 0.86 + 0.2 * Math.sin(r.seed * 12.9898 + i * 4.17);
+    const ex = Math.cos(a) * r.rx * wobble;
+    const ey = Math.sin(a) * r.ry * wobble;
+    pts.push({ x: r.x + ex * cosR - ey * sinR, y: r.y + ex * sinR + ey * cosR });
+  }
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d + " Z";
+}
+
+/** Catmull-Rom → cubic Bézier: a smooth winding trail through the nodes. */
+export function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return pts.length ? `M ${pts[0].x},${pts[0].y}` : "";
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+
+/** Unit normal to the trail at parameter t — for placing markers off-path. */
+export function curveNormal(
+  pts: { x: number; y: number }[],
+  t: number
+): { x: number; y: number } {
+  const a = curvePoint(pts, Math.max(0, t - 0.012));
+  const b = curvePoint(pts, Math.min(1, t + 0.012));
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: -dy / len, y: dx / len };
+}
+
+/** Point at parameter t (0..1) along the smooth trail through `pts`. */
+export function curvePoint(
+  pts: { x: number; y: number }[],
+  t: number
+): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+  const segs = pts.length - 1;
+  const raw = Math.min(Math.max(t, 0), 1) * segs;
+  const i = Math.min(Math.floor(raw), segs - 1);
+  const lt = raw - i;
+  const p0 = pts[Math.max(0, i - 1)];
+  const p1 = pts[i];
+  const p2 = pts[i + 1];
+  const p3 = pts[Math.min(pts.length - 1, i + 2)];
+  const c1x = p1.x + (p2.x - p0.x) / 6;
+  const c1y = p1.y + (p2.y - p0.y) / 6;
+  const c2x = p2.x - (p3.x - p1.x) / 6;
+  const c2y = p2.y - (p3.y - p1.y) / 6;
+  const u = 1 - lt;
+  return {
+    x: u * u * u * p1.x + 3 * u * u * lt * c1x + 3 * u * lt * lt * c2x + lt * lt * lt * p2.x,
+    y: u * u * u * p1.y + 3 * u * u * lt * c1y + 3 * u * lt * lt * c2y + lt * lt * lt * p2.y,
+  };
 }
 
 /** The stage the compass recommends walking toward next. */

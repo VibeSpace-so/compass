@@ -59,6 +59,11 @@ export async function enhanceStageGuidance(
   providers: BYOKProvider[] | undefined,
   stageId: StageId
 ): Promise<StageGuidance | null> {
+  // Cache-first: a stage already tailored stays tailored — re-enhancing on
+  // every map view would burn a call and churn the unread badges' hashes.
+  const cached = readCache(project.id)[stageId];
+  if (cached?.enhanced) return cached;
+
   const active = getActiveProvider(project.id, providers);
   if (!active) return null;
 

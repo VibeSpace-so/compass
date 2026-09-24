@@ -4,19 +4,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  BrickWall,
   Check,
   ChevronRight,
   Compass as CompassIcon,
   Diamond,
+  Flag,
   MapPin,
+  Minus,
+  Mountain,
   Pencil,
   Pin,
+  Plus,
+  Repeat,
+  Skull,
+  Tent,
   Trash2,
+  TreePine,
+  Waypoints,
   X,
 } from "lucide-react";
 import { BYOKProvider, Project, ProjectMemory, StageId } from "@/lib/types";
 import { getStage, getStageIndex } from "@/lib/stages";
-import { getMapStage, MAP_STAGES, recommendedStage } from "@/lib/journey-map-data";
+import {
+  closedBlobPath,
+  curveNormal,
+  curvePoint,
+  getMapStage,
+  MAP_BORDERS,
+  MAP_LANDMASS,
+  MAP_POIS,
+  MAP_REGIONS,
+  MAP_STAGES,
+  recommendedStage,
+  smoothPath,
+  territoryFor,
+} from "@/lib/journey-map-data";
 import {
   enhanceStageGuidance,
   getStageGuidance,
@@ -41,20 +64,52 @@ interface TooltipState {
   y: number;
   title: string;
   detail: string;
-  tone: "milestone" | "warn" | "danger";
+  tone: "milestone" | "warn" | "danger" | "poi";
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
+/** Map is authored on a fixed 1000x620 canvas; zoom scales the layer. */
+const BASE_W = 1000;
+const BASE_H = 620;
+
+const MAP_FONT = 'var(--font-fell, Georgia, "Times New Roman", serif)';
+
+const POI_ICONS = {
+  tent: Tent,
+  bridge: Waypoints,
+  wall: BrickWall,
+  loop: Repeat,
+  mountain: Mountain,
+  trees: TreePine,
+} as const;
+
+/** Content hash so AI-rewritten copy counts as a new (unread) tooltip. */
+function hashStr(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
 }
 
-/** Risk marker spots: hazards sit on the trail segment leading into the node. */
+/** Hazards sit well OFF the trail, alternating sides — things to steer around.
+    Placed at 30% / 52% / 74% along the incoming segment so they stay clear of
+    the midpoint flag and both endpoint labels, then pushed ~72px off-path. */
 function riskSpot(stageIdx: number, riskIdx: number) {
   const node = MAP_STAGES[stageIdx];
-  if (stageIdx === 0) return { x: node.x + 62 + riskIdx * 34, y: node.y - 46 };
-  const prev = MAP_STAGES[stageIdx - 1];
-  const t = 0.52 + riskIdx * 0.16;
-  return { x: lerp(prev.x, node.x, t), y: lerp(prev.y, node.y, t) };
+  if (stageIdx === 0) return { x: node.x + 62 + riskIdx * 46, y: node.y - 60 };
+  const segs = MAP_STAGES.length - 1;
+  const t = (stageIdx - 1 + 0.3 + riskIdx * 0.22) / segs;
+  const on = curvePoint(MAP_STAGES, t);
+  const n = curveNormal(MAP_STAGES, t);
+  const side = riskIdx % 2 === 0 ? 1 : -1;
+  const off = 68 + riskIdx * 6;
+  return { x: on.x + n.x * off * side, y: on.y + n.y * off * side };
+}
+
+/** Milestone flags are planted ON the trail at each segment's midpoint —
+    halfway between two stage names, so they never touch a label. */
+function flagSpot(stageIdx: number) {
+  const segs = MAP_STAGES.length - 1;
+  const t = stageIdx === 0 ? 0.5 / segs : (stageIdx - 0.5) / segs;
+  return curvePoint(MAP_STAGES, t);
 }
 
 function CompassNeedle({
@@ -73,7 +128,7 @@ function CompassNeedle({
     <div className="w-16 h-16 rounded-full border border-[var(--accent-44)] bg-black/70 flex items-center justify-center shadow-[0_0_18px_-4px_var(--accent)]">
       <svg viewBox="0 0 64 64" className="w-12 h-12">
         <circle cx="32" cy="32" r="29" fill="none" stroke="var(--accent-26)" strokeWidth="1" />
-        <text x="32" y="10" textAnchor="middle" fontSize="7" fill="var(--accent)">N</text>
+        <text x="32" y="10" textAnchor="middle" fontSize="7" fill="var(--accent)" fontFamily={MAP_FONT}>N</text>
         <g transform={`rotate(${deg} 32 32)`}>
           <polygon points="32,8 35,32 32,28 29,32" fill="var(--accent)" />
           <polygon points="32,56 35,32 32,36 29,32" fill="var(--text-muted)" opacity="0.5" />
@@ -104,6 +159,11 @@ export default function JourneyMapScreen({
   const [guidance, setGuidance] = useState<Record<string, StageGuidance>>({});
   const enhancingRef = useRef<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const readKey = `vibe-compass-map-read-${project.id}`;
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
   const stage = getStage(selectedId);
   const mapDef = getMapStage(selectedId);
@@ -150,6 +210,104 @@ export default function JourneyMapScreen({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Load persisted read-state; ids include a content hash so an AI rewrite
+  // re-flags a marker as unread automatically.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(readKey);
+      if (raw) setReadIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* corrupted cache → start fresh */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readKey]);
+
+  // The zoom the map should open at: fit the whole continent when there's
+  // room, readable-and-centered on the current stage when there isn't.
+  const initialZoom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return 1;
+    const fit = Math.min(
+      (el.clientWidth - 16) / BASE_W,
+      (el.clientHeight - 16) / BASE_H
+    );
+    return fit < 0.55 ? 0.7 : Math.min(1.5, Math.max(0.55, fit));
+  }, []);
+
+  // Initial zoom: on desktop/laptop, fit the whole continent in the visible
+  // area; on phones, prefer readable text and center on the current stage.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const z = initialZoom();
+    setZoom(z);
+    // Fit zoom → whole map visible, m-auto centers it; otherwise center on
+    // the current stage so the map opens where you are.
+    if (z !== 0.7) return;
+    const def = MAP_STAGES[currentIdx];
+    if (!def) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({
+        left: def.x * z - el.clientWidth / 2,
+        top: def.y * z - el.clientHeight / 2,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  // Ctrl/Cmd + wheel zooms (non-passive so preventDefault works).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => Math.min(2.5, Math.max(0.4, z * (e.deltaY < 0 ? 1.12 : 0.9))));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [mounted]);
+
+  // Two-finger pinch zoom on touch devices.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const pts = new Map<number, { x: number; y: number }>();
+    let lastDist = 0;
+    const dist = () => {
+      const [a, b] = [...pts.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const d = dist();
+        if (lastDist > 0) {
+          setZoom((z) => Math.min(2.5, Math.max(0.4, z * (d / lastDist))));
+        }
+        lastDist = d;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) lastDist = 0;
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [mounted]);
+
   const hasValidationEvidence = memories.some((m) =>
     (["landing-page", "hosting", "domain"] as StageId[]).includes(m.stage)
   );
@@ -166,10 +324,55 @@ export default function JourneyMapScreen({
   const targetNode = MAP_STAGES[Math.max(0, getStageIndex(targetId))];
   const targetStage = getStage(targetId);
 
-  const visitedPath = MAP_STAGES.slice(0, currentIdx + 1).map((s) => `${s.x},${s.y}`).join(" ");
-  const futurePath = MAP_STAGES.slice(currentIdx).map((s) => `${s.x},${s.y}`).join(" ");
+  const visitedPath = smoothPath(MAP_STAGES.slice(0, currentIdx + 1));
+  const futurePath = smoothPath(MAP_STAGES.slice(currentIdx));
 
   const selectedGuidance = guidanceFor(selectedId);
+
+  const markRead = useCallback(
+    (id: string) => {
+      setReadIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        try {
+          localStorage.setItem(readKey, JSON.stringify([...next]));
+        } catch {
+          /* storage full — read state is best-effort */
+        }
+        return next;
+      });
+    },
+    [readKey]
+  );
+
+  const allTipIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const def of MAP_STAGES) {
+      const g = guidanceFor(def.id);
+      g.risks.forEach((r, ri) =>
+        ids.push(`${def.id}-r${ri}-${hashStr(r.title + r.detail)}`)
+      );
+      if (g.milestones.length) {
+        ids.push(`${def.id}-ms-${hashStr(g.milestones.join("|"))}`);
+      }
+    }
+    return ids;
+  }, [guidanceFor]);
+
+  const unreadCount = allTipIds.filter((id) => !readIds.has(id)).length;
+
+  function markAllRead() {
+    setReadIds((prev) => {
+      const next = new Set([...prev, ...allTipIds]);
+      try {
+        localStorage.setItem(readKey, JSON.stringify([...next]));
+      } catch {
+        /* best-effort */
+      }
+      return next;
+    });
+  }
 
   function handleGoToStage(id: StageId) {
     const outcome = onStageChange(id);
@@ -185,9 +388,10 @@ export default function JourneyMapScreen({
   }
 
   const toneStyles: Record<TooltipState["tone"], string> = {
-    milestone: "border-[var(--accent-44)] text-[var(--text-secondary)]",
+    milestone: "border-emerald-500/50 text-emerald-200",
     warn: "border-yellow-500/50 text-yellow-200",
     danger: "border-red-500/60 text-red-200",
+    poi: "border-[var(--accent-26)] text-[var(--text-secondary)]",
   };
 
   if (!mounted) return null;
@@ -204,204 +408,483 @@ export default function JourneyMapScreen({
             <h2 className="text-sm font-medium text-[var(--accent)] truncate">
               Journey Map — {project.name}
             </h2>
-            <p className="text-[10px] text-[var(--text-muted)]">
+            <p className="text-[10px] text-[var(--text-muted)] hidden sm:block">
               The compass points to your next move. Hover the warning signs — they&apos;re real risks.
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--accent-26)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors flex-shrink-0"
-        >
-          <X className="w-3.5 h-3.5" />
-          Back to chat
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--accent-26)] text-[10px] text-[var(--accent)] hover:border-[var(--accent-44)] transition-colors"
+              title="Mark every tooltip as read"
+            >
+              <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold">
+                !
+              </span>
+              {unreadCount} unread — clear
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--accent-26)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent-44)] hover:text-[var(--accent)] transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+            Back to chat
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-        {/* Map canvas */}
-        <div className="flex-1 min-h-[300px] sm:min-h-0 overflow-auto mobile-scroll relative">
-          <div className="relative min-w-[700px] h-full min-h-[520px]">
-            {/* Terrain texture */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        {/* Map canvas — scroll/pan via overflow, zoom via scaled layer */}
+        <div className="flex-1 min-h-[300px] lg:min-h-0 relative">
+          <div
+            ref={scrollRef}
+            className="absolute inset-0 overflow-auto mobile-scroll flex"
+            style={{ touchAction: "pan-x pan-y" }}
+          >
+            {/* m-auto centers when smaller, scrolls when larger */}
+            <div
+              className="m-auto relative flex-shrink-0"
+              style={{ width: BASE_W * zoom, height: BASE_H * zoom }}
+            >
+              {/* Authored 1000x620 layer, scaled */}
+              <div
+                className="absolute top-0 left-0"
+                style={{
+                  width: BASE_W,
+                  height: BASE_H,
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "0 0",
+                }}
+                onClick={() => setTooltip(null)}
+              >
+            {/* Terrain texture — clipped to the landmass so the sea stays clean */}
             <div
               className="absolute inset-0 opacity-[0.07]"
               style={{
                 backgroundImage:
                   "radial-gradient(circle at 1px 1px, var(--accent) 0.8px, transparent 0.8px)",
                 backgroundSize: "26px 26px",
+                clipPath: `path('${MAP_LANDMASS}')`,
               }}
             />
-            <svg viewBox="0 0 1000 620" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <svg
+              viewBox={`0 0 ${BASE_W} ${BASE_H}`}
+              width={BASE_W}
+              height={BASE_H}
+              className="absolute inset-0"
+            >
+              <defs>
+                {/* Hand-drawn wobble applied to ink strokes (not to text) */}
+                <filter id="mapInk" x="-4%" y="-4%" width="108%" height="108%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="11" result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" />
+                </filter>
+              </defs>
+
+              {/* The continent — one landmass every region shares */}
+              <path d={MAP_LANDMASS} fill="var(--accent)" fillOpacity="0.045" />
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.09"
+                strokeWidth="7"
+                strokeLinejoin="round"
+              />
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.5"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+                filter="url(#mapInk)"
+              />
+
+              {/* Internal border division lines between the regions */}
+              <g
+                fill="none"
+                stroke="var(--accent-44)"
+                strokeOpacity="0.38"
+                strokeWidth="1.1"
+                strokeDasharray="6 4"
+                strokeLinecap="round"
+                filter="url(#mapInk)"
+              >
+                {MAP_BORDERS.map((d, i) => (
+                  <path key={i} d={d} />
+                ))}
+              </g>
+
+              {/* Region labels inside their zone of the shared landmass */}
+              {MAP_REGIONS.map((r) => (
+                <text
+                  key={r.label}
+                  x={r.x}
+                  y={r.y}
+                  textAnchor="middle"
+                  fontSize="17"
+                  fontStyle="italic"
+                  letterSpacing="7"
+                  fill="var(--accent)"
+                  fillOpacity="0.16"
+                  fontFamily={MAP_FONT}
+                >
+                  {r.label}
+                </text>
+              ))}
+
+              {/* Decorative strokes — ridge lines and woods, no interaction */}
+              <g
+                stroke="var(--accent)"
+                fill="none"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter="url(#mapInk)"
+              >
+                <path d="M 835,112 l 13,-21 l 13,21 M 857,116 l 10,-16 l 10,16 M 875,109 l 12,-19 l 12,19 M 905,114 l 9,-14 l 9,14" />
+                <path d="M 215,540 l 6,-14 l 6,14 z M 221,540 v 6 M 240,552 l 5,-12 l 5,12 z M 245,552 v 6 M 264,537 l 6,-15 l 6,15 z M 270,537 v 7" />
+                <path d="M 882,548 q 8,-9 16,0 M 904,555 q 7,-8 14,0" />
+                {/* sea marks outside the coast */}
+                <path d="M 30,150 q 6,-5 12,0 q 6,5 12,0 M 46,165 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 60,585 q 6,-5 12,0 q 6,5 12,0 M 78,598 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 930,50 q 6,-5 12,0 q 6,5 12,0 M 950,62 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 960,590 q 5,-4 10,0 q 5,4 10,0" />
+              </g>
+
               {/* Visited trail */}
-              <polyline
-                points={visitedPath}
+              <path
+                d={visitedPath}
                 fill="none"
                 stroke="var(--accent)"
                 strokeWidth="3"
+                strokeDasharray="9 6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.55"
-              />
+                opacity="0.6"
+                filter="url(#mapInk)"
+              >
+                <animate attributeName="stroke-dashoffset" from="0" to="-15" dur="1.6s" repeatCount="indefinite" />
+              </path>
               {/* Unvisited trail */}
-              <polyline
-                points={futurePath}
+              <path
+                d={futurePath}
                 fill="none"
                 stroke="var(--accent-44)"
                 strokeWidth="3"
                 strokeDasharray="2 10"
                 strokeLinecap="round"
                 opacity="0.5"
+                filter="url(#mapInk)"
               />
 
-              {/* Risk markers on the trail */}
-              {MAP_STAGES.map((def, i) =>
-                guidanceFor(def.id).risks.map((risk, ri) => {
-                  const { x, y } = riskSpot(i, ri);
-                  const danger = risk.severity === "danger";
-                  return (
-                    <g
-                      key={`${def.id}-risk-${ri}`}
-                      transform={`translate(${x},${y})`}
-                      className="cursor-pointer"
-                      onMouseEnter={() =>
-                        setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity })
-                      }
-                      onMouseLeave={() => setTooltip(null)}
-                      onClick={() =>
-                        setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity })
-                      }
-                    >
-                      <polygon
-                        points="0,-13 12,9 -12,9"
-                        fill={danger ? "rgba(127,29,29,0.85)" : "rgba(113,63,18,0.85)"}
-                        stroke={danger ? "#ef4444" : "#eab308"}
-                        strokeWidth="1.5"
-                      />
-                      <text y="6" textAnchor="middle" fontSize="10" fill={danger ? "#fca5a5" : "#fde047"}>
-                        !
-                      </text>
-                    </g>
-                  );
-                })
-              )}
-
-              {/* Milestone diamonds */}
-              {MAP_STAGES.map((def) => {
-                const g = guidanceFor(def.id);
-                if (g.milestones.length === 0) return null;
-                const mx = def.x + 58;
-                const my = def.y + 34;
+              {/* Stage names written directly on the land — country-label style */}
+              {MAP_STAGES.map((def, i) => {
+                const s = getStage(def.id);
+                const label = (s?.label ?? def.id).toUpperCase();
+                const terr = territoryFor(label, def.x, def.y, i + 1);
+                const isCurrent = i === currentIdx;
+                const isPast = i < currentIdx;
+                const isSelected = def.id === selectedId;
                 return (
                   <g
-                    key={`${def.id}-ms`}
-                    transform={`translate(${mx},${my})`}
+                    key={def.id}
                     className="cursor-pointer"
-                    onMouseEnter={() =>
-                      setTooltip({
-                        x: mx,
-                        y: my,
-                        title: `${getStage(def.id)?.label} milestones`,
-                        detail: g.milestones.map((m) => `• ${m}`).join("\n"),
-                        tone: "milestone",
-                      })
-                    }
-                    onMouseLeave={() => setTooltip(null)}
-                    onClick={() =>
-                      setTooltip({
-                        x: mx,
-                        y: my,
-                        title: `${getStage(def.id)?.label} milestones`,
-                        detail: g.milestones.map((m) => `• ${m}`).join("\n"),
-                        tone: "milestone",
-                      })
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId(def.id);
+                      setActiveTab("overview");
+                    }}
                   >
-                    <rect x="-6" y="-6" width="12" height="12" transform="rotate(45)" fill="var(--accent-10)" stroke="var(--accent)" strokeWidth="1.4" />
+                    {/* invisible hit area over the name's footprint */}
+                    <path d={closedBlobPath(terr)} fill="transparent" pointerEvents="fill" />
+                    <text
+                      x={def.x}
+                      y={def.y + 4}
+                      textAnchor="middle"
+                      fontSize={isCurrent ? 16 : label.length > 13 ? 11.5 : 13}
+                      letterSpacing="3.5"
+                      fill="var(--accent)"
+                      fillOpacity={isCurrent ? 1 : isPast ? 0.72 : 0.42}
+                      stroke="#050a05"
+                      strokeWidth="5"
+                      paintOrder="stroke"
+                      strokeOpacity="0.85"
+                      fontFamily={MAP_FONT}
+                    >
+                      {label}
+                    </text>
+                    {(isCurrent || isSelected) && (
+                      <path
+                        d={`M ${def.x - terr.rx * 0.55},${def.y + 13} q ${terr.rx * 0.55},${isCurrent ? 5 : 4} ${terr.rx * 1.1},0`}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeOpacity={isCurrent ? 0.9 : 0.5}
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        filter="url(#mapInk)"
+                      />
+                    )}
+                    {isPast && (
+                      <text
+                        x={def.x}
+                        y={def.y + 16}
+                        textAnchor="middle"
+                        fontSize="7"
+                        fontStyle="italic"
+                        letterSpacing="2"
+                        fill="var(--accent)"
+                        fillOpacity="0.5"
+                        fontFamily={MAP_FONT}
+                      >
+                        · passed ·
+                      </text>
+                    )}
                   </g>
                 );
               })}
+
+              {/* Cartographer's rose */}
+              <g transform="translate(952,556)" opacity="0.45">
+                <circle r="27" fill="none" stroke="var(--accent)" strokeWidth="0.9" />
+                <circle r="21" fill="none" stroke="var(--accent)" strokeWidth="0.4" />
+                <path
+                  d="M0,-25 L4,-4 L25,0 L4,4 L0,25 L-4,4 L-25,0 L-4,-4 Z"
+                  fill="rgba(0,0,0,0)"
+                  stroke="var(--accent)"
+                  strokeWidth="0.7"
+                />
+                <path d="M0,-25 L4,-4 L0,0 L-4,-4 Z" fill="var(--accent)" />
+                <text y="-32" textAnchor="middle" fontSize="10" fill="var(--accent)" fontFamily={MAP_FONT}>
+                  N
+                </text>
+              </g>
+
+              {/* Double-rule map frame + corner ticks */}
+              <g fill="none" stroke="var(--accent)" pointerEvents="none">
+                <rect x="9" y="9" width={BASE_W - 18} height={BASE_H - 18} strokeWidth="1.4" strokeOpacity="0.4" />
+                <rect x="16" y="16" width={BASE_W - 32} height={BASE_H - 32} strokeWidth="0.6" strokeOpacity="0.25" />
+                <path
+                  d="M 9,40 v -31 h 31 M 960,9 h 31 v 31 M 991,580 v 31 h -31 M 40,611 h -31 v -31"
+                  strokeWidth="2.2"
+                  strokeOpacity="0.5"
+                />
+              </g>
             </svg>
 
-            {/* Stage nodes (HTML for icon fidelity) */}
-            {MAP_STAGES.map((def, i) => {
-              const isCurrent = i === currentIdx;
-              const isPast = i < currentIdx;
-              const isSelected = def.id === selectedId;
-              const s = getStage(def.id);
+
+            {/* Landmarks — Fallout-map dressing that names the real gates */}
+            {MAP_POIS.map((poi) => {
+              const Icon = POI_ICONS[poi.icon];
               return (
                 <button
-                  key={def.id}
-                  onClick={() => { setSelectedId(def.id); setActiveTab("overview"); }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group"
-                  style={{ left: `${def.x / 10}%`, top: `${def.y / 6.2}%` }}
+                  key={poi.label}
+                  className="absolute z-10 flex flex-col items-center group"
+                  style={{ left: poi.x, top: poi.y, transform: "translate(-50%,-50%)" }}
+                  onMouseEnter={() =>
+                    setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" })
+                  }
+                  onMouseLeave={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTooltip({ x: poi.x, y: poi.y, title: poi.label, detail: poi.detail, tone: "poi" });
+                  }}
                 >
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all ${
-                      isCurrent
-                        ? "border-[var(--accent)] bg-[var(--accent)] text-black shadow-[0_0_20px_var(--accent)]"
-                        : isPast
-                          ? "border-[var(--accent-44)] bg-black/80 text-[var(--accent)]"
-                          : "border-[var(--accent-26)] bg-black/80 text-[var(--text-muted)] group-hover:border-[var(--accent-44)]"
-                    } ${isSelected && !isCurrent ? "ring-2 ring-[var(--accent-44)] ring-offset-2 ring-offset-black" : ""}`}
-                  >
-                    {isPast ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <StageIcon name={s?.lucideIcon ?? "compass"} className="w-4 h-4" />
-                    )}
-                  </div>
-                  {isCurrent && (
-                    <span className="absolute -top-2 -right-2 flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--accent)]" />
-                    </span>
-                  )}
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded bg-black/70 border ${
-                      isCurrent
-                        ? "border-[var(--accent)] text-[var(--accent)]"
-                        : "border-[var(--accent-26)] text-[var(--text-secondary)]"
-                    } whitespace-nowrap`}
-                  >
-                    {s?.label}
+                  <span className="w-5 h-5 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
+                    <Icon className="w-3 h-3 text-[var(--text-muted)]" />
                   </span>
                 </button>
               );
             })}
 
-            {/* Tooltip */}
-            {tooltip && (
-              <div
-                className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-lg border bg-black/95 shadow-xl text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
-                style={{
-                  left: `clamp(8px, ${tooltip.x / 10}%, calc(100% - 250px))`,
-                  top: `clamp(8px, ${tooltip.y / 6.2 + 3}%, calc(100% - 110px))`,
-                }}
-              >
-                <div className="text-[11px] font-semibold mb-0.5">{tooltip.title}</div>
-                <div className="text-[10px] leading-relaxed whitespace-pre-line opacity-90">
-                  {tooltip.detail}
-                </div>
-              </div>
+            {/* Risk markers — warn triangles, round skulls for danger */}
+            {MAP_STAGES.map((def, i) =>
+              guidanceFor(def.id).risks.map((risk, ri) => {
+                const { x, y } = riskSpot(i, ri);
+                const danger = risk.severity === "danger";
+                const tipId = `${def.id}-r${ri}-${hashStr(risk.title + risk.detail)}`;
+                const show = () => {
+                  setTooltip({ x, y, title: risk.title, detail: risk.detail, tone: risk.severity });
+                  markRead(tipId);
+                };
+                return (
+                  <button
+                    key={tipId}
+                    className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: x, top: y }}
+                    onMouseEnter={show}
+                    onMouseLeave={() => setTooltip(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      show();
+                    }}
+                  >
+                    {danger ? (
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-950/90 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.45)]">
+                        <Skull className="w-3.5 h-3.5 text-red-300" />
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-yellow-950/80 border border-yellow-500/70">
+                        <AlertTriangle className="w-3 h-3 text-yellow-400" />
+                      </span>
+                    )}
+                    {!readIds.has(tipId) && (
+                      <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                        !
+                      </span>
+                    )}
+                  </button>
+                );
+              })
             )}
 
-            {/* Compass + bearing */}
-            <div className="absolute top-3 right-3 flex flex-col items-center gap-1.5">
-              <CompassNeedle
-                fromX={currentNode.x}
-                fromY={currentNode.y}
-                toX={targetNode.x}
-                toY={targetNode.y}
-              />
-              <div className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] bg-black/70 px-1.5 py-0.5 rounded border border-[var(--accent-26)] whitespace-nowrap">
-                → {targetStage?.label ?? "Stay"}
-              </div>
+            {/* Milestone flags — planted on the trail before each node */}
+            {MAP_STAGES.map((def, i) => {
+              const g = guidanceFor(def.id);
+              if (g.milestones.length === 0) return null;
+              const { x: mx, y: my } = flagSpot(i);
+              const tipId = `${def.id}-ms-${hashStr(g.milestones.join("|"))}`;
+              const detail = g.milestones.map((m) => `• ${m}`).join("\n");
+              const show = () => {
+                setTooltip({
+                  x: mx,
+                  y: my,
+                  title: `${getStage(def.id)?.label} milestones`,
+                  detail,
+                  tone: "milestone",
+                });
+                markRead(tipId);
+              };
+              return (
+                <button
+                  key={tipId}
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: mx, top: my }}
+                  onMouseEnter={show}
+                  onMouseLeave={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    show();
+                  }}
+                >
+                  <Flag className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+                  {!readIds.has(tipId) && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--accent)] text-black text-[8px] font-bold leading-none">
+                      !
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* You-are-here pin over the current territory */}
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center"
+              style={{ left: currentNode.x, top: currentNode.y - 52 }}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]" />
+              </span>
+              <MapPin className="w-4 h-4 text-[var(--accent)] mt-0.5" />
             </div>
+
+              </div>
+
+              {/* Tooltip — outside the scaled layer so it stays readable at any zoom */}
+              {tooltip && (
+                <div
+                  className={`absolute z-10 max-w-[240px] px-3 py-2 rounded-lg border bg-black/95 shadow-xl text-left pointer-events-none ${toneStyles[tooltip.tone]}`}
+                  style={{
+                    left: Math.min(
+                      Math.max(8, tooltip.x * zoom),
+                      BASE_W * zoom - 250
+                    ),
+                    top: Math.min(
+                      Math.max(8, tooltip.y * zoom + 24),
+                      BASE_H * zoom - 120
+                    ),
+                  }}
+                >
+                  <div className="text-[11px] font-semibold mb-0.5" style={{ fontFamily: MAP_FONT }}>
+                    {tooltip.title}
+                  </div>
+                  <div className="text-[10px] leading-relaxed whitespace-pre-line opacity-90">
+                    {tooltip.detail}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Compass + bearing — fixed overlay, doesn't pan with the map */}
+          <div className="absolute top-3 right-3 flex flex-col items-center gap-1.5 pointer-events-none">
+            <CompassNeedle
+              fromX={currentNode.x}
+              fromY={currentNode.y}
+              toX={targetNode.x}
+              toY={targetNode.y}
+            />
+            <div
+              className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] bg-black/70 px-1.5 py-0.5 rounded border border-[var(--accent-26)] whitespace-nowrap"
+              style={{ fontFamily: MAP_FONT }}
+            >
+              → {targetStage?.label ?? "Stay"}
+            </div>
+          </div>
+
+          {/* Map legend */}
+          <div
+            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg border border-[var(--accent-26)] bg-black/80 px-2.5 py-2 text-[9px] uppercase tracking-wider text-[var(--text-muted)]"
+            style={{ fontFamily: MAP_FONT }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Flag className="w-3 h-3 text-emerald-400" /> milestone
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Skull className="w-3 h-3 text-red-300" /> hazard
+            </span>
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 text-yellow-400" /> warning
+            </span>
+            <span className="flex items-center gap-1.5 border-t border-[var(--accent-26)] pt-1 mt-0.5 text-[var(--text-muted)]/70 normal-case tracking-normal">
+              drag to pan · pinch or ctrl+scroll
+            </span>
+          </div>
+
+          {/* Zoom controls */}
+          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-1.5 rounded-lg border border-[var(--accent-26)] bg-black/80 p-1.5">
+            <button
+              onClick={() => setZoom((z) => Math.min(2.5, z * 1.25))}
+              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              title="Zoom in"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setZoom(initialZoom())}
+              className="px-1 py-0.5 rounded text-[9px] tabular-nums text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+              title="Fit map to view"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={() => setZoom((z) => Math.max(0.4, z * 0.8))}
+              className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
+              title="Zoom out"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
         {/* Detail panel */}
-        <div className="w-full sm:w-[340px] max-h-[45vh] sm:max-h-none border-t sm:border-t-0 sm:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] sm:min-h-0 overflow-y-auto mobile-scroll flex-shrink-0">
+        <div className="w-full lg:w-[340px] max-h-[45vh] lg:max-h-none border-t lg:border-t-0 lg:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] lg:min-h-0 overflow-y-auto mobile-scroll flex-shrink-0">
           {stage && mapDef ? (
             <>
               <div className="px-4 pt-4 pb-3 border-b border-[var(--accent-26)]">

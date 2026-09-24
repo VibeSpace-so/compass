@@ -334,6 +334,51 @@ narrated claims. Two consequences for testing:
   first view; look for the "tailored" badge + project-name-bearing copy. Cache is
   localStorage `vibe-compass-map-guidance-{projectId}` — reload and reopen to verify
   instant enhanced render. Needs an active BYOK provider (AI Gateway works; Groq 429s).
+- `enhanceStageGuidance` is cache-first since 0500a48 — pills re-flag ONLY on the
+  first generic→enhanced transition, not every open. Verify: clear-all → reload →
+  reopen → expect 0 pills → select a never-enhanced stage → re-flags once.
+- Unread "!" pills sit on each risk/flag marker until viewed (hover or click
+  marks read, `vibe-compass-map-read-{id}`); header "N unread — clear" resets.
+  Marker ids hash the tooltip copy, so an AI-tailored rewrite re-flags as new.
+- Stage names are country-label <text> on the landmass (no blobs since f49b74e);
+  an invisible `closedBlobPath(pointerEvents="fill")` is the click target —
+  dead-center name clicks work. Milestone flags sit at trail-segment midpoints
+  (flagSpot, z-10) — a click near the trail can hit the flag instead of the name.
+- Markers are ~16-26px buttons (flags w-4, skull w-6, warn w-5) — hard to click
+  at 100%. Zoom to 125%+, or dispatch
+  `btn.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}))` via devtools and
+  screenshot — the tooltip renders regardless. Danger = round red skull badge,
+  warn = yellow triangle; hazards sit ~68-80px OFF-trail alternating sides
+  (riskSpot); 6 POI landmarks are icon-only (name + detail in the tooltip).
+- Trails are Catmull-Rom <path>s (smoothPath; curvePoint/curveNormal place
+  markers). Zoom 0.4–2.5 via +/%/− + Ctrl/Cmd-wheel, two-finger pinch on touch
+  (touchAction pan-x pan-y); open fits the whole continent (≤1.5) or 0.7
+  phone-centered on the current stage, "%" re-fits. Below lg the detail panel
+  stacks under the map. Pan = overflow scroll (wheel/touch; NOT mouse drag);
+  the 1000×620 layer scales while tooltip/compass/zoom UI stay unscaled.
+- COORDINATE SCALING: display 1600×1200 real, screenshots 1024×768 (×0.64 both
+  axes), DOM viewport 1600×1069 (~131px browser chrome above it). DOM rect →
+  screenshot click: `ssx = vx*0.64`, `ssy = (vy+131)*0.64`. When a click "does
+  nothing", query the rect and compute this — ±15px drift on 26px targets (zoom
+  controls, marker pills) is the usual miss cause, not a bug. Zoom "+" sits ~17px
+  above "%" reset — a few px low lands on reset.
+- Geography anatomy (PR #62): one MAP_LANDMASS coastline (terrain dots clipPath'd
+  inside = clean sea), 3 MAP_BORDERS dashed division lines, 4 faded region labels
+  inside zones (IDEATION FLATS, VALIDATION TERRITORY, BUILD HIGHLANDS, SCALE
+  FRONTIER). Watch: trail can cut through name letterforms (GitHub/Hosting);
+  underline (name y+13) vs "· passed ·" (y+16) stack ~3px apart on past+selected.
+- MULTI-RESOLUTION SWEEP (PR #62): Playwright attaches to Chrome via CDP at
+  http://localhost:29229 and emulates sizes with
+  `Emulation.setDeviceMetricsOverride` — but the fit-zoom effect only runs on
+  overlay mount, so RELOAD the page after each resize (toggling metrics alone
+  won't re-fit). Reload also unmounts the overlay: reopen it per size. On ≤640px
+  the "map" button lives in the Context sidebar — press Control+b, then click the
+  hidden-but-mounted element via `el.click()` JS dispatch (Playwright's locator
+  click fails on it). Assert `scrollWidth <= innerWidth` for overflow, read the
+  zoom label for fit. Reference results: 375×812→70% (stage-centered),
+  768×1024→71% whole-continent (lg breakpoint stacks panel below map),
+  1024×768→66%, 1366×768→100%, 1920×1080→150% — every size must be legible
+  without manual zoom; anything needing a manual zoom-to-read is a layout bug.
 
 ### Perplexity test-connection status is not reflected in the badge
 
