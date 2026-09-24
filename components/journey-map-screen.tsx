@@ -516,6 +516,10 @@ export default function JourneyMapScreen({
                       letterSpacing="3.5"
                       fill="var(--accent)"
                       fillOpacity={isCurrent ? 1 : isPast ? 0.72 : 0.42}
+                      stroke="#050a05"
+                      strokeWidth="5"
+                      paintOrder="stroke"
+                      strokeOpacity="0.85"
                       fontFamily={MAP_FONT}
                     >
                       {label}

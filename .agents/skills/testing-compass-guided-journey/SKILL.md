@@ -334,6 +334,28 @@ narrated claims. Two consequences for testing:
   first view; look for the "tailored" badge + project-name-bearing copy. Cache is
   localStorage `vibe-compass-map-guidance-{projectId}` — reload and reopen to verify
   instant enhanced render. Needs an active BYOK provider (AI Gateway works; Groq 429s).
+- `enhanceStageGuidance` is cache-first since 0500a48 — pills re-flag ONLY on the
+  first generic→enhanced transition, not every open. Verify: clear-all → reload →
+  reopen → expect 0 pills → select a never-enhanced stage → re-flags once.
+- Stage names are country-label <text> on the landmass (no blobs since f49b74e);
+  an invisible `closedBlobPath(pointerEvents="fill")` is the click target —
+  dead-center name clicks work. Milestone flags sit beside names (z-10) — a
+  left-edge click can hit the flag instead of the name.
+- Markers are ~16-26px buttons (flags w-4, skull w-6, warn w-5) — hard to click
+  at 100%. Zoom to 125%+, or dispatch
+  `btn.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}))` via devtools and
+  screenshot — the tooltip renders regardless.
+- COORDINATE SCALING: display 1600×1200 real, screenshots 1024×768 (×0.64 both
+  axes), DOM viewport 1600×1069 (~131px browser chrome above it). DOM rect →
+  screenshot click: `ssx = vx*0.64`, `ssy = (vy+131)*0.64`. When a click "does
+  nothing", query the rect and compute this — ±15px drift on 26px targets (zoom
+  controls, marker pills) is the usual miss cause, not a bug. Zoom "+" sits ~17px
+  above "%" reset — a few px low lands on reset.
+- Geography anatomy (PR #62): one MAP_LANDMASS coastline (terrain dots clipPath'd
+  inside = clean sea), 3 MAP_BORDERS dashed division lines, 4 faded region labels
+  inside zones (IDEATION FLATS, VALIDATION TERRITORY, BUILD HIGHLANDS, SCALE
+  FRONTIER). Watch: trail can cut through name letterforms (GitHub/Hosting);
+  underline (name y+13) vs "· passed ·" (y+16) stack ~3px apart on past+selected.
 
 ### Perplexity test-connection status is not reflected in the badge
 
