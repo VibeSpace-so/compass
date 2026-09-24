@@ -372,6 +372,15 @@ narrated claims. Two consequences for testing:
   `Emulation.setDeviceMetricsOverride` — but the fit-zoom effect only runs on
   overlay mount, so RELOAD the page after each resize (toggling metrics alone
   won't re-fit). Reload also unmounts the overlay: reopen it per size. On ≤640px
+- No-Playwright CDP recipe (PR #66): the Chrome window HARD-CLAMPS at ~532px so
+  wmctrl can't give true 375 — and 1920 > 1600 display. Fix: python
+  `websocket-client` to the page target's webSocketDebuggerUrl from
+  http://localhost:29229/json with `suppress_origin=True` (else 403), then
+  `Emulation.setDeviceMetricsOverride{width,height,deviceScaleFactor,mobile}`
+  + `Page.reload`. `Page.captureScreenshot` grabs the full emulated viewport
+  even when the window can't show it (1920 evidence). Clear with
+  `Emulation.clearDeviceMetricsOverride`. Under mobile:true, taps/clicks still
+  work via computer tool on the emulated viewport.
   the "map" button lives in the Context sidebar — press Control+b, then click the
   hidden-but-mounted element via `el.click()` JS dispatch (Playwright's locator
   click fails on it). Assert `scrollWidth <= innerWidth` for overflow, read the
