@@ -337,7 +337,7 @@ export const MAP_SEA_LABELS: {
 }[] = [
   { label: "THE UNVALIDATED DEEP", x: 455, y: 36 },
   { label: "DAYDREAM BAY", x: 98, y: 128, rotate: -43 },
-  { label: "SEA OF ASSUMPTIONS", x: 200, y: 592 },
+  { label: "SEA OF ASSUMPTIONS", x: 255, y: 592 },
   { label: "BAY OF ITERATIONS", x: 825, y: 597 },
 ];
 
@@ -364,10 +364,10 @@ export interface MapRegion {
 
 // Label anchors inside each zone of the shared landmass.
 export const MAP_REGIONS: MapRegion[] = [
-  { label: "IDEATION FLATS", x: 150, y: 505, rx: 165, ry: 110, rotate: -8, seed: 1 },
+  { label: "IDEATION FLATS", x: 180, y: 500, rx: 165, ry: 110, rotate: -8, seed: 1 },
   { label: "VALIDATION TERRITORY", x: 510, y: 240, rx: 205, ry: 125, rotate: -4, seed: 7 },
   { label: "BUILD HIGHLANDS", x: 800, y: 122, rx: 118, ry: 108, rotate: 8, seed: 13 },
-  { label: "SCALE FRONTIER", x: 858, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },
+  { label: "SCALE FRONTIER", x: 845, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },
 ];
 
 /** Per-stage territory: a small blob sized to its name, country-style. */

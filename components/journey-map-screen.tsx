@@ -617,7 +617,7 @@ export default function JourneyMapScreen({
                   fontStyle="italic"
                   letterSpacing="5"
                   fill="var(--accent)"
-                  fillOpacity="0.13"
+                  fillOpacity="0.17"
                   fontFamily={MAP_FONT}
                 >
                   {s.label}
@@ -635,7 +635,7 @@ export default function JourneyMapScreen({
                   fontStyle="italic"
                   letterSpacing="7"
                   fill="var(--accent)"
-                  fillOpacity="0.16"
+                  fillOpacity="0.19"
                   fontFamily={MAP_FONT}
                 >
                   {r.label}
@@ -1006,16 +1006,16 @@ export default function JourneyMapScreen({
             className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg border border-[var(--accent-26)] bg-black/80 px-2.5 py-2 text-[9px] uppercase tracking-wider text-[var(--text-muted)]"
             style={{ fontFamily: MAP_FONT }}
           >
-            <span className="flex items-center gap-1.5">
+            <span className="hidden sm:flex items-center gap-1.5">
               <Flag className="w-3 h-3 text-emerald-400" /> milestone
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="hidden sm:flex items-center gap-1.5">
               <Skull className="w-3 h-3 text-red-300" /> hazard
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="hidden sm:flex items-center gap-1.5">
               <AlertTriangle className="w-3 h-3 text-yellow-400" /> warning
             </span>
-            <span className="flex items-center gap-1.5 border-t border-[var(--accent-26)] pt-1 mt-0.5 text-[var(--text-muted)]/70 normal-case tracking-normal">
+            <span className="flex items-center gap-1.5 sm:border-t sm:border-[var(--accent-26)] sm:pt-1 sm:mt-0.5 text-[var(--text-muted)]/70 normal-case tracking-normal">
               drag to pan · pinch or ctrl+scroll
             </span>
           </div>
