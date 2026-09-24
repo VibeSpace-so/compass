@@ -36,6 +36,7 @@ import {
   MAP_LAKE,
   MAP_LANDMASS,
   MAP_POIS,
+  MAP_SEA_LABELS,
   MAP_STREAMS,
   MAP_REGIONS,
   MAP_STAGES,
@@ -507,6 +508,19 @@ export default function JourneyMapScreen({
                 filter="url(#mapInk)"
               />
 
+              {/* Beach stipple — a dotted echo just inside the shoreline */}
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.13"
+                strokeWidth="1.5"
+                strokeDasharray="1 8"
+                strokeLinecap="round"
+                transform="translate(500 310) scale(0.965) translate(-500 -310)"
+                filter="url(#mapInk)"
+              />
+
               {/* Islands offshore */}
               {MAP_ISLANDS.map((isle, i) => (
                 <path
@@ -541,7 +555,6 @@ export default function JourneyMapScreen({
                 filter="url(#mapInk)"
               />
 
-              {/* Mirror Lake + its streams — still water in the territory */}
               <path
                 d={closedBlobPath(MAP_LAKE)}
                 fill="var(--accent)"
@@ -563,6 +576,19 @@ export default function JourneyMapScreen({
                   <path key={i} d={d} />
                 ))}
               </g>
+              <text
+                x={MAP_LAKE.x}
+                y={MAP_LAKE.y + 3}
+                textAnchor="middle"
+                fontSize="8"
+                fontStyle="italic"
+                letterSpacing="2.5"
+                fill="var(--accent)"
+                fillOpacity="0.24"
+                fontFamily={MAP_FONT}
+              >
+                MIRROR LAKE
+              </text>
 
               {/* Internal border division lines between the regions */}
               <g
@@ -578,6 +604,24 @@ export default function JourneyMapScreen({
                   <path key={i} d={d} />
                 ))}
               </g>
+
+              {/* Named waters — italic labels in the sea band */}
+              {MAP_SEA_LABELS.map((s) => (
+                <text
+                  key={s.label}
+                  x={s.x}
+                  y={s.y}
+                  textAnchor="middle"
+                  fontSize="10.5"
+                  fontStyle="italic"
+                  letterSpacing="5"
+                  fill="var(--accent)"
+                  fillOpacity="0.13"
+                  fontFamily={MAP_FONT}
+                >
+                  {s.label}
+                </text>
+              ))}
 
               {/* Region labels inside their zone of the shared landmass */}
               {MAP_REGIONS.map((r) => (
@@ -622,6 +666,10 @@ export default function JourneyMapScreen({
                 <path d="M 882,540 q 8,-9 16,0 M 904,547 q 7,-8 14,0 M 480,542 q 7,-7 14,0 M 520,538 q 6,-6 12,0" />
                 {/* Cliff hatching along the SE + east coast */}
                 <path d="M 952,396 l -11,-7 M 944,452 l -11,-5 M 925,500 l -11,-4 M 892,538 l -10,-5 M 856,560 l -9,-5 M 970,282 l -9,-7 M 966,330 l -10,-6" opacity="0.8" />
+                {/* marsh reeds where the lake outlet meets the sea */}
+                <path d="M 560,535 v -7 M 560,530 l -3,-3 M 560,531 l 3,-3 M 575,548 v -6 M 575,544 l -3,-3 M 522,545 v -6 M 522,541 l 3,-3" />
+                {/* a small serpent in the west sea */}
+                <path d="M 26,470 q 4,-7 8,0 q 4,7 8,0 M 41,466 c 1,-4 4,-5 6,-3" />
                 {/* sea marks outside the coast */}
                 <path d="M 30,150 q 6,-5 12,0 q 6,5 12,0 M 46,165 q 6,-5 12,0 q 6,5 12,0" />
                 <path d="M 28,205 q 5,-4 10,0 q 5,4 10,0 M 34,425 q 5,-4 10,0 q 5,4 10,0" />
@@ -734,6 +782,13 @@ export default function JourneyMapScreen({
                   stroke="var(--accent)"
                   strokeWidth="0.7"
                 />
+                <path
+                  d="M0,-12 L2,-2 L12,0 L2,2 L0,12 L-2,2 L-12,0 L-2,-2 Z"
+                  transform="rotate(45) scale(0.6)"
+                  fill="rgba(0,0,0,0)"
+                  stroke="var(--accent)"
+                  strokeWidth="1.2"
+                />
                 <path d="M0,-25 L4,-4 L0,0 L-4,-4 Z" fill="var(--accent)" />
                 <text y="-32" textAnchor="middle" fontSize="10" fill="var(--accent)" fontFamily={MAP_FONT}>
                   N
@@ -749,7 +804,39 @@ export default function JourneyMapScreen({
                   strokeWidth="2.2"
                   strokeOpacity="0.5"
                 />
+                {/* graticule ticks along the frame edges */}
+                {Array.from({ length: 10 }, (_, i) => 100 + i * 90).map((x) => (
+                  <path key={`tx${x}`} d={`M ${x},9 v 4 M ${x},611 v -4`} strokeWidth="0.7" strokeOpacity="0.3" />
+                ))}
+                {Array.from({ length: 6 }, (_, i) => 100 + i * 90).map((y) => (
+                  <path key={`ty${y}`} d={`M 9,${y} h 4 M 991,${y} h -4`} strokeWidth="0.7" strokeOpacity="0.3" />
+                ))}
               </g>
+
+              {/* Scale bar — map furniture in the south sea */}
+              <g
+                fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.32"
+                strokeWidth="1"
+                strokeLinecap="round"
+                filter="url(#mapInk)"
+              >
+                <path d="M 390,598 h 110 M 390,594 v 8 M 445,596 v 6 M 500,594 v 8" />
+              </g>
+              <text
+                x="445"
+                y="589"
+                textAnchor="middle"
+                fontSize="7.5"
+                fontStyle="italic"
+                letterSpacing="1.5"
+                fill="var(--accent)"
+                fillOpacity="0.24"
+                fontFamily={MAP_FONT}
+              >
+                ~ 200 leagues
+              </text>
             </svg>
 
 

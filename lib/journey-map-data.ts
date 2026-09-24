@@ -327,6 +327,14 @@ export const MAP_STREAMS = [
   "M 545,512 C 540,532 530,550 534,568",
 ];
 
+// Named waters — italic labels in the sea band, map flavor that still names
+// the journey's real hazards.
+export const MAP_SEA_LABELS = [
+  { label: "THE UNVALIDATED DEEP", x: 455, y: 36 },
+  { label: "SEA OF ASSUMPTIONS", x: 200, y: 592 },
+  { label: "BAY OF ITERATIONS", x: 865, y: 597 },
+];
+
 // Border division lines between the regions sharing the landmass — west
 // (Flats | Validation), east (Validation | Highlands+Frontier), and the
 // south-east branch (Highlands | Frontier).
