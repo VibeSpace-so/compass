@@ -222,13 +222,28 @@ export default function JourneyMapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readKey]);
 
-  // Open centered on the current stage so the map starts where you are. On
-  // narrow screens the initial zoom fits the canvas width so it stays readable.
+  // The zoom the map should open at: fit the whole continent when there's
+  // room, readable-and-centered on the current stage when there isn't.
+  const initialZoom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return 1;
+    const fit = Math.min(
+      (el.clientWidth - 16) / BASE_W,
+      (el.clientHeight - 16) / BASE_H
+    );
+    return fit < 0.55 ? 0.7 : Math.min(1.5, Math.max(0.55, fit));
+  }, []);
+
+  // Initial zoom: on desktop/laptop, fit the whole continent in the visible
+  // area; on phones, prefer readable text and center on the current stage.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !mounted) return;
-    const z = el.clientWidth < 700 ? Math.min(1, Math.max(0.7, el.clientWidth / BASE_W)) : 1;
+    const z = initialZoom();
     setZoom(z);
+    // Fit zoom → whole map visible, m-auto centers it; otherwise center on
+    // the current stage so the map opens where you are.
+    if (z !== 0.7) return;
     const def = MAP_STAGES[currentIdx];
     if (!def) return;
     requestAnimationFrame(() => {
@@ -421,9 +436,9 @@ export default function JourneyMapScreen({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Map canvas — scroll/pan via overflow, zoom via scaled layer */}
-        <div className="flex-1 min-h-[300px] sm:min-h-0 relative">
+        <div className="flex-1 min-h-[300px] lg:min-h-0 relative">
           <div
             ref={scrollRef}
             className="absolute inset-0 overflow-auto mobile-scroll flex"
@@ -852,9 +867,9 @@ export default function JourneyMapScreen({
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setZoom(1)}
+              onClick={() => setZoom(initialZoom())}
               className="px-1 py-0.5 rounded text-[9px] tabular-nums text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-              title="Reset zoom"
+              title="Fit map to view"
             >
               {Math.round(zoom * 100)}%
             </button>
@@ -869,7 +884,7 @@ export default function JourneyMapScreen({
         </div>
 
         {/* Detail panel */}
-        <div className="w-full sm:w-[340px] max-h-[45vh] sm:max-h-none border-t sm:border-t-0 sm:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] sm:min-h-0 overflow-y-auto mobile-scroll flex-shrink-0">
+        <div className="w-full lg:w-[340px] max-h-[45vh] lg:max-h-none border-t lg:border-t-0 lg:border-l border-[var(--accent-26)] bg-black/60 backdrop-blur-sm flex flex-col min-h-[240px] lg:min-h-0 overflow-y-auto mobile-scroll flex-shrink-0">
           {stage && mapDef ? (
             <>
               <div className="px-4 pt-4 pb-3 border-b border-[var(--accent-26)]">
