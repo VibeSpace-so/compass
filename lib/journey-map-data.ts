@@ -323,7 +323,7 @@ export interface MapRegion {
 
 // Label anchors inside each zone of the shared landmass.
 export const MAP_REGIONS: MapRegion[] = [
-  { label: "IDEATION FLATS", x: 168, y: 335, rx: 165, ry: 110, rotate: -8, seed: 1 },
+  { label: "IDEATION FLATS", x: 150, y: 505, rx: 165, ry: 110, rotate: -8, seed: 1 },
   { label: "VALIDATION TERRITORY", x: 505, y: 345, rx: 205, ry: 125, rotate: -4, seed: 7 },
   { label: "BUILD HIGHLANDS", x: 800, y: 122, rx: 118, ry: 108, rotate: 8, seed: 13 },
   { label: "SCALE FRONTIER", x: 858, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },

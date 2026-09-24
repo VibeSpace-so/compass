@@ -219,6 +219,19 @@ export default function JourneyMapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readKey]);
 
+  // Open centered on the current stage so the map starts where you are.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const def = MAP_STAGES[currentIdx];
+    if (!def) return;
+    el.scrollTo({
+      left: def.x * zoom - el.clientWidth / 2,
+      top: def.y * zoom - el.clientHeight / 2,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
   // Ctrl/Cmd + wheel zooms (non-passive so preventDefault works).
   useEffect(() => {
     const el = scrollRef.current;
@@ -409,6 +422,14 @@ export default function JourneyMapScreen({
               <path
                 d={MAP_LANDMASS}
                 fill="none"
+                stroke="var(--accent)"
+                strokeOpacity="0.09"
+                strokeWidth="7"
+                strokeLinejoin="round"
+              />
+              <path
+                d={MAP_LANDMASS}
+                fill="none"
                 stroke="var(--accent-44)"
                 strokeOpacity="0.5"
                 strokeWidth="1.6"
@@ -462,6 +483,11 @@ export default function JourneyMapScreen({
                 <path d="M 835,112 l 13,-21 l 13,21 M 857,116 l 10,-16 l 10,16 M 875,109 l 12,-19 l 12,19 M 905,114 l 9,-14 l 9,14" />
                 <path d="M 215,540 l 6,-14 l 6,14 z M 221,540 v 6 M 240,552 l 5,-12 l 5,12 z M 245,552 v 6 M 264,537 l 6,-15 l 6,15 z M 270,537 v 7" />
                 <path d="M 882,548 q 8,-9 16,0 M 904,555 q 7,-8 14,0" />
+                {/* sea marks outside the coast */}
+                <path d="M 30,150 q 6,-5 12,0 q 6,5 12,0 M 46,165 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 60,585 q 6,-5 12,0 q 6,5 12,0 M 78,598 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 930,50 q 6,-5 12,0 q 6,5 12,0 M 950,62 q 6,-5 12,0 q 6,5 12,0" />
+                <path d="M 960,590 q 5,-4 10,0 q 5,4 10,0" />
               </g>
 
               {/* Visited trail */}
@@ -475,7 +501,9 @@ export default function JourneyMapScreen({
                 strokeLinejoin="round"
                 opacity="0.6"
                 filter="url(#mapInk)"
-              />
+              >
+                <animate attributeName="stroke-dashoffset" from="0" to="-15" dur="1.6s" repeatCount="indefinite" />
+              </path>
               {/* Unvisited trail */}
               <path
                 d={futurePath}
@@ -747,6 +775,25 @@ export default function JourneyMapScreen({
             >
               → {targetStage?.label ?? "Stay"}
             </div>
+          </div>
+
+          {/* Map legend */}
+          <div
+            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg border border-[var(--accent-26)] bg-black/80 px-2.5 py-2 text-[9px] uppercase tracking-wider text-[var(--text-muted)]"
+            style={{ fontFamily: MAP_FONT }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Flag className="w-3 h-3 text-emerald-400" /> milestone
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Skull className="w-3 h-3 text-red-300" /> hazard
+            </span>
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 text-yellow-400" /> warning
+            </span>
+            <span className="flex items-center gap-1.5 border-t border-[var(--accent-26)] pt-1 mt-0.5 text-[var(--text-muted)]/70 normal-case tracking-normal">
+              drag to pan · ctrl+scroll to zoom
+            </span>
           </div>
 
           {/* Zoom controls */}
