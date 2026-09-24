@@ -299,14 +299,14 @@ export const MAP_POIS: MapPoi[] = [
 // Bays and headlands give the shore real geography; internal borders divide
 // it into the four named zones.
 export const MAP_LANDMASS =
-  "M 80,112 C 150,52 250,46 335,58 C 395,64 425,50 480,56 C 515,60 535,70 575,64 C 670,52 760,48 838,60 C 915,68 968,108 962,175 C 957,225 978,262 968,325 C 960,378 976,432 948,488 C 920,545 838,568 728,573 C 628,579 528,570 432,577 C 335,584 258,562 192,561 C 122,558 70,512 60,432 C 54,368 42,315 52,255 C 58,205 42,168 80,112 Z";
+  "M 62,178 C 78,148 92,132 115,120 C 132,110 150,90 170,68 C 195,54 245,48 335,58 C 395,64 425,50 480,56 C 515,60 535,70 575,64 C 670,52 760,48 838,60 C 915,68 968,108 962,175 C 957,225 978,262 968,325 C 960,378 976,432 948,488 C 962,518 984,540 972,570 C 965,592 945,600 912,594 C 865,585 800,578 728,573 C 628,579 528,570 432,577 C 335,584 258,562 192,561 C 122,558 70,512 60,432 C 54,368 42,315 52,255 C 55,215 56,195 62,178 Z";
 
 // Small islands offshore — archipelago dressing in the sea band.
 export const MAP_ISLANDS: MapRegion[] = [
   { label: "", x: 42, y: 82, rx: 9, ry: 6, rotate: -12, seed: 5 },
   { label: "", x: 27, y: 295, rx: 8, ry: 6, rotate: 15, seed: 9 },
-  { label: "", x: 735, y: 600, rx: 10, ry: 6, rotate: -6, seed: 15 },
-  { label: "", x: 770, y: 597, rx: 6, ry: 4, rotate: 10, seed: 19 },
+  { label: "", x: 85, y: 52, rx: 10, ry: 6, rotate: -6, seed: 15 },
+  { label: "", x: 118, y: 47, rx: 6, ry: 4, rotate: 10, seed: 19 },
 ];
 
 // Mirror Lake in Validation Territory — the still water evidence flows into.
@@ -329,10 +329,16 @@ export const MAP_STREAMS = [
 
 // Named waters — italic labels in the sea band, map flavor that still names
 // the journey's real hazards.
-export const MAP_SEA_LABELS = [
+export const MAP_SEA_LABELS: {
+  label: string;
+  x: number;
+  y: number;
+  rotate?: number;
+}[] = [
   { label: "THE UNVALIDATED DEEP", x: 455, y: 36 },
+  { label: "DAYDREAM BAY", x: 105, y: 105, rotate: -43 },
   { label: "SEA OF ASSUMPTIONS", x: 200, y: 592 },
-  { label: "BAY OF ITERATIONS", x: 865, y: 597 },
+  { label: "BAY OF ITERATIONS", x: 825, y: 597 },
 ];
 
 // Border division lines between the regions sharing the landmass — west

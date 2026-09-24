@@ -612,6 +612,7 @@ export default function JourneyMapScreen({
                   x={s.x}
                   y={s.y}
                   textAnchor="middle"
+                  transform={s.rotate ? `rotate(${s.rotate} ${s.x} ${s.y})` : undefined}
                   fontSize="10.5"
                   fontStyle="italic"
                   letterSpacing="5"
