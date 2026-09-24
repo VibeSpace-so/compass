@@ -89,23 +89,26 @@ function hashStr(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-/** Hazards sit OFF the trail, alternating sides — things to steer around. */
+/** Hazards sit well OFF the trail, alternating sides — things to steer around.
+    Placed at 30% / 52% / 74% along the incoming segment so they stay clear of
+    the midpoint flag and both endpoint labels, then pushed ~72px off-path. */
 function riskSpot(stageIdx: number, riskIdx: number) {
   const node = MAP_STAGES[stageIdx];
-  if (stageIdx === 0) return { x: node.x + 56 + riskIdx * 40, y: node.y - 52 };
+  if (stageIdx === 0) return { x: node.x + 62 + riskIdx * 46, y: node.y - 60 };
   const segs = MAP_STAGES.length - 1;
-  const t = (stageIdx - 1 + 0.45 + riskIdx * 0.22) / segs;
+  const t = (stageIdx - 1 + 0.3 + riskIdx * 0.22) / segs;
   const on = curvePoint(MAP_STAGES, t);
   const n = curveNormal(MAP_STAGES, t);
   const side = riskIdx % 2 === 0 ? 1 : -1;
-  const off = 44 + riskIdx * 12;
+  const off = 68 + riskIdx * 6;
   return { x: on.x + n.x * off * side, y: on.y + n.y * off * side };
 }
 
-/** Milestone flags are planted ON the trail just before the stage's node. */
+/** Milestone flags are planted ON the trail at each segment's midpoint —
+    halfway between two stage names, so they never touch a label. */
 function flagSpot(stageIdx: number) {
   const segs = MAP_STAGES.length - 1;
-  const t = stageIdx === 0 ? 0.06 / segs : (stageIdx - 0.13) / segs;
+  const t = stageIdx === 0 ? 0.5 / segs : (stageIdx - 0.5) / segs;
   return curvePoint(MAP_STAGES, t);
 }
 
@@ -219,15 +222,20 @@ export default function JourneyMapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readKey]);
 
-  // Open centered on the current stage so the map starts where you are.
+  // Open centered on the current stage so the map starts where you are. On
+  // narrow screens the initial zoom fits the canvas width so it stays readable.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !mounted) return;
+    const z = el.clientWidth < 700 ? Math.min(1, Math.max(0.7, el.clientWidth / BASE_W)) : 1;
+    setZoom(z);
     const def = MAP_STAGES[currentIdx];
     if (!def) return;
-    el.scrollTo({
-      left: def.x * zoom - el.clientWidth / 2,
-      top: def.y * zoom - el.clientHeight / 2,
+    requestAnimationFrame(() => {
+      el.scrollTo({
+        left: def.x * z - el.clientWidth / 2,
+        top: def.y * z - el.clientHeight / 2,
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
@@ -239,10 +247,50 @@ export default function JourneyMapScreen({
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => Math.min(2.5, Math.max(0.6, z * (e.deltaY < 0 ? 1.12 : 0.9))));
+      setZoom((z) => Math.min(2.5, Math.max(0.4, z * (e.deltaY < 0 ? 1.12 : 0.9))));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
+  }, [mounted]);
+
+  // Two-finger pinch zoom on touch devices.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    const pts = new Map<number, { x: number; y: number }>();
+    let lastDist = 0;
+    const dist = () => {
+      const [a, b] = [...pts.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const d = dist();
+        if (lastDist > 0) {
+          setZoom((z) => Math.min(2.5, Math.max(0.4, z * (d / lastDist))));
+        }
+        lastDist = d;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) lastDist = 0;
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
   }, [mounted]);
 
   const hasValidationEvidence = memories.some((m) =>
@@ -345,7 +393,7 @@ export default function JourneyMapScreen({
             <h2 className="text-sm font-medium text-[var(--accent)] truncate">
               Journey Map — {project.name}
             </h2>
-            <p className="text-[10px] text-[var(--text-muted)]">
+            <p className="text-[10px] text-[var(--text-muted)] hidden sm:block">
               The compass points to your next move. Hover the warning signs — they&apos;re real risks.
             </p>
           </div>
@@ -376,7 +424,11 @@ export default function JourneyMapScreen({
       <div className="flex-1 flex flex-col sm:flex-row min-h-0">
         {/* Map canvas — scroll/pan via overflow, zoom via scaled layer */}
         <div className="flex-1 min-h-[300px] sm:min-h-0 relative">
-          <div ref={scrollRef} className="absolute inset-0 overflow-auto mobile-scroll flex">
+          <div
+            ref={scrollRef}
+            className="absolute inset-0 overflow-auto mobile-scroll flex"
+            style={{ touchAction: "pan-x pan-y" }}
+          >
             {/* m-auto centers when smaller, scrolls when larger */}
             <div
               className="m-auto relative flex-shrink-0"
@@ -631,12 +683,6 @@ export default function JourneyMapScreen({
                   <span className="w-5 h-5 rounded-md bg-black/70 border border-[var(--accent-26)] flex items-center justify-center group-hover:border-[var(--accent-44)] transition-colors">
                     <Icon className="w-3 h-3 text-[var(--text-muted)]" />
                   </span>
-                  <span
-                    className="mt-0.5 text-[8px] uppercase tracking-wider text-[var(--text-muted)] bg-black/60 px-1 rounded whitespace-nowrap"
-                    style={{ fontFamily: MAP_FONT }}
-                  >
-                    {poi.label}
-                  </span>
                 </button>
               );
             })}
@@ -792,7 +838,7 @@ export default function JourneyMapScreen({
               <AlertTriangle className="w-3 h-3 text-yellow-400" /> warning
             </span>
             <span className="flex items-center gap-1.5 border-t border-[var(--accent-26)] pt-1 mt-0.5 text-[var(--text-muted)]/70 normal-case tracking-normal">
-              drag to pan · ctrl+scroll to zoom
+              drag to pan · pinch or ctrl+scroll
             </span>
           </div>
 
@@ -813,7 +859,7 @@ export default function JourneyMapScreen({
               {Math.round(zoom * 100)}%
             </button>
             <button
-              onClick={() => setZoom((z) => Math.max(0.6, z * 0.8))}
+              onClick={() => setZoom((z) => Math.max(0.4, z * 0.8))}
               className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent-10)] transition-colors"
               title="Zoom out"
             >

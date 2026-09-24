@@ -252,8 +252,8 @@ export interface MapPoi {
 
 export const MAP_POIS: MapPoi[] = [
   {
-    x: 140,
-    y: 368,
+    x: 128,
+    y: 398,
     label: "Camp Zero",
     detail: "Where every journey starts: a hunch, a blank repo, and someone in pain you haven't met yet.",
     icon: "tent",
@@ -266,8 +266,8 @@ export const MAP_POIS: MapPoi[] = [
     icon: "trees",
   },
   {
-    x: 415,
-    y: 385,
+    x: 405,
+    y: 472,
     label: "Validation Crossing",
     detail: "The only safe bridge into build territory. Cross with evidence — signups, replies, or objections.",
     icon: "bridge",
@@ -287,8 +287,8 @@ export const MAP_POIS: MapPoi[] = [
     icon: "wall",
   },
   {
-    x: 845,
-    y: 225,
+    x: 905,
+    y: 215,
     label: "Feedback Loop",
     detail: "Ship → announce → listen → repeat. The loop is the engine; a release without it teaches you nothing.",
     icon: "loop",
@@ -324,7 +324,7 @@ export interface MapRegion {
 // Label anchors inside each zone of the shared landmass.
 export const MAP_REGIONS: MapRegion[] = [
   { label: "IDEATION FLATS", x: 150, y: 505, rx: 165, ry: 110, rotate: -8, seed: 1 },
-  { label: "VALIDATION TERRITORY", x: 505, y: 345, rx: 205, ry: 125, rotate: -4, seed: 7 },
+  { label: "VALIDATION TERRITORY", x: 510, y: 240, rx: 205, ry: 125, rotate: -4, seed: 7 },
   { label: "BUILD HIGHLANDS", x: 800, y: 122, rx: 118, ry: 108, rotate: 8, seed: 13 },
   { label: "SCALE FRONTIER", x: 858, y: 514, rx: 88, ry: 105, rotate: -6, seed: 21 },
 ];
